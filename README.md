@@ -19,4 +19,4 @@ npm run compile
 # Сборка 
 npm run build
 ```
-![Star History Chart](https://stars.caarlos0.dev/gitbrou/minecraft-launcher.svg)
+![звездочки](https://stars.caarlos0.dev/gitbrou/minecraft-launcher.svg)
