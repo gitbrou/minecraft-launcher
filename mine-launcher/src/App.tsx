@@ -135,10 +135,12 @@ export function App() {
           <InstanceManager
             instances={instances}
             selectedInstance={selectedInstance}
+            activeUsername={accounts.find((a) => a.isActive)?.username || 'Steve'}
             onSelectInstance={setSelectedInstance}
             onCreateInstance={handleCreateInstance}
             onDeleteInstance={handleDeleteInstance}
             onOpenSettings={() => setIsSettingsOpen(true)}
+            onOpenModDownloader={() => setIsModDownloaderOpen(true)}
             logs={logs}
           />
 
