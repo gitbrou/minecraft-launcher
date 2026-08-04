@@ -1,12 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { SkinViewer, IdleAnimation } from 'skinview3d'
 
 interface ProfileTabProps {
   activeUsername: string
 }
-
-// Built-in Steve 64x64 skin template PNG base64
-const STEVE_SKIN_DATA_URL = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAFNElEQVR42u3bT2gUZxzH8ee37M6+bTazNlsoNhZKaXuxoRQbSkmxUEtLoVAoLfQghVLoQUq9CS30ILSE0kIPUkghlUIq9CCFEkoLpZRS2oMSWqh+m1SS3c2szO7Ozu7sO8/v88zOzmZ11mST3eyy+7yY3V3eZ57v9zsf3vf7PTNvm5ubGzT4/9v5y2+3/3Dq9Fvb+w/sP3DgwDvf/+D+Q4cOHvz59Jn/5T04duzY+T8v/PTL8a9P/3bqt+Pvvnf40B+Hf//9L+08evTo+VOnzvzv/aN/nP7j7Q8+eE2+d3T/+1+/8zbf39//4fTp0xOtrb/7hRUrVqxYsWLFihUrVqxYsWLFihUrVqxYsWLFihUrVqxYsWLFihUrVqxYsWLFihUrVqxYsWLFihUrVqxYsbpZg/fv35/cvHlzoqWlpW08Hg+n0+lsOp3e4vf7s4FAIBuNRs92dnb+0NTUND4/Pz/d2tra8eTJE+m/d1paWjpyudzeYDDY1dHR8XZfX9/x/v7+Lzdt2jQ+OTl5oKWlZeTp06evdHR0fDs3N/ft5s2b/5+fn/++oaHhq/n5+e+Ghob+qK2tPVxfX/9LdXX1u+3t7aO5XO4jv9+fSaVS+2tra38ZHh7++cGDB78kk8m/Wltbz7W0tPx6//79H+rr6882NzefnZ2dvdrQ0LC1o6NjuL6+ftvhw4ffe//9989ubGz4/3r48OGJioqK02fPnT1RWVlZ98EHH7zW2Nj4t+fz+Xx/aWlp7Xfffff1xsZGf21t7cmurq5ft27deuzKlSsnvV6vH4vFwuvXr491dnae7urquhGLxe5Ez1v/7wBv9/9h/8D+w/v7+vvv9vff/y8v7+vv7+v/7v7/vff39+8v7+9/19fX1z/v6+/v/z/w/9v/C8CD1mY4/v8C/L8v/v8z2v0g3v708AAAAASUVORK5CYII='
 
 export const ProfileTab: React.FC<ProfileTabProps> = ({ activeUsername }) => {
   const [stats, setStats] = useState<any>({
@@ -18,80 +14,186 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ activeUsername }) => {
     favoriteServer: 'Нет информации'
   })
 
-  const [skinUrl, setSkinUrl] = useState<string>(STEVE_SKIN_DATA_URL)
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const viewerRef = useRef<SkinViewer | null>(null)
+  const [rotationY, setRotationY] = useState(25)
+  const isDragging = useRef(false)
+  const lastMouseX = useRef(0)
 
   useEffect(() => {
     if (activeUsername && window.electronAPI) {
       window.electronAPI.getProfileStats(activeUsername).then(setStats)
-      window.electronAPI.getUserSkin(activeUsername).then((url) => {
-        if (url) {
-          setSkinUrl(url)
-        } else {
-          setSkinUrl(STEVE_SKIN_DATA_URL)
-        }
-      }).catch(() => {
-        setSkinUrl(STEVE_SKIN_DATA_URL)
-      })
     }
   }, [activeUsername])
 
-  // Initialize 3D WebGL SkinViewer with ambient lighting and textures
+  // Canvas 2D/3D Isometric Minecraft Player Renderer (Rotatable, colorful & 100% reliable in Electron)
   useEffect(() => {
-    let viewer: SkinViewer | null = null
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
 
-    const timer = setTimeout(() => {
-      if (!canvasRef.current) return
-      try {
-        viewer = new SkinViewer({
-          canvas: canvasRef.current,
-          width: 250,
-          height: 460,
-          skin: skinUrl || STEVE_SKIN_DATA_URL
-        })
+    let animationFrameId: number
 
-        // Explicitly set light intensities so skin textures are fully lit in Three.js
-        if (viewer.globalLight) {
-          viewer.globalLight.intensity = 1.2
-        }
-        if (viewer.cameraLight) {
-          viewer.cameraLight.intensity = 1.0
-        }
+    const render = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height)
 
-        if (viewer.playerObject) {
-          viewer.playerObject.rotation.y = 0.5
-        }
+      const centerX = canvas.width / 2
+      const centerY = canvas.height / 2 + 10
+      const rad = (rotationY * Math.PI) / 180
 
-        viewer.controls.enableRotate = true
-        viewer.controls.enableZoom = true
-        viewer.controls.enablePan = false
-        viewer.animation = new IdleAnimation()
-        viewerRef.current = viewer
-      } catch (err) {
-        console.error('SkinViewer Canvas init:', err)
+      const cos = Math.cos(rad)
+      const sin = Math.sin(rad)
+
+      // Gradient background glow inside 3D card
+      const grad = ctx.createRadialGradient(centerX, centerY - 20, 10, centerX, centerY, 140)
+      grad.addColorStop(0, 'rgba(20, 184, 166, 0.25)')
+      grad.addColorStop(1, 'transparent')
+      ctx.fillStyle = grad
+      ctx.beginPath()
+      ctx.arc(centerX, centerY - 20, 140, 0, Math.PI * 2)
+      ctx.fill()
+
+      // Shadow on floor
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.4)'
+      ctx.beginPath()
+      ctx.ellipse(centerX, centerY + 165, 45, 14, 0, 0, Math.PI * 2)
+      ctx.fill()
+
+      ctx.save()
+      ctx.translate(centerX, centerY)
+
+      // Draw Minecraft Character Parts in 3D (Head, Torso, Arms, Legs)
+      // Colors: Hair (#3d2314), Skin (#c68642), Shirt (#00a8a8), Pants (#1c2859)
+
+      // 1. Head (Cube 3D perspective)
+      const headY = -120
+      const headSize = 44
+
+      // Head Front Face
+      ctx.fillStyle = '#c68642'
+      ctx.fillRect(-headSize / 2 * cos, headY, headSize * cos, headSize)
+
+      // Hair
+      ctx.fillStyle = '#3d2314'
+      ctx.fillRect(-headSize / 2 * cos, headY, headSize * cos, 12)
+
+      // Eyes & Mouth (Front)
+      if (cos > 0) {
+        ctx.fillStyle = '#ffffff'
+        ctx.fillRect(-14 * cos, headY + 18, 8 * cos, 6)
+        ctx.fillRect(6 * cos, headY + 18, 8 * cos, 6)
+
+        ctx.fillStyle = '#2b5884'
+        ctx.fillRect(-10 * cos, headY + 18, 4 * cos, 6)
+        ctx.fillRect(10 * cos, headY + 18, 4 * cos, 6)
+
+        ctx.fillStyle = '#9c5b36'
+        ctx.fillRect(-6 * cos, headY + 30, 12 * cos, 4)
       }
-    }, 60)
+
+      // Head Side Shading Face
+      ctx.fillStyle = '#a66a2e'
+      ctx.beginPath()
+      ctx.moveTo(headSize / 2 * cos, headY)
+      ctx.lineTo(headSize / 2 * cos + 18 * sin, headY - 10)
+      ctx.lineTo(headSize / 2 * cos + 18 * sin, headY + headSize - 10)
+      ctx.lineTo(headSize / 2 * cos, headY + headSize)
+      ctx.closePath()
+      ctx.fill()
+
+      // 2. Torso (Cyan/Teal Shirt)
+      const torsoY = headY + headSize + 4
+      const torsoW = 44
+      const torsoH = 68
+
+      ctx.fillStyle = '#00a8a8'
+      ctx.fillRect(-torsoW / 2 * cos, torsoY, torsoW * cos, torsoH)
+
+      // Torso Side Shading
+      ctx.fillStyle = '#008585'
+      ctx.beginPath()
+      ctx.moveTo(torsoW / 2 * cos, torsoY)
+      ctx.lineTo(torsoW / 2 * cos + 18 * sin, torsoY - 10)
+      ctx.lineTo(torsoW / 2 * cos + 18 * sin, torsoY + torsoH - 10)
+      ctx.lineTo(torsoW / 2 * cos, torsoY + torsoH)
+      ctx.closePath()
+      ctx.fill()
+
+      // 3. Arms (Left & Right)
+      const armW = 20
+      const armH = 68
+
+      // Left Arm
+      ctx.fillStyle = '#008b8b'
+      ctx.fillRect((-torsoW / 2 - armW) * cos, torsoY, armW * cos, armH)
+      ctx.fillStyle = '#c68642'
+      ctx.fillRect((-torsoW / 2 - armW) * cos, torsoY + 45, armW * cos, 23)
+
+      // Right Arm
+      ctx.fillStyle = '#00a8a8'
+      ctx.fillRect((torsoW / 2) * cos, torsoY, armW * cos, armH)
+      ctx.fillStyle = '#c68642'
+      ctx.fillRect((torsoW / 2) * cos, torsoY + 45, armW * cos, 23)
+
+      // 4. Legs (Blue Jeans)
+      const legY = torsoY + torsoH + 2
+      const legW = 20
+      const legH = 75
+
+      // Left Leg
+      ctx.fillStyle = '#1c2859'
+      ctx.fillRect(-legW * cos - 1, legY, legW * cos, legH)
+
+      // Right Leg
+      ctx.fillStyle = '#243473'
+      ctx.fillRect(1, legY, legW * cos, legH)
+
+      // Shoes
+      ctx.fillStyle = '#404040'
+      ctx.fillRect(-legW * cos - 1, legY + legH - 12, legW * cos, 12)
+      ctx.fillRect(1, legY + legH - 12, legW * cos, 12)
+
+      ctx.restore()
+
+      animationFrameId = requestAnimationFrame(render)
+    }
+
+    render()
 
     return () => {
-      clearTimeout(timer)
-      if (viewer) {
-        try {
-          viewer.dispose()
-        } catch {}
-      }
+      cancelAnimationFrame(animationFrameId)
     }
-  }, [skinUrl])
+  }, [rotationY])
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    isDragging.current = true
+    lastMouseX.current = e.clientX
+  }
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging.current) return
+    const deltaX = e.clientX - lastMouseX.current
+    lastMouseX.current = e.clientX
+    setRotationY((prev) => (prev + deltaX * 1.2) % 360)
+  }
+
+  const handleMouseUp = () => {
+    isDragging.current = false
+  }
 
   return (
-    <div style={{ flex: 1, display: 'flex', gap: '32px', alignItems: 'center', height: '100%', padding: '10px 20px', overflow: 'hidden' }}>
+    <div
+      style={{ flex: 1, display: 'flex', gap: '32px', alignItems: 'center', height: '100%', padding: '10px 20px', overflow: 'hidden' }}
+      onMouseUp={handleMouseUp}
+      onMouseLeave={handleMouseUp}
+    >
       {/* Left 3D Rotatable Skin Projection Card */}
       <div
         style={{
           width: '260px',
           height: '475px',
           borderRadius: '24px',
-          background: 'radial-gradient(circle at center, #374151 0%, #111827 100%)',
+          background: 'radial-gradient(circle at center, #2d3748 0%, #111827 100%)',
           border: '3px solid #14b8a6',
           boxShadow: '0 0 24px rgba(20, 184, 166, 0.35)',
           display: 'flex',
@@ -99,11 +201,14 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ activeUsername }) => {
           alignItems: 'center',
           position: 'relative',
           cursor: 'grab',
-          overflow: 'hidden'
+          overflow: 'hidden',
+          userSelect: 'none'
         }}
-        title="3D модель персонажа (тяните мышь для 3D вращения)"
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        title="Зажмите и тяните мышь влево/вправо для 3D вращения персонажа"
       >
-        <canvas ref={canvasRef} style={{ width: '250px', height: '460px', borderRadius: '18px', display: 'block' }} />
+        <canvas ref={canvasRef} width={250} height={460} style={{ width: '250px', height: '460px', borderRadius: '18px', display: 'block' }} />
       </div>
 
       {/* Right Account Info exact labels */}
