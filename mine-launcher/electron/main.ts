@@ -612,18 +612,30 @@ function setupIpcHandlers() {
       textureUrl = textureUrl.replace('http://', 'https://')
     }
 
-    // Download PNG from Mojang textures server with standard browser User-Agent
-    const res = await fetch(textureUrl, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8'
-      }
-    })
+    // Download PNG from Mojang textures server using Node.js https module
+    const downloadImageBuffer = (url: string): Promise<Buffer> => {
+      return new Promise((resolve, reject) => {
+        https.get(url, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8'
+          }
+        }, (res) => {
+          if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+            return downloadImageBuffer(res.headers.location).then(resolve).catch(reject)
+          }
+          if (res.statusCode !== 200) {
+            return reject(new Error(`HTTP ${res.statusCode}`))
+          }
+          const chunks: Buffer[] = []
+          res.on('data', (chunk) => chunks.push(chunk))
+          res.on('end', () => resolve(Buffer.concat(chunks)))
+          res.on('error', reject)
+        }).on('error', reject)
+      })
+    }
 
-    if (!res.ok) throw new Error('Не удалось скачать скин с сервера Mojang')
-
-    const arrayBuffer = await res.arrayBuffer()
-    const buffer = Buffer.from(arrayBuffer)
+    const buffer = await downloadImageBuffer(textureUrl)
 
     if (!fs.existsSync(skinsDir)) {
       fs.mkdirSync(skinsDir, { recursive: true })
