@@ -69,22 +69,22 @@ let accounts = loadJsonData(accountsFile, [
 
 let instances = loadJsonData(instancesFile, [
   {
-    id: 'default-1',
-    name: '1.20.4',
-    version: '1.20.4',
+    id: 'default-1122',
+    name: '1.12.2',
+    version: '1.12.2',
     loader: 'vanilla',
     created: Date.now() - 100000,
-    lastPlayed: Date.now() - 50000,
+    lastPlayed: Date.now(),
     memoryMin: 1024,
     memoryMax: 4096
   },
   {
-    id: 'fabric-1',
-    name: '1.20.1',
-    version: '1.20.1',
-    loader: 'fabric',
-    created: Date.now() - 80000,
-    memoryMin: 2048,
+    id: 'default-1',
+    name: '1.20.4',
+    version: '1.20.4',
+    loader: 'vanilla',
+    created: Date.now() - 90000,
+    memoryMin: 1024,
     memoryMax: 4096
   }
 ])
