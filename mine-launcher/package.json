@@ -1,7 +1,13 @@
 {
   "name": "mine-launcher",
   "private": true,
-  "version": "0.0.1",
+  "version": "1.0.0",
+  "description": "Modern Minecraft Launcher built with Electron + React + TypeScript",
+  "author": {
+    "name": "gitbrou",
+    "email": "gitbrou@users.noreply.github.com"
+  },
+  "homepage": "https://github.com/gitbrou/minecraft-launcher",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -47,15 +53,11 @@
       "target": [
         {
           "target": "nsis",
-          "arch": [
-            "x64"
-          ]
+          "arch": ["x64"]
         },
         {
           "target": "portable",
-          "arch": [
-            "x64"
-          ]
+          "arch": ["x64"]
         }
       ],
       "signAndEditExecutable": false,
@@ -68,6 +70,27 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "Mine Launcher"
+    },
+    "linux": {
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": ["x64"]
+        }
+      ],
+      "category": "Game",
+      "maintainer": "gitbrou <gitbrou@users.noreply.github.com>",
+      "icon": "public/icon.png"
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": ["x64", "arm64"]
+        }
+      ],
+      "icon": "public/icon.png",
+      "category": "public.app-category.games"
     }
   }
 }
