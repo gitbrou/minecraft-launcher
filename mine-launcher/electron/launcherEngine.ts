@@ -126,6 +126,18 @@ function downloadFile(url: string, destPath: string): Promise<void> {
   })
 }
 
+function extractNativeDlls(jarPath: string, destDir: string) {
+  if (!fs.existsSync(jarPath)) return
+  try {
+    const command = `powershell -Command "Add-Type -AssemblyName System.IO.Compression.FileSystem; [System.IO.Compression.ZipFile]::OpenRead('${jarPath.replace(/'/g, "''")}').Entries | Where-Object { $_.FullName -like '*.dll' } | ForEach-Object { $dest = [System.IO.Path]::Combine('${destDir.replace(/'/g, "''")}', $_.Name); [System.IO.Compression.ZipFileExtensions]::ExtractToFile($_, $dest, $true) }"`
+    execSync(command, { stdio: 'ignore' })
+  } catch {
+    try {
+      execSync(`powershell -Command "Expand-Archive -Path '${jarPath}' -DestinationPath '${destDir}' -Force"`, { stdio: 'ignore' })
+    } catch {}
+  }
+}
+
 function isLibraryAllowed(rules?: Array<{ action: string; os?: { name: string } }>): boolean {
   if (!rules || rules.length === 0) return true
   let allowed = false
@@ -144,7 +156,6 @@ export async function detectJavaPaths(): Promise<string[]> {
   const isWin = process.platform === 'win32'
   const javaName = isWin ? 'javaw.exe' : 'java'
 
-  // Check downloaded Java 17 in launcher dir first
   const rootDir = getRootDir()
   const internalJava = path.join(rootDir, 'java', 'java-17')
   const findInternalJavaw = (dir: string): string | null => {
@@ -165,13 +176,11 @@ export async function detectJavaPaths(): Promise<string[]> {
     found.push(internalJavaw)
   }
 
-  // Check JAVA_HOME
   if (process.env.JAVA_HOME) {
     const p = path.join(process.env.JAVA_HOME, 'bin', javaName)
     if (fs.existsSync(p)) found.push(p)
   }
 
-  // Common Windows install paths
   if (isWin) {
     const searchDirs = [
       'C:\\Program Files\\Java',
@@ -302,6 +311,32 @@ export async function launchMinecraft(
   if (!fs.existsSync(instanceDir)) fs.mkdirSync(instanceDir, { recursive: true })
   if (!fs.existsSync(nativesDir)) fs.mkdirSync(nativesDir, { recursive: true })
 
+  // Force options.txt to unlock Multiplayer and Chat in 1.16.5 and all versions
+  const optionsPath = path.join(instanceDir, 'options.txt')
+  const optionsContent = `version:2586\nchatVisibility:0\nforceUnicodeFont:false\nrealmsNotifications:false\nhideServerAddress:false\n`
+  fs.writeFileSync(optionsPath, optionsContent, 'utf-8')
+
+  // Clean up any stale Fabric .tmp files
+  const fabricDir = path.join(instanceDir, '.fabric')
+  if (fs.existsSync(fabricDir)) {
+    try {
+      const removeTmpFiles = (dirPath: string) => {
+        const entries = fs.readdirSync(dirPath)
+        for (const entry of entries) {
+          const full = path.join(dirPath, entry)
+          if (fs.statSync(full).isDirectory()) {
+            removeTmpFiles(full)
+          } else if (entry.endsWith('.tmp')) {
+            fs.unlinkSync(full)
+          }
+        }
+      }
+      removeTmpFiles(fabricDir)
+    } catch {
+      // ignore
+    }
+  }
+
   try {
     // 1. Resolve Java Runtime
     let javaBin = config.javaPath
@@ -349,7 +384,7 @@ export async function launchMinecraft(
     const manifest = await getMinecraftVersions()
     const verInfo = manifest.versions.find((v) => v.id === config.version)
     if (!verInfo) {
-      throw new Error(`Версия Minecraft ${config.version} не найдена в манифесте`)
+      throw new Error(`Версия Minecraft ${config.version} не найдена в манифесте Mojang`)
     }
 
     onProgress({
@@ -366,7 +401,7 @@ export async function launchMinecraft(
     }
     fs.writeFileSync(versionJsonPath, JSON.stringify(versionData, null, 2))
 
-    // Download Asset Index JSON
+    // Download Asset Index JSON & Asset Objects
     if (versionData.assetIndex?.url) {
       const assetIndexDir = path.join(assetsDir, 'indexes')
       const assetIndexPath = path.join(assetIndexDir, `${versionData.assetIndex.id}.json`)
@@ -374,10 +409,62 @@ export async function launchMinecraft(
         onProgress({
           instanceId: config.instanceId,
           stage: 'downloading',
-          statusText: 'Загрузка ассетов игры...',
-          progress: 30
+          statusText: 'Загрузка манифеста ресурсов...',
+          progress: 25
         })
         await downloadFile(versionData.assetIndex.url, assetIndexPath)
+      }
+
+      try {
+        const indexContent = JSON.parse(fs.readFileSync(assetIndexPath, 'utf-8'))
+        const objects = indexContent.objects || {}
+        const objectKeys = Object.keys(objects)
+        const objectsDir = path.join(assetsDir, 'objects')
+
+        const missingObjects: Array<{ hash: string; url: string; dest: string }> = []
+
+        for (const key of objectKeys) {
+          const obj = objects[key]
+          const hash = obj.hash
+          const prefix = hash.slice(0, 2)
+          const dest = path.join(objectsDir, prefix, hash)
+          if (!fs.existsSync(dest)) {
+            missingObjects.push({
+              hash,
+              url: `https://resources.download.minecraft.net/${prefix}/${hash}`,
+              dest
+            })
+          }
+        }
+
+        if (missingObjects.length > 0) {
+          onProgress({
+            instanceId: config.instanceId,
+            stage: 'downloading',
+            statusText: `Загрузка ресурсов (${missingObjects.length} файлов)...`,
+            progress: 30
+          })
+
+          const batchSize = 75
+          let completed = 0
+
+          for (let i = 0; i < missingObjects.length; i += batchSize) {
+            const chunk = missingObjects.slice(i, i + batchSize)
+            await Promise.all(
+              chunk.map(item => downloadFile(item.url, item.dest).catch(() => {}))
+            )
+            completed += chunk.length
+            const pct = Math.round(30 + (completed / missingObjects.length) * 15)
+            onProgress({
+              instanceId: config.instanceId,
+              stage: 'downloading',
+              statusText: `Загрузка ресурсов (${completed}/${missingObjects.length})...`,
+              progress: pct
+            })
+          }
+        }
+      } catch (e: any) {
+        onLog({ timestamp: Date.now(), type: 'warn', message: `Ошибка ресурсов: ${e.message}` })
       }
     }
 
@@ -388,17 +475,17 @@ export async function launchMinecraft(
         instanceId: config.instanceId,
         stage: 'downloading',
         statusText: 'Загрузка Minecraft client.jar...',
-        progress: 40
+        progress: 50
       })
       await downloadFile(versionData.downloads.client.url, clientJarPath)
     }
 
-    // Download Libraries
+    // Download & Extract Libraries & Native DLLs
     onProgress({
       instanceId: config.instanceId,
       stage: 'downloading',
-      statusText: 'Загрузка библиотек...',
-      progress: 55
+      statusText: 'Загрузка и распаковка библиотек...',
+      progress: 60
     })
 
     const cpList: string[] = []
@@ -413,12 +500,51 @@ export async function launchMinecraft(
         if (!fs.existsSync(libFullPath)) {
           try {
             await downloadFile(lib.downloads.artifact.url, libFullPath)
-          } catch {
-            onLog({ timestamp: Date.now(), type: 'warn', message: `Пропущена библиотека: ${lib.name}` })
-          }
+          } catch {}
         }
         if (fs.existsSync(libFullPath)) {
           cpList.push(libFullPath)
+          if (libRelPath.includes('natives') || lib.name.includes('natives')) {
+            extractNativeDlls(libFullPath, nativesDir)
+          }
+        }
+      }
+
+      if (lib.downloads?.classifiers) {
+        const classifiers = lib.downloads.classifiers
+        const winNative = classifiers['natives-windows'] || classifiers['natives-windows-64'] || classifiers['natives-windows-x86']
+        if (winNative) {
+          const nativeRelPath = winNative.path
+          const nativeFullPath = path.join(librariesDir, nativeRelPath)
+          if (!fs.existsSync(nativeFullPath)) {
+            try {
+              await downloadFile(winNative.url, nativeFullPath)
+            } catch {}
+          }
+          if (fs.existsSync(nativeFullPath)) {
+            extractNativeDlls(nativeFullPath, nativesDir)
+          }
+        }
+      }
+
+      if (!lib.downloads?.artifact && lib.name) {
+        const parts = lib.name.split(':')
+        const domain = parts[0].replace(/\./g, '/')
+        const name = parts[1]
+        const ver = parts[2]
+        const relPath = `${domain}/${name}/${ver}/${name}-${ver}.jar`
+        const libFullPath = path.join(librariesDir, relPath)
+        const url = lib.url ? `${lib.url}${relPath}` : `https://libraries.minecraft.net/${relPath}`
+        if (!fs.existsSync(libFullPath)) {
+          try {
+            await downloadFile(url, libFullPath)
+          } catch {}
+        }
+        if (fs.existsSync(libFullPath)) {
+          cpList.push(libFullPath)
+          if (lib.name.includes('natives')) {
+            extractNativeDlls(libFullPath, nativesDir)
+          }
         }
       }
     }
@@ -464,7 +590,7 @@ export async function launchMinecraft(
           }
         }
       } catch (err: any) {
-        onLog({ timestamp: Date.now(), type: 'warn', message: `Не удалось загрузить Fabric метаданные: ${err.message}` })
+        onLog({ timestamp: Date.now(), type: 'warn', message: `Fabric метаданные: ${err.message}` })
       }
     }
 
@@ -478,10 +604,19 @@ export async function launchMinecraft(
     const classpath = cpList.join(path.delimiter)
     const args: string[] = []
 
-    // Memory & Flags
+    // Memory & JVM Flags
     args.push(`-Xms${config.memoryMin || 1024}M`)
     args.push(`-Xmx${config.memoryMax || 4096}M`)
     args.push(`-Djava.library.path=${nativesDir}`)
+
+    // Disable SocialInteractions blocklist check to unlock Multiplayer 100%
+    args.push('-Dminecraft.api.auth.host=http://127.0.0.1')
+    args.push('-Dminecraft.api.account.host=http://127.0.0.1')
+    args.push('-Dminecraft.api.session.host=http://127.0.0.1')
+    args.push('-Dminecraft.api.services.host=http://127.0.0.1')
+
+    // High-Performance G1GC JVM Flags
+    args.push('-XX:+UseG1GC', '-XX:+UnlockExperimentalVMOptions', '-XX:G1NewSizePercent=20', '-XX:G1ReservePercent=20', '-XX:MaxGCPauseMillis=50', '-XX:G1HeapRegionSize=32M')
 
     if (config.customJvmArgs) {
       args.push(...config.customJvmArgs.split(' ').filter(Boolean))
@@ -490,15 +625,35 @@ export async function launchMinecraft(
     args.push('-cp', classpath)
     args.push(mainClass)
 
-    // Minecraft Game Arguments
-    args.push('--username', config.username || 'Player')
-    args.push('--version', config.version)
-    args.push('--gameDir', instanceDir)
-    args.push('--assetsDir', assetsDir)
-    args.push('--assetIndex', versionData.assetIndex?.id || config.version)
-    args.push('--uuid', config.uuid || generateOfflineUUID(config.username || 'Player'))
-    args.push('--accessToken', '0')
-    args.push('--userType', 'legacy')
+    // Minecraft Game Arguments - Formatted for Offline Multiplayer Support
+    const userUuid = (config.uuid || generateOfflineUUID(config.username || 'Player')).replace(/-/g, '')
+
+    if (versionData.minecraftArguments && typeof versionData.minecraftArguments === 'string') {
+      const templateArgs = versionData.minecraftArguments.split(' ')
+      for (const tArg of templateArgs) {
+        let resolved = tArg
+          .replace('${auth_player_name}', config.username || 'Player')
+          .replace('${version_name}', config.version)
+          .replace('${game_directory}', instanceDir)
+          .replace('${assets_root}', assetsDir)
+          .replace('${assets_index_name}', versionData.assetIndex?.id || config.version)
+          .replace('${auth_uuid}', userUuid)
+          .replace('${auth_access_token}', '0')
+          .replace('${user_type}', 'mojang')
+          .replace('${version_type}', 'release')
+        args.push(resolved)
+      }
+    } else {
+      args.push('--username', config.username || 'Player')
+      args.push('--version', config.version)
+      args.push('--gameDir', instanceDir)
+      args.push('--assetsDir', assetsDir)
+      args.push('--assetIndex', versionData.assetIndex?.id || config.version)
+      args.push('--uuid', userUuid)
+      args.push('--accessToken', '0')
+      args.push('--userType', 'mojang')
+      args.push('--versionType', 'release')
+    }
 
     onLog({
       timestamp: Date.now(),

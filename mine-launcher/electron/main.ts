@@ -2,9 +2,12 @@ import { app, BrowserWindow, ipcMain, shell, dialog, Menu } from 'electron'
 
 // Remove default Electron application menu bar
 Menu.setApplicationMenu(null)
+
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import fs from 'node:fs'
+import https from 'node:https'
+import http from 'node:http'
 import {
   getRootDir,
   getMinecraftVersions,
@@ -31,6 +34,11 @@ const rootDir = getRootDir()
 const accountsFile = path.join(rootDir, 'accounts.json')
 const instancesFile = path.join(rootDir, 'instances.json')
 const settingsFile = path.join(rootDir, 'settings.json')
+const skinsDir = path.join(rootDir, 'skins')
+
+if (!fs.existsSync(skinsDir)) {
+  fs.mkdirSync(skinsDir, { recursive: true })
+}
 
 // Helper data accessors
 function loadJsonData<T>(filePath: string, fallback: T): T {
@@ -54,17 +62,15 @@ function saveJsonData<T>(filePath: string, data: T) {
 
 // Initial default data if none exists
 let accounts = loadJsonData(accountsFile, [
-  { id: '1', username: 'Ник 1', uuid: generateOfflineUUID('Ник 1'), type: 'offline', isActive: true, createdAt: Date.now() - 50000 },
-  { id: '2', username: 'Ник 2', uuid: generateOfflineUUID('Ник 2'), type: 'offline', isActive: false, createdAt: Date.now() - 40000 },
-  { id: '3', username: 'Ник 3', uuid: generateOfflineUUID('Ник 3'), type: 'offline', isActive: false, createdAt: Date.now() - 30000 },
-  { id: '4', username: 'Ник 4', uuid: generateOfflineUUID('Ник 4'), type: 'offline', isActive: false, createdAt: Date.now() - 20000 },
-  { id: '5', username: 'Ник 5', uuid: generateOfflineUUID('Ник 5'), type: 'offline', isActive: false, createdAt: Date.now() - 10000 }
+  { id: '1', username: 'Test', uuid: generateOfflineUUID('Test'), type: 'offline', isActive: true, createdAt: Date.now() - 50000 },
+  { id: '2', username: 'Nick 2', uuid: generateOfflineUUID('Nick 2'), type: 'offline', isActive: false, createdAt: Date.now() - 40000 },
+  { id: '3', username: 'Nick 3', uuid: generateOfflineUUID('Nick 3'), type: 'offline', isActive: false, createdAt: Date.now() - 30000 }
 ])
 
 let instances = loadJsonData(instancesFile, [
   {
     id: 'default-1',
-    name: 'Vanilla 1.20.4',
+    name: '1.20.4',
     version: '1.20.4',
     loader: 'vanilla',
     created: Date.now() - 100000,
@@ -74,7 +80,7 @@ let instances = loadJsonData(instancesFile, [
   },
   {
     id: 'fabric-1',
-    name: 'Fabric 1.20.1',
+    name: '1.20.1',
     version: '1.20.1',
     loader: 'fabric',
     created: Date.now() - 80000,
@@ -100,7 +106,7 @@ function createWindow() {
     minHeight: 650,
     frame: true,
     titleBarStyle: 'default',
-    icon: path.join(process.env.VITE_PUBLIC, 'electron-vite.svg'),
+    icon: path.join(process.env.VITE_PUBLIC, 'icon.png'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.mjs'),
       nodeIntegration: false,
@@ -132,6 +138,39 @@ app.on('activate', () => {
   }
 })
 
+// Helper to download a URL to a file path
+function downloadUrlToFile(url: string, destPath: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const dir = path.dirname(destPath)
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
+
+    const file = fs.createWriteStream(destPath)
+    const client = url.startsWith('https') ? https : http
+
+    const request = client.get(url, (response) => {
+      if (response.statusCode && response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
+        file.close()
+        return downloadUrlToFile(response.headers.location, destPath).then(resolve).catch(reject)
+      }
+      if (response.statusCode !== 200) {
+        file.close()
+        fs.unlink(destPath, () => {})
+        return reject(new Error(`Failed download ${url}: HTTP ${response.statusCode}`))
+      }
+      response.pipe(file)
+      file.on('finish', () => {
+        file.close(() => resolve())
+      })
+    })
+
+    request.on('error', (err) => {
+      file.close()
+      fs.unlink(destPath, () => {})
+      reject(err)
+    })
+  })
+}
+
 // Setup IPC Listeners
 function setupIpcHandlers() {
   // Accounts
@@ -140,6 +179,13 @@ function setupIpcHandlers() {
   ipcMain.handle('add-account', (_, username: string) => {
     const trimmed = username.trim()
     if (!trimmed) throw new Error('Имя пользователя не может быть пустым')
+
+    // Prevent duplicate nicknames (case-insensitive check)
+    const isDuplicate = accounts.some(a => a.username.toLowerCase() === trimmed.toLowerCase())
+    if (isDuplicate) {
+      throw new Error(`Никнейм "${trimmed}" уже существует!`)
+    }
+
     const newAcc = {
       id: Date.now().toString(),
       username: trimmed,
@@ -177,7 +223,7 @@ function setupIpcHandlers() {
   ipcMain.handle('create-instance', (_, data: { name: string; version: string; loader: 'vanilla' | 'fabric' | 'forge' | 'quilt' }) => {
     const newInst = {
       id: 'inst-' + Date.now(),
-      name: data.name || `Minecraft ${data.version}`,
+      name: data.version,
       version: data.version,
       loader: data.loader || 'vanilla',
       created: Date.now(),
@@ -187,7 +233,6 @@ function setupIpcHandlers() {
     instances.push(newInst)
     saveJsonData(instancesFile, instances)
 
-    // Ensure instance folder exists
     const instDir = path.join(rootDir, 'instances', newInst.id)
     const modsDir = path.join(instDir, 'mods')
     if (!fs.existsSync(modsDir)) {
@@ -238,7 +283,6 @@ function setupIpcHandlers() {
     const activeAcc = accounts.find(a => a.isActive) || accounts[0]
     if (!activeAcc) throw new Error('Добавьте хотя бы один аккаунт!')
 
-    // Update last played
     inst.lastPlayed = Date.now()
     saveJsonData(instancesFile, instances)
 
@@ -271,7 +315,7 @@ function setupIpcHandlers() {
     return stopInstance(instanceId)
   })
 
-  // Mods & Folder utilities
+  // Mods
   ipcMain.handle('open-instance-folder', (_, instanceId: string) => {
     const instDir = path.join(rootDir, 'instances', instanceId)
     if (!fs.existsSync(instDir)) fs.mkdirSync(instDir, { recursive: true })
@@ -318,6 +362,14 @@ function setupIpcHandlers() {
     return true
   })
 
+  ipcMain.handle('download-mod-file', async (_, { instanceId, downloadUrl, filename }: { instanceId: string; downloadUrl: string; filename: string }) => {
+    const modsDir = path.join(rootDir, 'instances', instanceId, 'mods')
+    if (!fs.existsSync(modsDir)) fs.mkdirSync(modsDir, { recursive: true })
+    const destPath = path.join(modsDir, filename)
+    await downloadUrlToFile(downloadUrl, destPath)
+    return true
+  })
+
   ipcMain.handle('add-mod-file', async (_, instanceId: string) => {
     if (!win) return false
     const res = await dialog.showOpenDialog(win, {
@@ -335,6 +387,50 @@ function setupIpcHandlers() {
       fs.copyFileSync(file, dest)
     }
     return true
+  })
+
+  // Skins
+  ipcMain.handle('save-user-skin', async (_, username: string) => {
+    if (!win) return false
+    const res = await dialog.showOpenDialog(win, {
+      title: 'Выберите файл скина Minecraft (.png)',
+      filters: [{ name: 'Minecraft Skins', extensions: ['png'] }],
+      properties: ['openFile']
+    })
+    if (res.canceled || !res.filePaths.length) return false
+
+    const skinDest = path.join(skinsDir, `${username}.png`)
+    fs.copyFileSync(res.filePaths[0], skinDest)
+    return skinDest
+  })
+
+  ipcMain.handle('fetch-online-skin', async (_, { username, targetUsername }: { username: string; targetUsername: string }) => {
+    const skinDest = path.join(skinsDir, `${username}.png`)
+    const urls = [
+      `https://ely.by/services/skins-buffer/skins/${encodeURIComponent(targetUsername)}.png`,
+      `https://minotar.net/skin/${encodeURIComponent(targetUsername)}`,
+      `https://crafatar.com/skins/${generateOfflineUUID(targetUsername)}`
+    ]
+
+    for (const u of urls) {
+      try {
+        await downloadUrlToFile(u, skinDest)
+        if (fs.existsSync(skinDest) && fs.statSync(skinDest).size > 100) {
+          const data = fs.readFileSync(skinDest)
+          return `data:image/png;base64,${data.toString('base64')}`
+        }
+      } catch {}
+    }
+    throw new Error(`Скин для никнейма "${targetUsername}" не найден на серверах`)
+  })
+
+  ipcMain.handle('get-user-skin', (_, username: string) => {
+    const skinPath = path.join(skinsDir, `${username}.png`)
+    if (fs.existsSync(skinPath)) {
+      const data = fs.readFileSync(skinPath)
+      return `data:image/png;base64,${data.toString('base64')}`
+    }
+    return null
   })
 }
 

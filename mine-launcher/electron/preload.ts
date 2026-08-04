@@ -28,7 +28,13 @@ const electronAPI = {
   // Mods
   getInstanceMods: (id: string) => ipcRenderer.invoke('get-instance-mods', id),
   toggleMod: (payload: { instanceId: string; modFilename: string }) => ipcRenderer.invoke('toggle-mod', payload),
+  downloadModFile: (payload: { instanceId: string; downloadUrl: string; filename: string }) => ipcRenderer.invoke('download-mod-file', payload),
   addModFile: (instanceId: string) => ipcRenderer.invoke('add-mod-file', instanceId),
+
+  // Skins
+  saveUserSkin: (username: string) => ipcRenderer.invoke('save-user-skin', username),
+  fetchOnlineSkin: (payload: { username: string; targetUsername: string }) => ipcRenderer.invoke('fetch-online-skin', payload),
+  getUserSkin: (username: string) => ipcRenderer.invoke('get-user-skin', username),
 
   // Subscriptions
   onLaunchProgress: (callback: (data: any) => void) => {
