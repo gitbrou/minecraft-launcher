@@ -6,12 +6,12 @@
 # Установка зависимостей
 npm install
 
-# Запуск в режиме разработки (Vite + Electron Live Reload)
+# Запуск
 npm run dev
 
-# Компиляция TypeScript и сборка интерфейса
+# Компиляция
 npm run compile
 
-# Сборка финального Windows EXE дистрибутива (Onecompile / electron-builder)
+# Сборка 
 npm run build
 ```
