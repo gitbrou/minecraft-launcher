@@ -6,8 +6,8 @@ interface ProfileTabProps {
   activeUsername: string
 }
 
-// Default Steve 64x64 PNG Texture Data URL
-const STEVE_SKIN_DATA_URL = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAFNElEQVR42u3bT2gUZxzH8ee37M6+bTazNlsoNhZKaXuxoRQbSkmxUEtLoVAoLfQghVLoQUq9CS30ILSE0kIPUkghlUIq9CCFEkoLpZRS2oMSWqh+m1SS3c2szO7Ozu7sO8/v88zOzmZ11mST3eyy+7yY3V3eZ57v9zsf3vf7PTNvm5ubGzT4/9v5y2+3/3Dq9Fvb+w/sP3DgwDvf/+D+Q4cOHvz59Jn/5T04duzY+T8v/PTL8a9P/3bqt+Pvvnf40B+Hf//9L+08evTo+VOnzvzv/aN/nP7j7Q8+eE2+d3T/+1+/8zbf39//4fTp0xOtrb/7hRUrVqxYsWLFihUrVqxYsWLFihUrVqxYsWLFihUrVqxYsWLFihUrVqxYsWLFihUrVqxYsWLFihUrVqxYsbpZg/fv35/cvHlzoqWlpW08Hg+n0+lsOp3e4vf7s4FAIBuNRs92dnb+0NTUND4/Pz/d2tra8eTJE+m/d1paWjpyudzeYDDY1dHR8XZfX9/x/v7+Lzdt2jQ+OTl5oKWlZeTp06evdHR0fDs3N/ft5s2b/5+fn/++oaHhq/n5+e+Ghob+qK2tPVxfX/9LdXX1u+3t7aO5XO4jv9+fSaVS+2tra38ZHh7++cGDB78kk8m/Wltbz7W0tPx6//79H+rr6882NzefnZ2dvdrQ0LC1o6NjuL6+ftvhw4ffe//9989ubGz4/3r48OGJioqK02fPnT1RWVlZ98EHH7zW2Nj4t+fz+Xx/aWlp7Xfffff1xsZGf21t7cmurq5ft27deuzKlSsnvV6vH4vFwuvXr491dnae7urquhGLxe5Ez1v/7wBv9/9h/8D+w/v7+vvv9vff/y8v7+vv7+v/7v7/vff39+8v7+9/19fX1z/v6+/v/z/w/9v/C8CD1mY4/v8C/L8v/v8z2v0g3v708AAAAASUVORK5CYII='
+// Failsafe 64x64 Steve skin PNG texture
+const DEFAULT_STEVE_SKIN = 'https://textures.minecraft.net/texture/31f477eb3753239a5f36e4f16b23d0c9fbf8f09d841e247b9015119a008c2a86'
 
 export const ProfileTab: React.FC<ProfileTabProps> = ({ activeUsername }) => {
   const [stats, setStats] = useState<any>({
@@ -19,7 +19,7 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ activeUsername }) => {
     favoriteServer: 'Нет информации'
   })
 
-  const [skinUrl, setSkinUrl] = useState<string>(STEVE_SKIN_DATA_URL)
+  const [skinUrl, setSkinUrl] = useState<string>(DEFAULT_STEVE_SKIN)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const viewerRef = useRef<SkinViewer | null>(null)
 
@@ -30,10 +30,10 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ activeUsername }) => {
         if (url) {
           setSkinUrl(url)
         } else {
-          setSkinUrl(STEVE_SKIN_DATA_URL)
+          setSkinUrl(DEFAULT_STEVE_SKIN)
         }
       }).catch(() => {
-        setSkinUrl(STEVE_SKIN_DATA_URL)
+        setSkinUrl(DEFAULT_STEVE_SKIN)
       })
     }
   }, [activeUsername])
@@ -49,20 +49,18 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ activeUsername }) => {
           canvas: canvasRef.current,
           width: 250,
           height: 460,
-          skin: skinUrl || STEVE_SKIN_DATA_URL
+          skin: skinUrl || DEFAULT_STEVE_SKIN
         })
 
-        // Add explicit THREE.js Ambient and Directional Lights to illuminate full 3D texture
-        const ambientLight = new THREE.AmbientLight(0xffffff, 2.0)
+        // Add explicit THREE.js Ambient and Directional Lights
+        const ambientLight = new THREE.AmbientLight(0xffffff, 2.5)
         viewer.scene.add(ambientLight)
 
-        const dirLight1 = new THREE.DirectionalLight(0xffffff, 1.2)
-        dirLight1.position.set(10, 20, 15)
-        viewer.scene.add(dirLight1)
+        const dirLight = new THREE.DirectionalLight(0xffffff, 1.5)
+        dirLight.position.set(10, 20, 15)
+        viewer.scene.add(dirLight)
 
-        const dirLight2 = new THREE.DirectionalLight(0xffffff, 0.8)
-        dirLight2.position.set(-10, -10, -15)
-        viewer.scene.add(dirLight2)
+        viewer.loadSkin(skinUrl || DEFAULT_STEVE_SKIN)
 
         if (viewer.playerObject) {
           viewer.playerObject.rotation.y = 0.5
@@ -76,7 +74,7 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ activeUsername }) => {
       } catch (err) {
         console.error('SkinViewer init error:', err)
       }
-    }, 60)
+    }, 100)
 
     return () => {
       clearTimeout(timer)
