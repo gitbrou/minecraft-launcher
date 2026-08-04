@@ -547,6 +547,50 @@ function setupIpcHandlers() {
     }
     return null
   })
+
+  ipcMain.handle('parse-command-skin', async (_, payload: { username: string; command: string }) => {
+    const { username, command } = payload
+    let textureUrl = ''
+
+    // 1. Try extracting base64 value from /give command: value:"..." or value:"..."
+    const matchBase64 = command.match(/value:\s*"([^"]+)"/i) || command.match(/value=?"([^"]+)"/i)
+    if (matchBase64 && matchBase64[1]) {
+      try {
+        const decoded = Buffer.from(matchBase64[1], 'base64').toString('utf-8')
+        const json = JSON.parse(decoded)
+        if (json?.textures?.SKIN?.url) {
+          textureUrl = json.textures.SKIN.url
+        }
+      } catch {}
+    }
+
+    // 2. Direct texture URL or NameMC URL fallback
+    if (!textureUrl) {
+      const matchDirect = command.match(/(https?:\/\/textures\.minecraft\.net\/texture\/[a-f0-9]+)/i)
+      if (matchDirect) {
+        textureUrl = matchDirect[1]
+      }
+    }
+
+    if (!textureUrl) {
+      throw new Error('Не удалось найти текстуру скина в переданной команде')
+    }
+
+    // Download PNG from Mojang textures server
+    const res = await fetch(textureUrl)
+    if (!res.ok) throw new Error('Не удалось скачать скин по URL текстуры')
+
+    const arrayBuffer = await res.arrayBuffer()
+    const buffer = Buffer.from(arrayBuffer)
+
+    if (!fs.existsSync(skinsDir)) {
+      fs.mkdirSync(skinsDir, { recursive: true })
+    }
+    const targetPath = path.join(skinsDir, `${username}.png`)
+    fs.writeFileSync(targetPath, buffer)
+
+    return `data:image/png;base64,${buffer.toString('base64')}`
+  })
 }
 
 app.whenReady().then(() => {

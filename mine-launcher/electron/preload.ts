@@ -40,6 +40,7 @@ const electronAPI = {
   // Skins & Profile
   saveUserSkin: (username: string) => ipcRenderer.invoke('save-user-skin', username),
   uploadUserSkin: (username: string) => ipcRenderer.invoke('upload-user-skin', username),
+  parseCommandSkin: (payload: { username: string; command: string }) => ipcRenderer.invoke('parse-command-skin', payload),
   fetchOnlineSkin: (payload: { username: string; targetUsername: string }) => ipcRenderer.invoke('fetch-online-skin', payload),
   getUserSkin: (username: string) => ipcRenderer.invoke('get-user-skin', username),
   getProfileStats: (username: string) => ipcRenderer.invoke('get-profile-stats', username),
