@@ -1,0 +1,107 @@
+name: Build & Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            platform: win
+            artifact: "Mine Launcher*.exe"
+          - os: ubuntu-latest
+            platform: linux
+            artifact: "Mine Launcher*.AppImage"
+          - os: macos-latest
+            platform: mac
+            artifact: "Mine Launcher*.dmg"
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: mine-launcher/package-lock.json
+
+      - name: Install dependencies
+        run: npm install
+        working-directory: mine-launcher
+
+      - name: Build (Windows)
+        if: matrix.platform == 'win'
+        run: npm run build -- --win portable nsis
+        working-directory: mine-launcher
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+
+      - name: Build (Linux)
+        if: matrix.platform == 'linux'
+        run: npm run build -- --linux AppImage deb
+        working-directory: mine-launcher
+
+      - name: Build (macOS)
+        if: matrix.platform == 'mac'
+        run: npm run build -- --mac dmg
+        working-directory: mine-launcher
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: mine-launcher-${{ matrix.platform }}
+          path: |
+            mine-launcher/dist-build/*.exe
+            mine-launcher/dist-build/*.AppImage
+            mine-launcher/dist-build/*.deb
+            mine-launcher/dist-build/*.dmg
+          if-no-files-found: warn
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "Mine Launcher ${{ github.ref_name }}"
+          body: |
+            ## 🚀 Mine Launcher ${{ github.ref_name }}
+
+            Современный лаунчер для Minecraft — скачай и играй!
+
+            ### 📥 Скачать:
+            | Платформа | Файл |
+            |-----------|------|
+            | 🪟 Windows | `Mine Launcher Setup *.exe` (установщик) или `Mine Launcher *.exe` (portable) |
+            | 🐧 Linux | `Mine Launcher *.AppImage` |
+            | 🍎 macOS | `Mine Launcher *.dmg` |
+
+            ### ✨ Что нового:
+            - Поддержка Minecraft 1.12.2 и выше
+            - 3D просмотр скинов
+            - Поиск и установка модов с Modrinth
+            - Автозапуск в fullscreen
+          files: artifacts/**/*
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
