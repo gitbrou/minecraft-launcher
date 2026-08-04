@@ -48,6 +48,11 @@ export interface LauncherSettings {
   customJvmArgs: string;
   closeLauncherOnGameStart: boolean;
   gameDir: string;
+  useProxy?: boolean;
+  proxyType?: 'http' | 'socks5';
+  proxyHost?: string;
+  proxyPort?: number;
+  launcherFont?: string;
 }
 
 export interface LaunchProgress {

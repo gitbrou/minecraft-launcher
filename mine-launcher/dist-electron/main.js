@@ -1,12 +1,12 @@
-import { app as G, Menu as Ie, BrowserWindow as we, ipcMain as m, shell as _e, dialog as ve } from "electron";
-import { fileURLToPath as Pe } from "node:url";
+import { app as G, Menu as Pe, BrowserWindow as we, ipcMain as p, shell as Ie, dialog as ve } from "electron";
+import { fileURLToPath as _e } from "node:url";
 import a from "node:path";
 import n from "node:fs";
 import ie from "node:https";
 import re from "node:http";
 import Ce from "node:crypto";
-import { execSync as K, spawn as Me } from "node:child_process";
-const H = /* @__PURE__ */ new Map();
+import { execSync as K, spawn as Ae } from "node:child_process";
+const X = /* @__PURE__ */ new Map();
 function Y() {
   const t = G.getPath("userData"), s = a.join(t, ".mine-launcher");
   return n.existsSync(s) || n.mkdirSync(s, { recursive: !0 }), s;
@@ -27,13 +27,13 @@ function B(t) {
       if (r.statusCode !== 200)
         return e(new Error(`HTTP ${r.statusCode} loading ${t}`));
       let o = "";
-      r.on("data", (f) => {
-        o += f;
+      r.on("data", (d) => {
+        o += d;
       }), r.on("end", () => {
         try {
           s(JSON.parse(o));
-        } catch (f) {
-          e(f);
+        } catch (d) {
+          e(d);
         }
       });
     }).on("error", e);
@@ -71,7 +71,7 @@ function te(t, s) {
       }
     }
 }
-function Ae(t) {
+function Me(t) {
   if (!t || t.length === 0) return !0;
   let s = !1;
   for (const e of t)
@@ -79,25 +79,25 @@ function Ae(t) {
   return s;
 }
 async function se() {
-  const t = [], s = process.platform === "win32", e = s ? "javaw.exe" : "java", i = Y(), r = a.join(i, "java", "java-17"), o = (u) => {
-    if (!n.existsSync(u)) return null;
-    const c = n.readdirSync(u);
-    for (const g of c) {
-      const C = a.join(u, g);
-      if (g.toLowerCase() === "javaw.exe") return C;
+  const t = [], s = process.platform === "win32", e = s ? "javaw.exe" : "java", i = Y(), r = a.join(i, "java", "java-17"), o = (m) => {
+    if (!n.existsSync(m)) return null;
+    const c = n.readdirSync(m);
+    for (const j of c) {
+      const C = a.join(m, j);
+      if (j.toLowerCase() === "javaw.exe") return C;
       if (n.statSync(C).isDirectory()) {
-        const w = o(C);
-        if (w) return w;
+        const x = o(C);
+        if (x) return x;
       }
     }
     return null;
-  }, f = o(r);
-  if (f && t.push(f), process.env.JAVA_HOME) {
-    const u = a.join(process.env.JAVA_HOME, "bin", e);
-    n.existsSync(u) && t.push(u);
+  }, d = o(r);
+  if (d && t.push(d), process.env.JAVA_HOME) {
+    const m = a.join(process.env.JAVA_HOME, "bin", e);
+    n.existsSync(m) && t.push(m);
   }
   if (s) {
-    const u = [
+    const m = [
       "C:\\Program Files\\Java",
       "C:\\Program Files (x86)\\Java",
       "C:\\Program Files\\Eclipse Adoptium",
@@ -107,13 +107,13 @@ async function se() {
       a.join(process.env.LOCALAPPDATA || "", "Programs", "AdoptOpenJDK"),
       "C:\\Program Files (x86)\\Minecraft Launcher\\runtime"
     ];
-    for (const c of u)
+    for (const c of m)
       if (n.existsSync(c))
         try {
-          const g = n.readdirSync(c);
-          for (const C of g) {
-            const w = a.join(c, C, "bin", e);
-            n.existsSync(w) && !t.includes(w) && t.push(w);
+          const j = n.readdirSync(c);
+          for (const C of j) {
+            const x = a.join(c, C, "bin", e);
+            n.existsSync(x) && !t.includes(x) && t.push(x);
           }
         } catch {
         }
@@ -121,15 +121,15 @@ async function se() {
   return t;
 }
 async function ke(t, s) {
-  const e = Y(), i = a.join(e, "java", "java-17"), r = (g) => {
-    if (!n.existsSync(g)) return null;
-    const C = n.readdirSync(g);
-    for (const w of C) {
-      const M = a.join(g, w);
-      if (w.toLowerCase() === "javaw.exe") return M;
-      if (n.statSync(M).isDirectory()) {
-        const J = r(M);
-        if (J) return J;
+  const e = Y(), i = a.join(e, "java", "java-17"), r = (j) => {
+    if (!n.existsSync(j)) return null;
+    const C = n.readdirSync(j);
+    for (const x of C) {
+      const A = a.join(j, x);
+      if (x.toLowerCase() === "javaw.exe") return A;
+      if (n.statSync(A).isDirectory()) {
+        const F = r(A);
+        if (F) return F;
       }
     }
     return null;
@@ -142,22 +142,22 @@ async function ke(t, s) {
     statusText: "Авто-скачивание OpenJDK Java 17...",
     progress: 15
   }), s({ timestamp: Date.now(), type: "info", message: "Java не найдена на ПК. Автоматическое скачивание OpenJDK Java 17 (Temurin)..." });
-  const f = "https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.10%2B7/OpenJDK17U-jre_x64_windows_hotspot_17.0.10_7.zip", u = a.join(e, "java", "java-17.zip");
-  n.existsSync(a.dirname(u)) || n.mkdirSync(a.dirname(u), { recursive: !0 }), t({
+  const d = "https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.10%2B7/OpenJDK17U-jre_x64_windows_hotspot_17.0.10_7.zip", m = a.join(e, "java", "java-17.zip");
+  n.existsSync(a.dirname(m)) || n.mkdirSync(a.dirname(m), { recursive: !0 }), t({
     instanceId: "java-auto",
     stage: "downloading",
     statusText: "Загрузка OpenJDK Java 17 (40 MB)...",
     progress: 35
-  }), await k(f, u), t({
+  }), await k(d, m), t({
     instanceId: "java-auto",
     stage: "extracting",
     statusText: "Распаковка Java 17 Runtime...",
     progress: 75
   }), s({ timestamp: Date.now(), type: "info", message: "Распаковка архива Java 17..." }), n.existsSync(i) || n.mkdirSync(i, { recursive: !0 });
   try {
-    K(`powershell -Command "Expand-Archive -Path '${u}' -DestinationPath '${i}' -Force"`), n.unlinkSync(u);
-  } catch (g) {
-    s({ timestamp: Date.now(), type: "warn", message: `Ошибка PowerShell распаковки: ${g.message}` });
+    K(`powershell -Command "Expand-Archive -Path '${m}' -DestinationPath '${i}' -Force"`), n.unlinkSync(m);
+  } catch (j) {
+    s({ timestamp: Date.now(), type: "warn", message: `Ошибка PowerShell распаковки: ${j.message}` });
   }
   const c = r(i);
   if (!c)
@@ -168,58 +168,58 @@ async function xe() {
   return await B("https://launchermeta.mojang.com/mc/game/version_manifest_v2.json");
 }
 async function Te(t, s, e) {
-  var M, J, W, ce, le, de, ue, me;
-  const i = Y(), r = a.join(i, "instances", t.instanceId), o = a.join(i, "assets"), f = a.join(i, "libraries"), u = a.join(i, "versions"), c = a.join(r, "natives");
+  var A, F, H, ce, le, de, ue, me;
+  const i = Y(), r = a.join(i, "instances", t.instanceId), o = a.join(i, "assets"), d = a.join(i, "libraries"), m = a.join(i, "versions"), c = a.join(r, "natives");
   n.existsSync(r) || n.mkdirSync(r, { recursive: !0 }), n.existsSync(c) || n.mkdirSync(c, { recursive: !0 });
-  const g = a.join(r, "options.txt");
-  n.writeFileSync(g, `version:2586
+  const j = a.join(r, "options.txt");
+  n.writeFileSync(j, `version:2586
 chatVisibility:0
 forceUnicodeFont:false
 realmsNotifications:false
 hideServerAddress:false
 `, "utf-8");
-  const w = a.join(r, ".fabric");
-  if (n.existsSync(w))
+  const x = a.join(r, ".fabric");
+  if (n.existsSync(x))
     try {
-      const S = (F) => {
-        const fe = n.readdirSync(F);
-        for (const U of fe) {
-          const O = a.join(F, U);
-          n.statSync(O).isDirectory() ? S(O) : U.endsWith(".tmp") && n.unlinkSync(O);
+      const g = (J) => {
+        const pe = n.readdirSync(J);
+        for (const W of pe) {
+          const O = a.join(J, W);
+          n.statSync(O).isDirectory() ? g(O) : W.endsWith(".tmp") && n.unlinkSync(O);
         }
       };
-      S(w);
+      g(x);
     } catch {
     }
   try {
-    let S = t.javaPath, F = !1;
-    if (S && n.existsSync(S))
+    let g = t.javaPath, J = !1;
+    if (g && n.existsSync(g))
       try {
-        K(`"${S}" -version 2>&1`), F = !0;
+        K(`"${g}" -version 2>&1`), J = !0;
       } catch {
       }
-    if (!F) {
+    if (!J) {
       const l = await se();
       for (const h of l)
         if (n.existsSync(h))
           try {
-            K(`"${h}" -version 2>&1`), S = h, F = !0;
+            K(`"${h}" -version 2>&1`), g = h, J = !0;
             break;
           } catch {
           }
     }
-    F || (S = await ke(s, e)), e({
+    J || (g = await ke(s, e)), e({
       timestamp: Date.now(),
       type: "info",
-      message: `Используемый файл Java: ${S}`
+      message: `Используемый файл Java: ${g}`
     }), s({
       instanceId: t.instanceId,
       stage: "checking",
       statusText: "Получение манифеста версий...",
       progress: 10
     });
-    const U = (await xe()).versions.find((l) => l.id === t.version);
-    if (!U)
+    const W = (await xe()).versions.find((l) => l.id === t.version);
+    if (!W)
       throw new Error(`Версия Minecraft ${t.version} не найдена в манифесте Mojang`);
     s({
       instanceId: t.instanceId,
@@ -227,45 +227,45 @@ hideServerAddress:false
       statusText: `Загрузка структуры версии ${t.version}...`,
       progress: 20
     });
-    const O = a.join(u, t.version, `${t.version}.json`), $ = await B(U.url);
-    if (n.existsSync(a.dirname(O)) || n.mkdirSync(a.dirname(O), { recursive: !0 }), n.writeFileSync(O, JSON.stringify($, null, 2)), (M = $.assetIndex) != null && M.url) {
-      const l = a.join(o, "indexes"), h = a.join(l, `${$.assetIndex.id}.json`);
+    const O = a.join(m, t.version, `${t.version}.json`), D = await B(W.url);
+    if (n.existsSync(a.dirname(O)) || n.mkdirSync(a.dirname(O), { recursive: !0 }), n.writeFileSync(O, JSON.stringify(D, null, 2)), (A = D.assetIndex) != null && A.url) {
+      const l = a.join(o, "indexes"), h = a.join(l, `${D.assetIndex.id}.json`);
       n.existsSync(h) || (s({
         instanceId: t.instanceId,
         stage: "downloading",
         statusText: "Загрузка манифеста ресурсов...",
         progress: 25
-      }), await k($.assetIndex.url, h));
+      }), await k(D.assetIndex.url, h));
       try {
-        const I = JSON.parse(n.readFileSync(h, "utf-8")).objects || {}, D = Object.keys(I), E = a.join(o, "objects"), x = [];
-        for (const A of D) {
-          const j = I[A].hash, R = j.slice(0, 2), q = a.join(E, R, j);
-          n.existsSync(q) || x.push({
-            hash: j,
-            url: `https://resources.download.minecraft.net/${R}/${j}`,
+        const I = JSON.parse(n.readFileSync(h, "utf-8")).objects || {}, b = Object.keys(I), E = a.join(o, "objects"), S = [];
+        for (const M of b) {
+          const $ = I[M].hash, R = $.slice(0, 2), q = a.join(E, R, $);
+          n.existsSync(q) || S.push({
+            hash: $,
+            url: `https://resources.download.minecraft.net/${R}/${$}`,
             dest: q
           });
         }
-        if (x.length > 0) {
+        if (S.length > 0) {
           s({
             instanceId: t.instanceId,
             stage: "downloading",
-            statusText: `Загрузка ресурсов (${x.length} файлов)...`,
+            statusText: `Загрузка ресурсов (${S.length} файлов)...`,
             progress: 30
           });
-          const A = 75;
+          const M = 75;
           let T = 0;
-          for (let j = 0; j < x.length; j += A) {
-            const R = x.slice(j, j + A);
+          for (let $ = 0; $ < S.length; $ += M) {
+            const R = S.slice($, $ + M);
             await Promise.all(
               R.map((ye) => k(ye.url, ye.dest).catch(() => {
               }))
             ), T += R.length;
-            const q = Math.round(30 + T / x.length * 15);
+            const q = Math.round(30 + T / S.length * 15);
             s({
               instanceId: t.instanceId,
               stage: "downloading",
-              statusText: `Загрузка ресурсов (${T}/${x.length})...`,
+              statusText: `Загрузка ресурсов (${T}/${S.length})...`,
               progress: q
             });
           }
@@ -274,54 +274,54 @@ hideServerAddress:false
         e({ timestamp: Date.now(), type: "warn", message: `Ошибка ресурсов: ${v.message}` });
       }
     }
-    const ee = a.join(u, t.version, `${t.version}.jar`);
-    !n.existsSync(ee) && ((W = (J = $.downloads) == null ? void 0 : J.client) != null && W.url) && (s({
+    const ee = a.join(m, t.version, `${t.version}.jar`);
+    !n.existsSync(ee) && ((H = (F = D.downloads) == null ? void 0 : F.client) != null && H.url) && (s({
       instanceId: t.instanceId,
       stage: "downloading",
       statusText: "Загрузка Minecraft client.jar...",
       progress: 50
-    }), await k($.downloads.client.url, ee)), s({
+    }), await k(D.downloads.client.url, ee)), s({
       instanceId: t.instanceId,
       stage: "downloading",
       statusText: "Загрузка и распаковка библиотек...",
       progress: 60
     });
-    const V = [], De = $.libraries || [];
+    const U = [], De = D.libraries || [];
     for (const l of De)
-      if (Ae(l.rules)) {
+      if (Me(l.rules)) {
         if ((ce = l.downloads) != null && ce.artifact) {
-          const h = l.downloads.artifact.path, v = a.join(f, h);
+          const h = l.downloads.artifact.path, v = a.join(d, h);
           if (!n.existsSync(v))
             try {
               await k(l.downloads.artifact.url, v);
             } catch {
             }
-          n.existsSync(v) && (V.push(v), (h.includes("natives") || l.name.includes("natives")) && te(v, c));
+          n.existsSync(v) && (U.push(v), (h.includes("natives") || l.name.includes("natives")) && te(v, c));
         }
         if ((le = l.downloads) != null && le.classifiers) {
           const h = l.downloads.classifiers, v = h["natives-windows"] || h["natives-windows-64"] || h["natives-windows-x86"];
           if (v) {
-            const I = v.path, D = a.join(f, I);
-            if (!n.existsSync(D))
+            const I = v.path, b = a.join(d, I);
+            if (!n.existsSync(b))
               try {
-                await k(v.url, D);
+                await k(v.url, b);
               } catch {
               }
-            n.existsSync(D) && te(D, c);
+            n.existsSync(b) && te(b, c);
           }
         }
         if (!((de = l.downloads) != null && de.artifact) && l.name) {
-          const h = l.name.split(":"), v = h[0].replace(/\./g, "/"), I = h[1], D = h[2], E = `${v}/${I}/${D}/${I}-${D}.jar`, x = a.join(f, E), A = l.url ? `${l.url}${E}` : `https://libraries.minecraft.net/${E}`;
-          if (!n.existsSync(x))
+          const h = l.name.split(":"), v = h[0].replace(/\./g, "/"), I = h[1], b = h[2], E = `${v}/${I}/${b}/${I}-${b}.jar`, S = a.join(d, E), M = l.url ? `${l.url}${E}` : `https://libraries.minecraft.net/${E}`;
+          if (!n.existsSync(S))
             try {
-              await k(A, x);
+              await k(M, S);
             } catch {
             }
-          n.existsSync(x) && (V.push(x), l.name.includes("natives") && te(x, c));
+          n.existsSync(S) && (U.push(S), l.name.includes("natives") && te(S, c));
         }
       }
-    V.push(ee);
-    let pe = $.mainClass || "net.minecraft.client.main.Main";
+    U.push(ee);
+    let fe = D.mainClass || "net.minecraft.client.main.Main";
     if (t.loader === "fabric") {
       s({
         instanceId: t.instanceId,
@@ -333,15 +333,15 @@ hideServerAddress:false
         const l = await B(`https://meta.fabricmc.net/v2/versions/loader/${t.version}`);
         if (l && l.length > 0) {
           const h = l[0].loader.version, v = await B(`https://meta.fabricmc.net/v2/versions/loader/${t.version}/${h}/profile/json`);
-          if (v.mainClass && (pe = v.mainClass), v.libraries)
+          if (v.mainClass && (fe = v.mainClass), v.libraries)
             for (const I of v.libraries) {
-              const D = I.name.split(":"), E = D[0].replace(/\./g, "/"), x = D[1], A = D[2], T = `${E}/${x}/${A}/${x}-${A}.jar`, j = a.join(f, T), R = I.url ? `${I.url}${T}` : `https://maven.fabricmc.net/${T}`;
-              if (!n.existsSync(j))
+              const b = I.name.split(":"), E = b[0].replace(/\./g, "/"), S = b[1], M = b[2], T = `${E}/${S}/${M}/${S}-${M}.jar`, $ = a.join(d, T), R = I.url ? `${I.url}${T}` : `https://maven.fabricmc.net/${T}`;
+              if (!n.existsSync($))
                 try {
-                  await k(R, j);
+                  await k(R, $);
                 } catch {
                 }
-              n.existsSync(j) && V.unshift(j);
+              n.existsSync($) && U.unshift($);
             }
         }
       } catch (l) {
@@ -354,40 +354,40 @@ hideServerAddress:false
       statusText: "Запуск Minecraft...",
       progress: 90
     });
-    const be = V.join(a.delimiter), p = [];
-    p.push(`-Xms${t.memoryMin || 1024}M`), p.push(`-Xmx${t.memoryMax || 4096}M`), p.push(`-Djava.library.path=${c}`), p.push("-Dminecraft.api.auth.host=http://127.0.0.1"), p.push("-Dminecraft.api.account.host=http://127.0.0.1"), p.push("-Dminecraft.api.session.host=http://127.0.0.1"), p.push("-Dminecraft.api.services.host=http://127.0.0.1"), p.push("-XX:+UseG1GC", "-XX:+UnlockExperimentalVMOptions", "-XX:G1NewSizePercent=20", "-XX:G1ReservePercent=20", "-XX:MaxGCPauseMillis=50", "-XX:G1HeapRegionSize=32M"), t.customJvmArgs && p.push(...t.customJvmArgs.split(" ").filter(Boolean)), p.push("-cp", be), p.push(pe);
+    const be = U.join(a.delimiter), f = [];
+    f.push(`-Xms${t.memoryMin || 1024}M`), f.push(`-Xmx${t.memoryMax || 4096}M`), f.push(`-Djava.library.path=${c}`), f.push("-Dminecraft.api.auth.host=http://127.0.0.1"), f.push("-Dminecraft.api.account.host=http://127.0.0.1"), f.push("-Dminecraft.api.session.host=http://127.0.0.1"), f.push("-Dminecraft.api.services.host=http://127.0.0.1"), f.push("-XX:+UseG1GC", "-XX:+UnlockExperimentalVMOptions", "-XX:G1NewSizePercent=20", "-XX:G1ReservePercent=20", "-XX:MaxGCPauseMillis=50", "-XX:G1HeapRegionSize=32M"), t.customJvmArgs && f.push(...t.customJvmArgs.split(" ").filter(Boolean)), f.push("-cp", be), f.push(fe);
     const he = (t.uuid || z(t.username || "Player")).replace(/-/g, "");
-    if ($.minecraftArguments && typeof $.minecraftArguments == "string") {
-      const l = $.minecraftArguments.split(" ");
+    if (D.minecraftArguments && typeof D.minecraftArguments == "string") {
+      const l = D.minecraftArguments.split(" ");
       for (const h of l) {
-        let v = h.replace("${auth_player_name}", t.username || "Player").replace("${version_name}", t.version).replace("${game_directory}", r).replace("${assets_root}", o).replace("${assets_index_name}", ((ue = $.assetIndex) == null ? void 0 : ue.id) || t.version).replace("${auth_uuid}", he).replace("${auth_access_token}", "0").replace("${user_type}", "mojang").replace("${version_type}", "release");
-        p.push(v);
+        let v = h.replace("${auth_player_name}", t.username || "Player").replace("${version_name}", t.version).replace("${game_directory}", r).replace("${assets_root}", o).replace("${assets_index_name}", ((ue = D.assetIndex) == null ? void 0 : ue.id) || t.version).replace("${auth_uuid}", he).replace("${auth_access_token}", "0").replace("${user_type}", "mojang").replace("${version_type}", "release");
+        f.push(v);
       }
     } else
-      p.push("--username", t.username || "Player"), p.push("--version", t.version), p.push("--gameDir", r), p.push("--assetsDir", o), p.push("--assetIndex", ((me = $.assetIndex) == null ? void 0 : me.id) || t.version), p.push("--uuid", he), p.push("--accessToken", "0"), p.push("--userType", "mojang"), p.push("--versionType", "release");
+      f.push("--username", t.username || "Player"), f.push("--version", t.version), f.push("--gameDir", r), f.push("--assetsDir", o), f.push("--assetIndex", ((me = D.assetIndex) == null ? void 0 : me.id) || t.version), f.push("--uuid", he), f.push("--accessToken", "0"), f.push("--userType", "mojang"), f.push("--versionType", "release");
     e({
       timestamp: Date.now(),
       type: "info",
-      message: `Команда запуска: "${S}" ${p.join(" ")}`
+      message: `Команда запуска: "${g}" ${f.join(" ")}`
     });
-    const X = Me(S || "javaw", p, {
+    const V = Ae(g || "javaw", f, {
       cwd: r,
       detached: !0
     });
-    H.set(t.instanceId, X), X.stdout.on("data", (l) => {
+    X.set(t.instanceId, V), V.stdout.on("data", (l) => {
       e({ timestamp: Date.now(), type: "info", message: l.toString() });
-    }), X.stderr.on("data", (l) => {
+    }), V.stderr.on("data", (l) => {
       e({ timestamp: Date.now(), type: "warn", message: l.toString() });
-    }), X.on("error", (l) => {
-      H.delete(t.instanceId), s({
+    }), V.on("error", (l) => {
+      X.delete(t.instanceId), s({
         instanceId: t.instanceId,
         stage: "error",
         statusText: `Ошибка процесса: ${l.message}`,
         progress: 0,
         error: l.message
       }), e({ timestamp: Date.now(), type: "error", message: `Ошибка запуска: ${l.message}` });
-    }), X.on("exit", (l) => {
-      H.delete(t.instanceId), s({
+    }), V.on("exit", (l) => {
+      X.delete(t.instanceId), s({
         instanceId: t.instanceId,
         stage: "idle",
         statusText: `Игра завершена (код ${l})`,
@@ -399,27 +399,27 @@ hideServerAddress:false
       statusText: "Игра запущена!",
       progress: 100
     });
-  } catch (S) {
+  } catch (g) {
     s({
       instanceId: t.instanceId,
       stage: "error",
-      statusText: `Ошибка: ${S.message}`,
+      statusText: `Ошибка: ${g.message}`,
       progress: 0,
-      error: S.message
-    }), e({ timestamp: Date.now(), type: "error", message: `Ошибка запуска: ${S.message}` });
+      error: g.message
+    }), e({ timestamp: Date.now(), type: "error", message: `Ошибка запуска: ${g.message}` });
   }
 }
-function Je(t) {
-  const s = H.get(t);
-  return s ? (s.kill(), H.delete(t), !0) : !1;
+function Fe(t) {
+  const s = X.get(t);
+  return s ? (s.kill(), X.delete(t), !0) : !1;
 }
-Ie.setApplicationMenu(null);
-const Se = a.dirname(Pe(import.meta.url));
+Pe.setApplicationMenu(null);
+const Se = a.dirname(_e(import.meta.url));
 process.env.APP_ROOT = a.join(Se, "..");
-const ne = process.env.VITE_DEV_SERVER_URL, Xe = a.join(process.env.APP_ROOT, "dist-electron"), ge = a.join(process.env.APP_ROOT, "dist");
+const ne = process.env.VITE_DEV_SERVER_URL, Ve = a.join(process.env.APP_ROOT, "dist-electron"), ge = a.join(process.env.APP_ROOT, "dist");
 process.env.VITE_PUBLIC = ne ? a.join(process.env.APP_ROOT, "public") : ge;
-let d = null;
-const b = Y(), Z = a.join(b, "accounts.json"), Q = a.join(b, "instances.json"), je = a.join(b, "settings.json"), L = a.join(b, "skins");
+let u = null;
+const P = Y(), Z = a.join(P, "accounts.json"), Q = a.join(P, "instances.json"), je = a.join(P, "settings.json"), L = a.join(P, "skins");
 n.existsSync(L) || n.mkdirSync(L, { recursive: !0 });
 function oe(t, s) {
   try {
@@ -461,16 +461,21 @@ let y = oe(Z, [
     memoryMin: 2048,
     memoryMax: 4096
   }
-]), P = oe(je, {
+]), w = oe(je, {
   javaPath: "",
   memoryMin: 1024,
   memoryMax: 4096,
   customJvmArgs: "",
   closeLauncherOnGameStart: !1,
-  gameDir: b
+  gameDir: P,
+  useProxy: !1,
+  proxyType: "http",
+  proxyHost: "",
+  proxyPort: 8080,
+  launcherFont: "system-ui"
 });
 function $e() {
-  d = new we({
+  u = new we({
     width: 1050,
     height: 720,
     minWidth: 900,
@@ -483,12 +488,12 @@ function $e() {
       nodeIntegration: !1,
       contextIsolation: !0
     }
-  }), d.webContents.on("did-finish-load", () => {
-    d == null || d.webContents.send("main-process-message", (/* @__PURE__ */ new Date()).toLocaleString());
-  }), ne ? d.loadURL(ne) : d.loadFile(a.join(ge, "index.html"));
+  }), u.webContents.on("did-finish-load", () => {
+    u == null || u.webContents.send("main-process-message", (/* @__PURE__ */ new Date()).toLocaleString());
+  }), ne ? u.loadURL(ne) : u.loadFile(a.join(ge, "index.html"));
 }
 G.on("window-all-closed", () => {
-  process.platform !== "darwin" && (G.quit(), d = null);
+  process.platform !== "darwin" && (G.quit(), u = null);
 });
 G.on("activate", () => {
   we.getAllWindows().length === 0 && $e();
@@ -513,12 +518,12 @@ function ae(t, s) {
     });
   });
 }
-function Fe() {
-  m.handle("minimize-window", () => {
-    d == null || d.minimize();
-  }), m.handle("maximize-window", () => d ? d.isMaximized() ? (d.unmaximize(), !1) : (d.maximize(), !0) : !1), m.handle("close-window", () => {
-    d == null || d.close();
-  }), m.handle("is-maximized", () => (d == null ? void 0 : d.isMaximized()) || !1), m.handle("get-accounts", () => y), m.handle("add-account", (t, s) => {
+function Je() {
+  p.handle("minimize-window", () => {
+    u == null || u.minimize();
+  }), p.handle("maximize-window", () => u ? u.isMaximized() ? (u.unmaximize(), !1) : (u.maximize(), !0) : !1), p.handle("close-window", () => {
+    u == null || u.close();
+  }), p.handle("is-maximized", () => (u == null ? void 0 : u.isMaximized()) || !1), p.handle("get-accounts", () => y), p.handle("add-account", (t, s) => {
     const e = s.trim();
     if (!e) throw new Error("Имя пользователя не может быть пустым");
     if (y.some((o) => o.username.toLowerCase() === e.toLowerCase()))
@@ -532,40 +537,41 @@ function Fe() {
       createdAt: Date.now()
     };
     return y.push(r), N(Z, y), y;
-  }), m.handle("set-active-account", (t, s) => (y = y.map((e) => ({
+  }), p.handle("set-active-account", (t, s) => (y = y.map((e) => ({
     ...e,
     isActive: e.id === s
-  })), N(Z, y), y)), m.handle("delete-account", (t, s) => (y = y.filter((e) => e.id !== s), y.length > 0 && !y.some((e) => e.isActive) && (y[0].isActive = !0), N(Z, y), y)), m.handle("get-instances", () => _), m.handle("create-instance", (t, s) => {
+  })), N(Z, y), y)), p.handle("delete-account", (t, s) => (y = y.filter((e) => e.id !== s), y.length > 0 && !y.some((e) => e.isActive) && (y[0].isActive = !0), N(Z, y), y)), p.handle("get-instances", () => _), p.handle("create-instance", (t, s) => {
     const e = {
       id: "inst-" + Date.now(),
       name: s.version,
       version: s.version,
       loader: s.loader || "vanilla",
       created: Date.now(),
-      memoryMin: P.memoryMin,
-      memoryMax: P.memoryMax
+      memoryMin: w.memoryMin,
+      memoryMax: w.memoryMax
     };
     _.push(e), N(Q, _);
-    const i = a.join(b, "instances", e.id), r = a.join(i, "mods");
+    const i = a.join(P, "instances", e.id), r = a.join(i, "mods");
     return n.existsSync(r) || n.mkdirSync(r, { recursive: !0 }), _;
-  }), m.handle("delete-instance", (t, s) => {
+  }), p.handle("delete-instance", (t, s) => {
     _ = _.filter((i) => i.id !== s), N(Q, _);
-    const e = a.join(b, "instances", s);
+    const e = a.join(P, "instances", s);
     return n.existsSync(e) && n.rmSync(e, { recursive: !0, force: !0 }), _;
-  }), m.handle("get-versions", async () => {
+  }), p.handle("get-versions", async () => {
     try {
       return await xe();
     } catch (t) {
       return console.error("Failed to get versions:", t), { latest: { release: "1.20.4", snapshot: "1.20.4" }, versions: [] };
     }
-  }), m.handle("get-settings", () => P), m.handle("save-settings", (t, s) => (P = { ...P, ...s }, N(je, P), P)), m.handle("detect-java", async () => await se()), m.handle("launch-instance", async (t, s) => {
-    const e = _.find((o) => o.id === s);
+  }), p.handle("get-settings", () => w), p.handle("save-settings", (t, s) => (w = { ...w, ...s }, N(je, w), w)), p.handle("detect-java", async () => await se()), p.handle("launch-instance", async (t, s) => {
+    const e = _.find((d) => d.id === s);
     if (!e) throw new Error("Инстанс не найден");
-    const i = y.find((o) => o.isActive) || y[0];
+    const i = y.find((d) => d.isActive) || y[0];
     if (!i) throw new Error("Добавьте хотя бы один аккаунт!");
     e.lastPlayed = Date.now(), N(Q, _);
-    const r = e.javaPath || P.javaPath || (await se())[0];
-    return Te(
+    const r = e.javaPath || w.javaPath || (await se())[0];
+    let o = e.jvmArgs || w.customJvmArgs || "";
+    return w.useProxy && w.proxyHost && w.proxyPort && (w.proxyType === "socks5" ? o += ` -DsocksProxyHost=${w.proxyHost} -DsocksProxyPort=${w.proxyPort}` : o += ` -Dhttp.proxyHost=${w.proxyHost} -Dhttp.proxyPort=${w.proxyPort} -Dhttps.proxyHost=${w.proxyHost} -Dhttps.proxyPort=${w.proxyPort}`), Te(
       {
         instanceId: e.id,
         instanceName: e.name,
@@ -573,68 +579,68 @@ function Fe() {
         loader: e.loader || "vanilla",
         username: i.username,
         uuid: i.uuid,
-        memoryMin: e.memoryMin || P.memoryMin || 1024,
-        memoryMax: e.memoryMax || P.memoryMax || 4096,
+        memoryMin: e.memoryMin || w.memoryMin || 1024,
+        memoryMax: e.memoryMax || w.memoryMax || 4096,
         javaPath: r,
-        customJvmArgs: e.jvmArgs || P.customJvmArgs
+        customJvmArgs: o.trim()
       },
-      (o) => {
-        d == null || d.webContents.send("launch-progress", o);
+      (d) => {
+        u == null || u.webContents.send("launch-progress", d);
       },
-      (o) => {
-        d == null || d.webContents.send("game-log", o);
+      (d) => {
+        u == null || u.webContents.send("game-log", d);
       }
     ), !0;
-  }), m.handle("stop-instance", (t, s) => Je(s)), m.handle("open-instance-folder", (t, s) => {
-    const e = a.join(b, "instances", s);
-    n.existsSync(e) || n.mkdirSync(e, { recursive: !0 }), _e.openPath(e);
-  }), m.handle("get-instance-mods", (t, s) => {
-    const e = a.join(b, "instances", s, "mods");
+  }), p.handle("stop-instance", (t, s) => Fe(s)), p.handle("open-instance-folder", (t, s) => {
+    const e = a.join(P, "instances", s);
+    n.existsSync(e) || n.mkdirSync(e, { recursive: !0 }), Ie.openPath(e);
+  }), p.handle("get-instance-mods", (t, s) => {
+    const e = a.join(P, "instances", s, "mods");
     if (!n.existsSync(e)) return [];
     try {
       return n.readdirSync(e).map((r) => {
-        const o = a.join(e, r), f = n.statSync(o), u = r.endsWith(".jar"), c = r.replace(/\.jar(\.disabled)?$/, "");
+        const o = a.join(e, r), d = n.statSync(o), m = r.endsWith(".jar"), c = r.replace(/\.jar(\.disabled)?$/, "");
         return {
           id: r,
           filename: r,
           name: c,
-          enabled: u,
-          size: f.size
+          enabled: m,
+          size: d.size
         };
       });
     } catch {
       return [];
     }
-  }), m.handle("toggle-mod", (t, { instanceId: s, modFilename: e }) => {
-    const i = a.join(b, "instances", s, "mods"), r = a.join(i, e);
+  }), p.handle("toggle-mod", (t, { instanceId: s, modFilename: e }) => {
+    const i = a.join(P, "instances", s, "mods"), r = a.join(i, e);
     if (!n.existsSync(r)) return !1;
     let o = e;
     e.endsWith(".jar") ? o = e + ".disabled" : e.endsWith(".jar.disabled") && (o = e.replace(/\.disabled$/, ""));
-    const f = a.join(i, o);
-    return n.renameSync(r, f), !0;
-  }), m.handle("download-mod-file", async (t, { instanceId: s, downloadUrl: e, filename: i }) => {
-    const r = a.join(b, "instances", s, "mods");
+    const d = a.join(i, o);
+    return n.renameSync(r, d), !0;
+  }), p.handle("download-mod-file", async (t, { instanceId: s, downloadUrl: e, filename: i }) => {
+    const r = a.join(P, "instances", s, "mods");
     n.existsSync(r) || n.mkdirSync(r, { recursive: !0 });
     const o = a.join(r, i);
     return await ae(e, o), !0;
-  }), m.handle("add-mod-file", async (t, s) => {
-    if (!d) return !1;
-    const e = await ve.showOpenDialog(d, {
+  }), p.handle("add-mod-file", async (t, s) => {
+    if (!u) return !1;
+    const e = await ve.showOpenDialog(u, {
       title: "Выберите файл мода (.jar)",
       filters: [{ name: "Minecraft Mods", extensions: ["jar"] }],
       properties: ["openFile", "multiSelections"]
     });
     if (e.canceled || !e.filePaths.length) return !1;
-    const i = a.join(b, "instances", s, "mods");
+    const i = a.join(P, "instances", s, "mods");
     n.existsSync(i) || n.mkdirSync(i, { recursive: !0 });
     for (const r of e.filePaths) {
       const o = a.join(i, a.basename(r));
       n.copyFileSync(r, o);
     }
     return !0;
-  }), m.handle("save-user-skin", async (t, s) => {
-    if (!d) return !1;
-    const e = await ve.showOpenDialog(d, {
+  }), p.handle("save-user-skin", async (t, s) => {
+    if (!u) return !1;
+    const e = await ve.showOpenDialog(u, {
       title: "Выберите файл скина Minecraft (.png)",
       filters: [{ name: "Minecraft Skins", extensions: ["png"] }],
       properties: ["openFile"]
@@ -642,7 +648,7 @@ function Fe() {
     if (e.canceled || !e.filePaths.length) return !1;
     const i = a.join(L, `${s}.png`);
     return n.copyFileSync(e.filePaths[0], i), i;
-  }), m.handle("fetch-online-skin", async (t, { username: s, targetUsername: e }) => {
+  }), p.handle("fetch-online-skin", async (t, { username: s, targetUsername: e }) => {
     const i = a.join(L, `${s}.png`), r = [
       `https://ely.by/services/skins-buffer/skins/${encodeURIComponent(e)}.png`,
       `https://minotar.net/skin/${encodeURIComponent(e)}`,
@@ -655,43 +661,43 @@ function Fe() {
       } catch {
       }
     throw new Error(`Скин для никнейма "${e}" не найден на серверах`);
-  }), m.handle("get-profile-stats", (t, s) => {
+  }), p.handle("get-profile-stats", (t, s) => {
     let e = 0;
     const i = [];
-    let r = "Нет информации", o = "Нет информации", f = 0, u = 0;
+    let r = "Нет информации", o = "Нет информации", d = 0, m = 0;
     try {
-      for (const w of _) {
-        w.lastPlayed && (u = Math.max(u, w.lastPlayed), f += 45);
-        const M = a.join(b, "instances", w.id, "saves");
-        if (n.existsSync(M)) {
-          const J = n.readdirSync(M);
-          for (const W of J)
-            n.statSync(a.join(M, W)).isDirectory() && (e++, i.push(W));
+      for (const x of _) {
+        x.lastPlayed && (m = Math.max(m, x.lastPlayed), d += 45);
+        const A = a.join(P, "instances", x.id, "saves");
+        if (n.existsSync(A)) {
+          const F = n.readdirSync(A);
+          for (const H of F)
+            n.statSync(a.join(A, H)).isDirectory() && (e++, i.push(H));
         }
       }
       i.length > 0 && (r = i[0]);
     } catch {
     }
-    const c = y.find((w) => w.username === s) || y.find((w) => w.isActive) || y[0], g = (f / 60).toFixed(1), C = u ? new Date(u).toLocaleString() : "Нет информации";
+    const c = y.find((x) => x.username === s) || y.find((x) => x.isActive) || y[0], j = (d / 60).toFixed(1), C = m ? new Date(m).toLocaleString() : "Нет информации";
     return {
       username: c ? c.username : s,
       uuid: c ? c.uuid : "",
       worldsCount: e,
-      totalPlayTimeHours: f > 0 ? `${g} ч.` : "Нет информации",
+      totalPlayTimeHours: d > 0 ? `${j} ч.` : "Нет информации",
       lastPlayedFormatted: C,
       favoriteWorld: r,
       favoriteServer: o
     };
-  }), m.handle("get-user-skin", (t, s) => {
+  }), p.handle("get-user-skin", (t, s) => {
     const e = a.join(L, `${s}.png`);
     return n.existsSync(e) ? `data:image/png;base64,${n.readFileSync(e).toString("base64")}` : null;
   });
 }
 G.whenReady().then(() => {
-  Fe(), $e();
+  Je(), $e();
 });
 export {
-  Xe as MAIN_DIST,
+  Ve as MAIN_DIST,
   ge as RENDERER_DIST,
   ne as VITE_DEV_SERVER_URL
 };

@@ -89,13 +89,30 @@ let instances = loadJsonData(instancesFile, [
   }
 ])
 
-let settings = loadJsonData(settingsFile, {
+let settings: {
+  javaPath: string
+  memoryMin: number
+  memoryMax: number
+  customJvmArgs: string
+  closeLauncherOnGameStart: boolean
+  gameDir: string
+  useProxy?: boolean
+  proxyType?: string
+  proxyHost?: string
+  proxyPort?: number
+  launcherFont?: string
+} = loadJsonData(settingsFile, {
   javaPath: '',
   memoryMin: 1024,
   memoryMax: 4096,
   customJvmArgs: '',
   closeLauncherOnGameStart: false,
-  gameDir: rootDir
+  gameDir: rootDir,
+  useProxy: false,
+  proxyType: 'http',
+  proxyHost: '',
+  proxyPort: 8080,
+  launcherFont: 'system-ui'
 })
 
 function createWindow() {
@@ -312,6 +329,15 @@ function setupIpcHandlers() {
 
     const javaPathToUse = inst.javaPath || settings.javaPath || (await detectJavaPaths())[0]
 
+    let customArgsCombined = inst.jvmArgs || settings.customJvmArgs || ''
+    if (settings.useProxy && settings.proxyHost && settings.proxyPort) {
+      if (settings.proxyType === 'socks5') {
+        customArgsCombined += ` -DsocksProxyHost=${settings.proxyHost} -DsocksProxyPort=${settings.proxyPort}`
+      } else {
+        customArgsCombined += ` -Dhttp.proxyHost=${settings.proxyHost} -Dhttp.proxyPort=${settings.proxyPort} -Dhttps.proxyHost=${settings.proxyHost} -Dhttps.proxyPort=${settings.proxyPort}`
+      }
+    }
+
     launchMinecraft(
       {
         instanceId: inst.id,
@@ -323,7 +349,7 @@ function setupIpcHandlers() {
         memoryMin: inst.memoryMin || settings.memoryMin || 1024,
         memoryMax: inst.memoryMax || settings.memoryMax || 4096,
         javaPath: javaPathToUse,
-        customJvmArgs: inst.jvmArgs || settings.customJvmArgs
+        customJvmArgs: customArgsCombined.trim()
       },
       (progressData) => {
         win?.webContents.send('launch-progress', progressData)
