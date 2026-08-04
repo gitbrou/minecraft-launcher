@@ -1,0 +1,344 @@
+import { app, BrowserWindow, ipcMain, shell, dialog, Menu } from 'electron'
+
+// Remove default Electron application menu bar
+Menu.setApplicationMenu(null)
+import { fileURLToPath } from 'node:url'
+import path from 'node:path'
+import fs from 'node:fs'
+import {
+  getRootDir,
+  getMinecraftVersions,
+  detectJavaPaths,
+  launchMinecraft,
+  stopInstance,
+  generateOfflineUUID
+} from './launcherEngine'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+
+process.env.APP_ROOT = path.join(__dirname, '..')
+
+export const VITE_DEV_SERVER_URL = process.env['VITE_DEV_SERVER_URL']
+export const MAIN_DIST = path.join(process.env.APP_ROOT, 'dist-electron')
+export const RENDERER_DIST = path.join(process.env.APP_ROOT, 'dist')
+
+process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path.join(process.env.APP_ROOT, 'public') : RENDERER_DIST
+
+let win: BrowserWindow | null = null
+
+// Data persistence paths
+const rootDir = getRootDir()
+const accountsFile = path.join(rootDir, 'accounts.json')
+const instancesFile = path.join(rootDir, 'instances.json')
+const settingsFile = path.join(rootDir, 'settings.json')
+
+// Helper data accessors
+function loadJsonData<T>(filePath: string, fallback: T): T {
+  try {
+    if (fs.existsSync(filePath)) {
+      return JSON.parse(fs.readFileSync(filePath, 'utf-8'))
+    }
+  } catch (e) {
+    console.error(`Failed loading ${filePath}:`, e)
+  }
+  return fallback
+}
+
+function saveJsonData<T>(filePath: string, data: T) {
+  try {
+    fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8')
+  } catch (e) {
+    console.error(`Failed saving ${filePath}:`, e)
+  }
+}
+
+// Initial default data if none exists
+let accounts = loadJsonData(accountsFile, [
+  { id: '1', username: 'Ник 1', uuid: generateOfflineUUID('Ник 1'), type: 'offline', isActive: true, createdAt: Date.now() - 50000 },
+  { id: '2', username: 'Ник 2', uuid: generateOfflineUUID('Ник 2'), type: 'offline', isActive: false, createdAt: Date.now() - 40000 },
+  { id: '3', username: 'Ник 3', uuid: generateOfflineUUID('Ник 3'), type: 'offline', isActive: false, createdAt: Date.now() - 30000 },
+  { id: '4', username: 'Ник 4', uuid: generateOfflineUUID('Ник 4'), type: 'offline', isActive: false, createdAt: Date.now() - 20000 },
+  { id: '5', username: 'Ник 5', uuid: generateOfflineUUID('Ник 5'), type: 'offline', isActive: false, createdAt: Date.now() - 10000 }
+])
+
+let instances = loadJsonData(instancesFile, [
+  {
+    id: 'default-1',
+    name: 'Vanilla 1.20.4',
+    version: '1.20.4',
+    loader: 'vanilla',
+    created: Date.now() - 100000,
+    lastPlayed: Date.now() - 50000,
+    memoryMin: 1024,
+    memoryMax: 4096
+  },
+  {
+    id: 'fabric-1',
+    name: 'Fabric 1.20.1',
+    version: '1.20.1',
+    loader: 'fabric',
+    created: Date.now() - 80000,
+    memoryMin: 2048,
+    memoryMax: 4096
+  }
+])
+
+let settings = loadJsonData(settingsFile, {
+  javaPath: '',
+  memoryMin: 1024,
+  memoryMax: 4096,
+  customJvmArgs: '',
+  closeLauncherOnGameStart: false,
+  gameDir: rootDir
+})
+
+function createWindow() {
+  win = new BrowserWindow({
+    width: 1050,
+    height: 720,
+    minWidth: 900,
+    minHeight: 650,
+    frame: true,
+    titleBarStyle: 'default',
+    icon: path.join(process.env.VITE_PUBLIC, 'electron-vite.svg'),
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.mjs'),
+      nodeIntegration: false,
+      contextIsolation: true
+    },
+  })
+
+  win.webContents.on('did-finish-load', () => {
+    win?.webContents.send('main-process-message', (new Date).toLocaleString())
+  })
+
+  if (VITE_DEV_SERVER_URL) {
+    win.loadURL(VITE_DEV_SERVER_URL)
+  } else {
+    win.loadFile(path.join(RENDERER_DIST, 'index.html'))
+  }
+}
+
+app.on('window-all-closed', () => {
+  if (process.platform !== 'darwin') {
+    app.quit()
+    win = null
+  }
+})
+
+app.on('activate', () => {
+  if (BrowserWindow.getAllWindows().length === 0) {
+    createWindow()
+  }
+})
+
+// Setup IPC Listeners
+function setupIpcHandlers() {
+  // Accounts
+  ipcMain.handle('get-accounts', () => accounts)
+
+  ipcMain.handle('add-account', (_, username: string) => {
+    const trimmed = username.trim()
+    if (!trimmed) throw new Error('Имя пользователя не может быть пустым')
+    const newAcc = {
+      id: Date.now().toString(),
+      username: trimmed,
+      uuid: generateOfflineUUID(trimmed),
+      type: 'offline' as const,
+      isActive: accounts.length === 0,
+      createdAt: Date.now()
+    }
+    accounts.push(newAcc)
+    saveJsonData(accountsFile, accounts)
+    return accounts
+  })
+
+  ipcMain.handle('set-active-account', (_, accountId: string) => {
+    accounts = accounts.map(acc => ({
+      ...acc,
+      isActive: acc.id === accountId
+    }))
+    saveJsonData(accountsFile, accounts)
+    return accounts
+  })
+
+  ipcMain.handle('delete-account', (_, accountId: string) => {
+    accounts = accounts.filter(acc => acc.id !== accountId)
+    if (accounts.length > 0 && !accounts.some(acc => acc.isActive)) {
+      accounts[0].isActive = true
+    }
+    saveJsonData(accountsFile, accounts)
+    return accounts
+  })
+
+  // Instances
+  ipcMain.handle('get-instances', () => instances)
+
+  ipcMain.handle('create-instance', (_, data: { name: string; version: string; loader: 'vanilla' | 'fabric' | 'forge' | 'quilt' }) => {
+    const newInst = {
+      id: 'inst-' + Date.now(),
+      name: data.name || `Minecraft ${data.version}`,
+      version: data.version,
+      loader: data.loader || 'vanilla',
+      created: Date.now(),
+      memoryMin: settings.memoryMin,
+      memoryMax: settings.memoryMax
+    }
+    instances.push(newInst)
+    saveJsonData(instancesFile, instances)
+
+    // Ensure instance folder exists
+    const instDir = path.join(rootDir, 'instances', newInst.id)
+    const modsDir = path.join(instDir, 'mods')
+    if (!fs.existsSync(modsDir)) {
+      fs.mkdirSync(modsDir, { recursive: true })
+    }
+
+    return instances
+  })
+
+  ipcMain.handle('delete-instance', (_, instanceId: string) => {
+    instances = instances.filter(i => i.id !== instanceId)
+    saveJsonData(instancesFile, instances)
+    const instDir = path.join(rootDir, 'instances', instanceId)
+    if (fs.existsSync(instDir)) {
+      fs.rmSync(instDir, { recursive: true, force: true })
+    }
+    return instances
+  })
+
+  // Versions
+  ipcMain.handle('get-versions', async () => {
+    try {
+      return await getMinecraftVersions()
+    } catch (e: any) {
+      console.error('Failed to get versions:', e)
+      return { latest: { release: '1.20.4', snapshot: '1.20.4' }, versions: [] }
+    }
+  })
+
+  // Settings & Java
+  ipcMain.handle('get-settings', () => settings)
+
+  ipcMain.handle('save-settings', (_, newSettings: any) => {
+    settings = { ...settings, ...newSettings }
+    saveJsonData(settingsFile, settings)
+    return settings
+  })
+
+  ipcMain.handle('detect-java', async () => {
+    return await detectJavaPaths()
+  })
+
+  // Launching
+  ipcMain.handle('launch-instance', async (_, instanceId: string) => {
+    const inst: any = instances.find((i: any) => i.id === instanceId)
+    if (!inst) throw new Error('Инстанс не найден')
+
+    const activeAcc = accounts.find(a => a.isActive) || accounts[0]
+    if (!activeAcc) throw new Error('Добавьте хотя бы один аккаунт!')
+
+    // Update last played
+    inst.lastPlayed = Date.now()
+    saveJsonData(instancesFile, instances)
+
+    const javaPathToUse = inst.javaPath || settings.javaPath || (await detectJavaPaths())[0]
+
+    launchMinecraft(
+      {
+        instanceId: inst.id,
+        instanceName: inst.name,
+        version: inst.version,
+        loader: (inst.loader || 'vanilla') as 'vanilla' | 'fabric' | 'forge' | 'quilt',
+        username: activeAcc.username,
+        uuid: activeAcc.uuid,
+        memoryMin: inst.memoryMin || settings.memoryMin || 1024,
+        memoryMax: inst.memoryMax || settings.memoryMax || 4096,
+        javaPath: javaPathToUse,
+        customJvmArgs: inst.jvmArgs || settings.customJvmArgs
+      },
+      (progressData) => {
+        win?.webContents.send('launch-progress', progressData)
+      },
+      (logData) => {
+        win?.webContents.send('game-log', logData)
+      }
+    )
+    return true
+  })
+
+  ipcMain.handle('stop-instance', (_, instanceId: string) => {
+    return stopInstance(instanceId)
+  })
+
+  // Mods & Folder utilities
+  ipcMain.handle('open-instance-folder', (_, instanceId: string) => {
+    const instDir = path.join(rootDir, 'instances', instanceId)
+    if (!fs.existsSync(instDir)) fs.mkdirSync(instDir, { recursive: true })
+    shell.openPath(instDir)
+  })
+
+  ipcMain.handle('get-instance-mods', (_, instanceId: string) => {
+    const modsDir = path.join(rootDir, 'instances', instanceId, 'mods')
+    if (!fs.existsSync(modsDir)) return []
+
+    try {
+      const files = fs.readdirSync(modsDir)
+      return files.map(file => {
+        const fullPath = path.join(modsDir, file)
+        const stat = fs.statSync(fullPath)
+        const isEnabled = file.endsWith('.jar')
+        const name = file.replace(/\.jar(\.disabled)?$/, '')
+        return {
+          id: file,
+          filename: file,
+          name,
+          enabled: isEnabled,
+          size: stat.size
+        }
+      })
+    } catch {
+      return []
+    }
+  })
+
+  ipcMain.handle('toggle-mod', (_, { instanceId, modFilename }: { instanceId: string; modFilename: string }) => {
+    const modsDir = path.join(rootDir, 'instances', instanceId, 'mods')
+    const oldPath = path.join(modsDir, modFilename)
+    if (!fs.existsSync(oldPath)) return false
+
+    let newFilename = modFilename
+    if (modFilename.endsWith('.jar')) {
+      newFilename = modFilename + '.disabled'
+    } else if (modFilename.endsWith('.jar.disabled')) {
+      newFilename = modFilename.replace(/\.disabled$/, '')
+    }
+    const newPath = path.join(modsDir, newFilename)
+    fs.renameSync(oldPath, newPath)
+    return true
+  })
+
+  ipcMain.handle('add-mod-file', async (_, instanceId: string) => {
+    if (!win) return false
+    const res = await dialog.showOpenDialog(win, {
+      title: 'Выберите файл мода (.jar)',
+      filters: [{ name: 'Minecraft Mods', extensions: ['jar'] }],
+      properties: ['openFile', 'multiSelections']
+    })
+    if (res.canceled || !res.filePaths.length) return false
+
+    const modsDir = path.join(rootDir, 'instances', instanceId, 'mods')
+    if (!fs.existsSync(modsDir)) fs.mkdirSync(modsDir, { recursive: true })
+
+    for (const file of res.filePaths) {
+      const dest = path.join(modsDir, path.basename(file))
+      fs.copyFileSync(file, dest)
+    }
+    return true
+  })
+}
+
+app.whenReady().then(() => {
+  setupIpcHandlers()
+  createWindow()
+})
