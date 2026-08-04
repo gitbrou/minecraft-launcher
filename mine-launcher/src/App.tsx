@@ -23,10 +23,14 @@ export function App() {
         setAccounts(accs)
       })
 
-      window.electronAPI.getInstances().then((insts) => {
+      Promise.all([
+        window.electronAPI.getInstances(),
+        window.electronAPI.getSettings()
+      ]).then(([insts, stg]) => {
         setInstances(insts)
         if (insts.length > 0) {
-          setSelectedInstance(insts[0])
+          const savedInst = stg?.selectedInstanceId ? insts.find((i: Instance) => i.id === stg.selectedInstanceId) : null
+          setSelectedInstance(savedInst || insts[0])
         }
       })
 
@@ -45,6 +49,13 @@ export function App() {
       }
     }
   }, [])
+
+  const handleSelectInstance = (instance: Instance) => {
+    setSelectedInstance(instance)
+    if (window.electronAPI) {
+      window.electronAPI.setSelectedInstanceId(instance.id)
+    }
+  }
 
   // Accounts Handlers
   const handleSelectAccount = (id: string) => {
@@ -136,7 +147,7 @@ export function App() {
             instances={instances}
             selectedInstance={selectedInstance}
             activeUsername={accounts.find((a) => a.isActive)?.username || 'Steve'}
-            onSelectInstance={setSelectedInstance}
+            onSelectInstance={handleSelectInstance}
             onCreateInstance={handleCreateInstance}
             onDeleteInstance={handleDeleteInstance}
             onOpenSettings={() => setIsSettingsOpen(true)}
@@ -148,7 +159,7 @@ export function App() {
           <BottomBar
             instances={instances}
             selectedInstance={selectedInstance}
-            onSelectInstance={setSelectedInstance}
+            onSelectInstance={handleSelectInstance}
             onLaunch={handleLaunch}
             launchProgress={launchProgress}
           />

@@ -101,6 +101,7 @@ let settings: {
   proxyHost?: string
   proxyPort?: number
   launcherFont?: string
+  selectedInstanceId?: string
 } = loadJsonData(settingsFile, {
   javaPath: '',
   memoryMin: 1024,
@@ -548,15 +549,22 @@ function setupIpcHandlers() {
     return null
   })
 
+  // Selected instance persistence
+  ipcMain.handle('set-selected-instance-id', (_, instanceId: string) => {
+    settings = { ...settings, selectedInstanceId: instanceId }
+    saveJsonData(settingsFile, settings)
+    return settings
+  })
+
   ipcMain.handle('parse-command-skin', async (_, payload: { username: string; command: string }) => {
     const { username, command } = payload
     let textureUrl = ''
 
-    // 1. Try extracting base64 value from /give command: value:"..." or value:"..."
-    const matchBase64 = command.match(/value:\s*"([^"]+)"/i) || command.match(/value=?"([^"]+)"/i)
-    if (matchBase64 && matchBase64[1]) {
+    // 1. Look for universal Minecraft skin base64 string starting with e3RleHR1 ("{"textures":...")
+    const b64Match = command.match(/e3RleHR1[A-Za-z0-9+/=]+/)
+    if (b64Match) {
       try {
-        const decoded = Buffer.from(matchBase64[1], 'base64').toString('utf-8')
+        const decoded = Buffer.from(b64Match[0], 'base64').toString('utf-8')
         const json = JSON.parse(decoded)
         if (json?.textures?.SKIN?.url) {
           textureUrl = json.textures.SKIN.url
@@ -564,7 +572,21 @@ function setupIpcHandlers() {
       } catch {}
     }
 
-    // 2. Direct texture URL or NameMC URL fallback
+    // 2. Try value:"..." SNBT extraction
+    if (!textureUrl) {
+      const matchValue = command.match(/value[:=]\s*["']?([^"'\]}]+)["']?/i)
+      if (matchValue && matchValue[1]) {
+        try {
+          const decoded = Buffer.from(matchValue[1], 'base64').toString('utf-8')
+          const json = JSON.parse(decoded)
+          if (json?.textures?.SKIN?.url) {
+            textureUrl = json.textures.SKIN.url
+          }
+        } catch {}
+      }
+    }
+
+    // 3. Direct texture URL or NameMC skin link fallback
     if (!textureUrl) {
       const matchDirect = command.match(/(https?:\/\/textures\.minecraft\.net\/texture\/[a-f0-9]+)/i)
       if (matchDirect) {
@@ -572,13 +594,22 @@ function setupIpcHandlers() {
       }
     }
 
+    // 4. NameMC link fallback https://namemc.com/skin/a1c2aa116b32f70d
     if (!textureUrl) {
-      throw new Error('Не удалось найти текстуру скина в переданной команде')
+      const matchNameMc = command.match(/namemc\.com\/skin\/([a-f0-9]+)/i)
+      if (matchNameMc && matchNameMc[1]) {
+        // NameMC texture endpoint
+        textureUrl = `https://textures.minecraft.net/texture/${matchNameMc[1]}`
+      }
+    }
+
+    if (!textureUrl) {
+      throw new Error('Не удалось спарсить скин из команды. Убедитесь, что передан валидный /give или ссылка.')
     }
 
     // Download PNG from Mojang textures server
     const res = await fetch(textureUrl)
-    if (!res.ok) throw new Error('Не удалось скачать скин по URL текстуры')
+    if (!res.ok) throw new Error('Не удалось скачать скин с сервера Mojang')
 
     const arrayBuffer = await res.arrayBuffer()
     const buffer = Buffer.from(arrayBuffer)
