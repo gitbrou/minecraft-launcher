@@ -6,10 +6,16 @@ interface ProfileTabProps {
   activeUsername: string
 }
 
-// User SVG icon
+// User SVGs
 const IconUpload = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
     <path d="M11 16V7.85l-2.6 2.6L7 9l5-5l5 5l-1.4 1.45l-2.6-2.6V16zm-5 4q-.825 0-1.412-.587T4 18v-3h2v3h12v-3h2v3q0 .825-.587 1.413T18 20z" />
+  </svg>
+)
+
+const IconTerminalCmd = () => (
+  <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor">
+    <path d="M12.5 1h-9A2.5 2.5 0 0 0 1 3.5v9A2.5 2.5 0 0 0 3.5 15h9a2.5 2.5 0 0 0 2.5-2.5v-9A2.5 2.5 0 0 0 12.5 1M14 12.5a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 2 12.5V5h12zM14 4H2v-.5A1.5 1.5 0 0 1 3.5 2h9A1.5 1.5 0 0 1 14 3.5zM4 10.508v-2c0-.827.673-1.5 1.5-1.5s1.5.673 1.5 1.5a.5.5 0 0 1-1 0a.5.5 0 0 0-1 0v2a.5.5 0 0 0 1 0a.5.5 0 0 1 1 0c0 .827-.673 1.5-1.5 1.5s-1.5-.673-1.5-1.5M8 8.5a.5.5 0 1 1 1 0a.5.5 0 0 1-1 0m0 2a.5.5 0 1 1 1 0a.5.5 0 0 1-1 0m1.532-2.824a.5.5 0 0 1 .292-.644a.5.5 0 0 1 .644.292l1.5 4A.5.5 0 0 1 11.5 12a.5.5 0 0 1-.468-.324z" />
   </svg>
 )
 
@@ -26,6 +32,11 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ activeUsername }) => {
   })
 
   const [skinUrl, setSkinUrl] = useState<string>(DEFAULT_STEVE_SKIN)
+  const [showCmdModal, setShowCmdModal] = useState(false)
+  const [cmdText, setCmdText] = useState('')
+  const [cmdError, setCmdError] = useState('')
+  const [loadingCmd, setLoadingCmd] = useState(false)
+
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const viewerRef = useRef<SkinViewer | null>(null)
 
@@ -100,9 +111,33 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ activeUsername }) => {
     }
   }
 
+  const handleParseCommandSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!cmdText.trim()) return
+    setLoadingCmd(true)
+    setCmdError('')
+    try {
+      if (window.electronAPI) {
+        const newSkin = await window.electronAPI.parseCommandSkin({
+          username: activeUsername,
+          command: cmdText
+        })
+        if (newSkin) {
+          setSkinUrl(newSkin)
+          setShowCmdModal(false)
+          setCmdText('')
+        }
+      }
+    } catch (err: any) {
+      setCmdError(err.message || 'Ошибка обработки команды скина')
+    } finally {
+      setLoadingCmd(false)
+    }
+  }
+
   return (
     <div style={{ flex: 1, display: 'flex', gap: '32px', alignItems: 'center', height: '100%', padding: '10px 20px', overflow: 'hidden' }}>
-      {/* Left Column: 3D Rotatable Skin Projection Card + Upload Button underneath */}
+      {/* Left Column: 3D Rotatable Skin Projection Card + 2 Icon Buttons underneath */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', alignItems: 'center' }}>
         <div
           style={{
@@ -124,31 +159,56 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ activeUsername }) => {
           <canvas ref={canvasRef} style={{ width: '250px', height: '420px', borderRadius: '18px', display: 'block' }} />
         </div>
 
-        {/* Upload Skin Button directly under 3D model card */}
-        <button
-          onClick={handleUploadSkin}
-          style={{
-            width: '260px',
-            padding: '10px 16px',
-            background: '#14b8a6',
-            border: 'none',
-            borderRadius: '12px',
-            color: '#ffffff',
-            fontSize: '14px',
-            fontWeight: '600',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '8px',
-            boxShadow: '0 4px 14px rgba(20, 184, 166, 0.35)',
-            transition: 'all 0.2s ease'
-          }}
-          onMouseEnter={(e) => (e.currentTarget.style.background = '#0d9488')}
-          onMouseLeave={(e) => (e.currentTarget.style.background = '#14b8a6')}
-        >
-          <IconUpload /> Загрузить скин (.png)
-        </button>
+        {/* 2 Clean Icon-Only Action Buttons right under 3D model card */}
+        <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', width: '260px' }}>
+          {/* Button 1: Upload PNG file */}
+          <button
+            onClick={handleUploadSkin}
+            title="Загрузить скин (.png)"
+            style={{
+              flex: 1,
+              height: '42px',
+              background: '#14b8a6',
+              border: 'none',
+              borderRadius: '12px',
+              color: '#ffffff',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 4px 14px rgba(20, 184, 166, 0.35)',
+              transition: 'all 0.2s ease'
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = '#0d9488')}
+            onMouseLeave={(e) => (e.currentTarget.style.background = '#14b8a6')}
+          >
+            <IconUpload />
+          </button>
+
+          {/* Button 2: Import Skin via /give Command */}
+          <button
+            onClick={() => setShowCmdModal(true)}
+            title="Импортировать скин по команде Minecraft (/give @p minecraft:player_head...)"
+            style={{
+              flex: 1,
+              height: '42px',
+              background: '#3b82f6',
+              border: 'none',
+              borderRadius: '12px',
+              color: '#ffffff',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 4px 14px rgba(59, 130, 246, 0.35)',
+              transition: 'all 0.2s ease'
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = '#2563eb')}
+            onMouseLeave={(e) => (e.currentTarget.style.background = '#3b82f6')}
+          >
+            <IconTerminalCmd />
+          </button>
+        </div>
       </div>
 
       {/* Right Account Info exact labels */}
@@ -183,6 +243,52 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ activeUsername }) => {
           </div>
         </div>
       </div>
+
+      {/* Command Skin Import Modal */}
+      {showCmdModal && (
+        <div className="modal-overlay" onClick={() => setShowCmdModal(false)}>
+          <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ width: '560px' }}>
+            <h3 className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <IconTerminalCmd /> Импорт скина по команде Minecraft
+            </h3>
+
+            <form onSubmit={handleParseCommandSubmit}>
+              <div className="form-group">
+                <label>Вставьте команду (/give @p minecraft:player_head... или URL):</label>
+                <textarea
+                  rows={4}
+                  placeholder='/give @p minecraft:player_head[profile={properties:[{name:"textures",value:"e3RleHR1..."}]}]'
+                  value={cmdText}
+                  onChange={(e) => setCmdText(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    borderRadius: '8px',
+                    background: '#12141a',
+                    border: '1px solid rgba(255,255,255,0.15)',
+                    color: '#00ff66',
+                    fontFamily: 'monospace',
+                    fontSize: '12px',
+                    outline: 'none',
+                    resize: 'none'
+                  }}
+                />
+              </div>
+
+              {cmdError && <div style={{ color: '#ff4d4d', fontSize: '13px', marginBottom: '10px' }}>{cmdError}</div>}
+
+              <div className="modal-actions">
+                <button type="button" className="btn-secondary" onClick={() => setShowCmdModal(false)}>
+                  Отмена
+                </button>
+                <button type="submit" className="btn-primary" disabled={loadingCmd}>
+                  {loadingCmd ? 'Загрузка...' : 'Импортировать скин'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
