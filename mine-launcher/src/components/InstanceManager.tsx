@@ -61,6 +61,13 @@ const IconAdd = () => (
   </svg>
 )
 
+const IconCopyTabler = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M7 9.667A2.667 2.667 0 0 1 9.667 7h8.666A2.667 2.667 0 0 1 21 9.667v8.666A2.667 2.667 0 0 1 18.333 21H9.667A2.667 2.667 0 0 1 7 18.333z" />
+    <path d="M4.012 16.737A2 2 0 0 1 3 15V5c0-1.1.9-2 2-2h10c.75 0 1.158.385 1.5 1" />
+  </svg>
+)
+
 const IconDeletePixel = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
     <path d="M6 7h2v2H6zm14 0h2v10h-2zM8 5h12v2H8zM4 9h2v2H4zm-2 2h2v2H2zm2 2h2v2H4zm2 2h2v2H6zm2 2h12v2H8zm6-6h2v2h-2zm2 2h2v2h-2zm0-4h2v2h-2zm-4 4h2v2h-2zm0-4h2v2h-2z" />
@@ -138,11 +145,10 @@ export const InstanceManager: React.FC<InstanceManagerProps> = ({
     }
   }
 
-  const handleCopyLogs = (onlyErrors = false) => {
-    const targetLogs = onlyErrors ? logs.filter(l => l.type === 'error' || l.type === 'warn') : logs
-    const text = targetLogs.map(l => `[${new Date(l.timestamp).toLocaleTimeString()}] ${l.message}`).join('\n')
+  const handleCopySingleLogs = () => {
+    const text = logs.map(l => `[${new Date(l.timestamp).toLocaleTimeString()}] ${l.message}`).join('\n')
     navigator.clipboard.writeText(text)
-    setCopyNotice(onlyErrors ? 'Ошибки скопированы!' : 'Весь лог скопирован!')
+    setCopyNotice('Лог скопирован!')
     setTimeout(() => setCopyNotice(''), 2500)
   }
 
@@ -170,7 +176,7 @@ export const InstanceManager: React.FC<InstanceManagerProps> = ({
             onClick={() => setActiveTab('versions')}
             style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
           >
-            <IconVersions /> Версии
+            <IconVersions /> <span>Версии</span>
           </button>
 
           <button
@@ -178,7 +184,7 @@ export const InstanceManager: React.FC<InstanceManagerProps> = ({
             onClick={() => setActiveTab('mods')}
             style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
           >
-            <IconMods /> Моды
+            <IconMods /> <span>Моды</span>
           </button>
 
           <button
@@ -186,7 +192,7 @@ export const InstanceManager: React.FC<InstanceManagerProps> = ({
             onClick={() => setActiveTab('profile')}
             style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
           >
-            <IconProfile /> Профиль
+            <IconProfile /> <span>Профиль</span>
           </button>
 
           <button
@@ -194,24 +200,24 @@ export const InstanceManager: React.FC<InstanceManagerProps> = ({
             onClick={() => setActiveTab('logs')}
             style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
           >
-            <IconLogs /> Логи ({logs.length})
+            <IconLogs /> <span>Логи ({logs.length})</span>
           </button>
         </div>
 
-        {/* Right Action Buttons */}
+        {/* Right Action Buttons - Automatically Responsive Icon-Only on Small Windows */}
         <div className="action-buttons-group">
           {selectedInstance && (
             <button className="action-btn" onClick={handleOpenFolder} title="Открыть папку версии" style={{ color: '#facc15' }}>
-              <IconFolder /> Папка
+              <IconFolder /> <span>Папка</span>
             </button>
           )}
 
           <button className="action-btn" onClick={onOpenSettings} title="Настройки Java и памяти" style={{ color: '#c084fc' }}>
-            <IconSettings /> Настройки
+            <IconSettings /> <span>Настройки</span>
           </button>
 
           <button className="action-btn primary" onClick={() => setShowCreateModal(true)} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <IconAdd /> Новая версия
+            <IconAdd /> <span>Новая версия</span>
           </button>
         </div>
       </div>
@@ -348,7 +354,7 @@ export const InstanceManager: React.FC<InstanceManagerProps> = ({
         <ProfileTab activeUsername={activeUsername} />
       )}
 
-      {/* Logs Tab */}
+      {/* Logs Tab with Single Copy Button carrying tabler--copy.svg icon */}
       {activeTab === 'logs' && (
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
@@ -356,18 +362,12 @@ export const InstanceManager: React.FC<InstanceManagerProps> = ({
             <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
               {copyNotice && <span style={{ color: '#53921b', fontSize: '12px', fontWeight: 'bold' }}>{copyNotice}</span>}
               <button
-                className="btn-secondary"
-                style={{ padding: '4px 10px', fontSize: '12px' }}
-                onClick={() => handleCopyLogs(true)}
-              >
-                ⚠️ Только ошибки
-              </button>
-              <button
                 className="btn-primary"
-                style={{ padding: '4px 12px', fontSize: '12px' }}
-                onClick={() => handleCopyLogs(false)}
+                style={{ padding: '6px 14px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px', background: '#53921b' }}
+                onClick={handleCopySingleLogs}
+                title="Скопировать логи в буфер обмена"
               >
-                📋 Скопировать весь лог
+                <IconCopyTabler /> Скопировать логи
               </button>
             </div>
           </div>
