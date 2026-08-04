@@ -26,6 +26,12 @@ const IconFont = () => (
   </svg>
 )
 
+const IconCommandLine = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <path d="m6.75 7.5l3 2.25l-3 2.25m4.5 0h3m-9 8.25h13.5A2.25 2.25 0 0 0 21 18V6a2.25 2.25 0 0 0-2.25-2.25H5.25A2.25 2.25 0 0 0 3 6v12a2.25 2.25 0 0 0 2.25 2.25" />
+  </svg>
+)
+
 // Custom Modern UI Toggle Switch Component (Тумблер)
 const ToggleSwitch: React.FC<{ checked: boolean; onChange: (v: boolean) => void; label: string }> = ({ checked, onChange, label }) => {
   return (
@@ -61,7 +67,7 @@ const ToggleSwitch: React.FC<{ checked: boolean; onChange: (v: boolean) => void;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
-  const [activeCategory, setActiveCategory] = useState<'java' | 'proxy' | 'ui'>('java')
+  const [activeCategory, setActiveCategory] = useState<'java' | 'proxy' | 'ui' | 'cmd'>('java')
 
   const [settings, setSettings] = useState<LauncherSettings>({
     javaPath: '',
@@ -74,7 +80,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
     proxyType: 'http',
     proxyHost: '',
     proxyPort: 8080,
-    launcherFont: 'system-ui'
+    launcherFont: 'system-ui',
+    customGameArgs: ''
   })
 
   const [detectedJavas, setDetectedJavas] = useState<string[]>([])
@@ -95,7 +102,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
             proxyType: s.proxyType || 'http',
             proxyHost: s.proxyHost || '',
             proxyPort: s.proxyPort || 8080,
-            launcherFont: s.launcherFont || 'system-ui'
+            launcherFont: s.launcherFont || 'system-ui',
+            customGameArgs: s.customGameArgs || ''
           })
           if (s.launcherFont) {
             applyFontToApp(s.launcherFont)
@@ -139,13 +147,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
 
   return (
     <div className="modal-overlay" onClick={onClose} style={{ background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(4px)' }}>
-      {/* Premium Prism Settings Window */}
+      {/* Premium Settings Window */}
       <div
         className="prism-settings-window"
         onClick={(e) => e.stopPropagation()}
         style={{
-          width: '740px',
-          height: '530px',
+          width: '750px',
+          height: '540px',
           background: '#1a1c23',
           border: '1px solid rgba(255, 255, 255, 0.12)',
           borderRadius: '16px',
@@ -192,7 +200,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
           {/* Left Navigation Sidebar */}
           <div
             style={{
-              width: '200px',
+              width: '210px',
               background: '#14161d',
               borderRight: '1px solid rgba(255, 255, 255, 0.08)',
               display: 'flex',
@@ -204,7 +212,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
             {[
               { id: 'java', name: 'Java и Память', icon: <IconJava /> },
               { id: 'proxy', name: 'Прокси (Proxy)', icon: <IconProxy /> },
-              { id: 'ui', name: 'Интерфейс и Шрифт', icon: <IconFont /> }
+              { id: 'ui', name: 'Интерфейс и Шрифт', icon: <IconFont /> },
+              { id: 'cmd', name: 'Параметры запуска', icon: <IconCommandLine /> }
             ].map((item) => (
               <button
                 key={item.id}
@@ -239,6 +248,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
               {activeCategory === 'java' && 'Настройки Java и оперативной памяти'}
               {activeCategory === 'proxy' && 'Сеть и Прокси-сервер'}
               {activeCategory === 'ui' && 'Внешний вид и Шрифт приложения'}
+              {activeCategory === 'cmd' && 'Параметры запуска Minecraft'}
             </h2>
 
             {/* Java & RAM View */}
@@ -283,30 +293,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                     style={{ width: '100%', accentColor: '#53921b', cursor: 'pointer' }}
                   />
                 </fieldset>
-
-                <fieldset style={{ border: '1px solid rgba(255,255,255,0.12)', borderRadius: '12px', padding: '14px 18px', background: 'rgba(255,255,255,0.02)' }}>
-                  <legend style={{ fontSize: '12px', color: '#53921b', padding: '0 6px', fontWeight: '600' }}>Аргументы JVM</legend>
-                  <input
-                    type="text"
-                    placeholder="-XX:+UseG1GC -Dsun.java2d.opengl=true"
-                    value={settings.customJvmArgs || ''}
-                    onChange={(e) => setSettings({ ...settings, customJvmArgs: e.target.value })}
-                    style={{
-                      width: '100%',
-                      padding: '10px 12px',
-                      background: '#12141a',
-                      border: '1px solid rgba(255,255,255,0.15)',
-                      color: '#fff',
-                      borderRadius: '8px',
-                      outline: 'none',
-                      fontSize: '13px'
-                    }}
-                  />
-                </fieldset>
               </div>
             )}
 
-            {/* Proxy View with Modern Toggle Switch */}
+            {/* Proxy View */}
             {activeCategory === 'proxy' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 <fieldset style={{ border: '1px solid rgba(255,255,255,0.12)', borderRadius: '12px', padding: '14px 18px', background: 'rgba(255,255,255,0.02)' }}>
@@ -359,7 +349,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
               </div>
             )}
 
-            {/* UI & Font Selection View with Modern Toggle Switch */}
+            {/* UI & Font Selection View */}
             {activeCategory === 'ui' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 <fieldset style={{ border: '1px solid rgba(255,255,255,0.12)', borderRadius: '12px', padding: '14px 18px', background: 'rgba(255,255,255,0.02)' }}>
@@ -397,6 +387,75 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                     label="Закрывать лаунчер при запуске игры"
                     checked={settings.closeLauncherOnGameStart || false}
                     onChange={(val) => setSettings({ ...settings, closeLauncherOnGameStart: val })}
+                  />
+                </fieldset>
+              </div>
+            )}
+
+            {/* Launch Parameters View (Параметры запуска) */}
+            {activeCategory === 'cmd' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                {/* Mandatory Systems Launch Arguments (Read-Only) */}
+                <fieldset style={{ border: '1px solid rgba(255,255,255,0.12)', borderRadius: '12px', padding: '14px 18px', background: 'rgba(0,0,0,0.2)' }}>
+                  <legend style={{ fontSize: '12px', color: '#888', padding: '0 6px', fontWeight: '600' }}>Обязательные параметры системы (Защищены от удаления)</legend>
+                  <div
+                    style={{
+                      fontFamily: 'monospace',
+                      fontSize: '11px',
+                      color: '#6b7280',
+                      background: '#12141a',
+                      padding: '10px 12px',
+                      borderRadius: '8px',
+                      whiteSpace: 'pre-wrap',
+                      wordBreak: 'break-all',
+                      lineHeight: '1.5',
+                      border: '1px solid rgba(255,255,255,0.05)',
+                      userSelect: 'none'
+                    }}
+                  >
+                    -Xms1024M -Xmx4096M -Djava.library.path=natives net.minecraft.client.main.Main --username [Никнейм] --version [Версия] --gameDir [Папка] --assetsDir assets --assetIndex [Index] --uuid [UUID] --accessToken 00000000 --userType legacy
+                  </div>
+                </fieldset>
+
+                {/* Additional JVM Arguments (Editable) */}
+                <fieldset style={{ border: '1px solid rgba(255,255,255,0.12)', borderRadius: '12px', padding: '14px 18px', background: 'rgba(255,255,255,0.02)' }}>
+                  <legend style={{ fontSize: '12px', color: '#53921b', padding: '0 6px', fontWeight: '600' }}>Дополнительные аргументы JVM</legend>
+                  <input
+                    type="text"
+                    placeholder="-XX:+UseG1GC -Dsun.java2d.opengl=true"
+                    value={settings.customJvmArgs || ''}
+                    onChange={(e) => setSettings({ ...settings, customJvmArgs: e.target.value })}
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      background: '#12141a',
+                      border: '1px solid rgba(255,255,255,0.15)',
+                      color: '#fff',
+                      borderRadius: '8px',
+                      outline: 'none',
+                      fontSize: '13px'
+                    }}
+                  />
+                </fieldset>
+
+                {/* Additional Game Arguments (Editable) */}
+                <fieldset style={{ border: '1px solid rgba(255,255,255,0.12)', borderRadius: '12px', padding: '14px 18px', background: 'rgba(255,255,255,0.02)' }}>
+                  <legend style={{ fontSize: '12px', color: '#53921b', padding: '0 6px', fontWeight: '600' }}>Дополнительные аргументы игры Minecraft</legend>
+                  <input
+                    type="text"
+                    placeholder="--width 1280 --height 720 --fullscreen"
+                    value={settings.customGameArgs || ''}
+                    onChange={(e) => setSettings({ ...settings, customGameArgs: e.target.value })}
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      background: '#12141a',
+                      border: '1px solid rgba(255,255,255,0.15)',
+                      color: '#fff',
+                      borderRadius: '8px',
+                      outline: 'none',
+                      fontSize: '13px'
+                    }}
                   />
                 </fieldset>
               </div>

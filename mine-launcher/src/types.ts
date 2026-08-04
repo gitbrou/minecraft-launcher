@@ -54,6 +54,7 @@ export interface LauncherSettings {
   proxyPort?: number;
   launcherFont?: string;
   selectedInstanceId?: string;
+  customGameArgs?: string;
 }
 
 export interface LaunchProgress {
