@@ -8,7 +8,7 @@ interface SettingsModalProps {
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
-  const [activeTab, setActiveTab] = useState<'java' | 'game' | 'perf'>('java')
+  const [activeTab, setActiveTab] = useState<'java' | 'game'>('java')
   const [settings, setSettings] = useState<LauncherSettings>({
     javaPath: '',
     memoryMin: 1024,
@@ -19,7 +19,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
   })
   const [detectedJavas, setDetectedJavas] = useState<string[]>([])
   const [saving, setSaving] = useState(false)
-  const [statusMsg, setStatusMsg] = useState('')
 
   useEffect(() => {
     if (isOpen && window.electronAPI) {
@@ -33,17 +32,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
     setSaving(true)
-    setStatusMsg('')
     try {
       if (window.electronAPI) {
         await window.electronAPI.saveSettings(settings)
       }
-      setStatusMsg('Настройки сохранены!')
-      setTimeout(() => {
-        onClose()
-      }, 400)
-    } catch (err: any) {
-      setStatusMsg(`Ошибка сохранения: ${err.message}`)
+      onClose()
+    } catch {
+      // ignore
     } finally {
       setSaving(false)
     }
@@ -51,54 +46,37 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-card" style={{ width: '750px', maxHeight: '85vh', display: 'flex', flexDirection: 'column' }} onClick={(e) => e.stopPropagation()}>
-        <h3 className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          ⚙️ Настройки Prism Launcher
-        </h3>
+      <div className="modal-card" style={{ width: '650px', display: 'flex', flexDirection: 'column' }} onClick={(e) => e.stopPropagation()}>
+        <h3 className="modal-title">Настройки</h3>
 
-        {/* Prism Navigation Tabs */}
-        <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid rgba(255, 255, 255, 0.1)', paddingBottom: '12px', marginBottom: '16px' }}>
+        <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid rgba(255, 255, 255, 0.1)', paddingBottom: '10px', marginBottom: '16px' }}>
           <button
             type="button"
             className={`tab-btn ${activeTab === 'java' ? 'active' : ''}`}
             onClick={() => setActiveTab('java')}
           >
-            ☕ Java & Память
+            Java и Память
           </button>
           <button
             type="button"
             className={`tab-btn ${activeTab === 'game' ? 'active' : ''}`}
             onClick={() => setActiveTab('game')}
           >
-            🎮 Игра и экран
-          </button>
-          <button
-            type="button"
-            className={`tab-btn ${activeTab === 'perf' ? 'active' : ''}`}
-            onClick={() => setActiveTab('perf')}
-          >
-            ⚡ Оптимизация G1GC
+            Параметры запуска
           </button>
         </div>
 
-        {statusMsg && (
-          <div style={{ padding: '8px 12px', borderRadius: '6px', background: 'rgba(83, 146, 27, 0.2)', color: '#6eff8b', fontSize: '14px', marginBottom: '14px' }}>
-            {statusMsg}
-          </div>
-        )}
-
-        <form onSubmit={handleSave} style={{ flex: 1, display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
-          {/* Tab 1: Java & Memory */}
+        <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           {activeTab === 'java' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <>
               <div className="form-group">
-                <label>Путь к Java Runtime (javaw.exe):</label>
+                <label>Исполняемый файл Java:</label>
                 <select
                   value={settings.javaPath}
                   onChange={(e) => setSettings({ ...settings, javaPath: e.target.value })}
                   style={{ width: '100%', padding: '10px', borderRadius: '8px', background: '#121317', border: '1px solid rgba(255,255,255,0.15)', color: '#fff' }}
                 >
-                  <option value="">Автоопределение (Встроенная Java 17 Temurin JRE)</option>
+                  <option value="">Автоопределение (Встроенная Java 17)</option>
                   {detectedJavas.map((j) => (
                     <option key={j} value={j}>{j}</option>
                   ))}
@@ -107,22 +85,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
 
               <div className="form-group">
                 <label style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span>Минимальная память (Min RAM -Xms):</span>
-                  <span style={{ color: '#53921b', fontWeight: 'bold' }}>{settings.memoryMin} MB</span>
-                </label>
-                <input
-                  type="range"
-                  min="512"
-                  max="16384"
-                  step="512"
-                  value={settings.memoryMin}
-                  onChange={(e) => setSettings({ ...settings, memoryMin: Number(e.target.value) })}
-                />
-              </div>
-
-              <div className="form-group">
-                <label style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span>Максимальная память (Max RAM -Xmx):</span>
+                  <span>Выделяемая память (Max RAM):</span>
                   <span style={{ color: '#53921b', fontWeight: 'bold' }}>{settings.memoryMax} MB</span>
                 </label>
                 <input
@@ -136,20 +99,19 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
               </div>
 
               <div className="form-group">
-                <label>Пользовательские JVM Аргументы:</label>
+                <label>Аргументы JVM:</label>
                 <input
                   type="text"
-                  placeholder="-Dsun.java2d.opengl=true -Dfile.encoding=UTF-8"
+                  placeholder="-XX:+UseG1GC -Dsun.java2d.opengl=true"
                   value={settings.customJvmArgs || ''}
                   onChange={(e) => setSettings({ ...settings, customJvmArgs: e.target.value })}
                 />
               </div>
-            </div>
+            </>
           )}
 
-          {/* Tab 2: Game & Screen */}
           {activeTab === 'game' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <>
               <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <input
                   type="checkbox"
@@ -159,40 +121,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                   style={{ width: '18px', height: '18px', cursor: 'pointer' }}
                 />
                 <label htmlFor="closeLauncher" style={{ margin: 0, cursor: 'pointer' }}>
-                  Автоматически закрывать лаунчер при запуске игры
+                  Закрывать лаунчер при запуске игры
                 </label>
               </div>
-
-              <div className="form-group">
-                <label>Директория файлов Minecraft (.mine-launcher):</label>
-                <input
-                  type="text"
-                  readOnly
-                  value={settings.gameDir || 'Стандартная директория AppData/.mine-launcher'}
-                  style={{ opacity: 0.7 }}
-                />
-              </div>
-            </div>
+            </>
           )}
 
-          {/* Tab 3: Performance & G1GC Flags */}
-          {activeTab === 'perf' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              <div style={{ background: 'rgba(83, 146, 27, 0.15)', border: '1px solid #53921b', padding: '14px', borderRadius: '10px' }}>
-                <h4 style={{ margin: '0 0 6px 0', color: '#6eff8b' }}>🚀 Высокопроизводительные JVM флаги G1GC включены</h4>
-                <p style={{ margin: 0, fontSize: '13px', color: '#ccc' }}>
-                  Лаунчер автоматически применяет оптимальные настройки Garbage Collector (G1GC, MaxGCPauseMillis=50, RegionSize=32M) для обеспечения стабильного 120+ FPS без фризов.
-                </p>
-              </div>
-            </div>
-          )}
-
-          <div className="modal-actions" style={{ marginTop: '24px' }}>
+          <div className="modal-actions" style={{ marginTop: '16px' }}>
             <button type="button" className="btn-secondary" onClick={onClose}>
               Отмена
             </button>
             <button type="submit" className="btn-primary" disabled={saving}>
-              {saving ? 'Сохранение...' : 'Сохранить настройки'}
+              {saving ? 'Сохранение...' : 'Сохранить'}
             </button>
           </div>
         </form>

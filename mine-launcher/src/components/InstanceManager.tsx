@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react'
 import { Instance, MinecraftVersion, ModItem, GameLog } from '../types'
-import { SkinsTab } from './SkinsTab'
 
 interface InstanceManagerProps {
   instances: Instance[]
@@ -25,12 +24,6 @@ const IconMods = () => (
   <svg width="20" height="20" viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
     <path d="m4.83 13.661l17.6 10.161v20.196L4.83 33.857z" />
     <path d="m22.43 3.5l17.599 10.161l-17.6 10.161l-17.6-10.16zm7.517 36.177l-7.518 4.34V23.823h0l17.6-10.16v18.382" />
-  </svg>
-)
-
-const IconSkinsFilled = () => (
-  <svg width="18" height="18" viewBox="0 0 1024 1024" fill="currentColor">
-    <path d="M870 126H663.8c-17.4 0-32.9 11.9-37 29.3C614.3 208.1 567 246 512 246s-102.3-37.9-114.8-90.7a37.93 37.93 0 0 0-37-29.3H154a44 44 0 0 0-44 44v252a44 44 0 0 0 44 44h75v388a44 44 0 0 0 44 44h478a44 44 0 0 0 44-44V466h75a44 44 0 0 0 44-44V170a44 44 0 0 0-44-44" />
   </svg>
 )
 
@@ -67,7 +60,6 @@ const IconDeletePixel = () => (
 export const InstanceManager: React.FC<InstanceManagerProps> = ({
   instances,
   selectedInstance,
-  activeUsername,
   onSelectInstance,
   onCreateInstance,
   onDeleteInstance,
@@ -75,7 +67,7 @@ export const InstanceManager: React.FC<InstanceManagerProps> = ({
   onOpenModDownloader,
   logs
 }) => {
-  const [activeTab, setActiveTab] = useState<'versions' | 'mods' | 'skins' | 'logs'>('versions')
+  const [activeTab, setActiveTab] = useState<'versions' | 'mods' | 'logs'>('versions')
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [selectedVersion, setSelectedVersion] = useState('1.20.4')
   const [selectedLoader, setSelectedLoader] = useState<'vanilla' | 'fabric' | 'forge' | 'quilt'>('vanilla')
@@ -167,14 +159,6 @@ export const InstanceManager: React.FC<InstanceManagerProps> = ({
             style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
           >
             <IconMods /> Моды
-          </button>
-
-          <button
-            className={`tab-btn ${activeTab === 'skins' ? 'active' : ''}`}
-            onClick={() => setActiveTab('skins')}
-            style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
-          >
-            <IconSkinsFilled /> Скины
           </button>
 
           <button
@@ -329,11 +313,6 @@ export const InstanceManager: React.FC<InstanceManagerProps> = ({
             )}
           </div>
         </div>
-      )}
-
-      {/* Skins Tab */}
-      {activeTab === 'skins' && (
-        <SkinsTab activeUsername={activeUsername} />
       )}
 
       {/* Logs Tab */}
