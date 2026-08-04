@@ -190,6 +190,29 @@ function downloadUrlToFile(url: string, destPath: string): Promise<void> {
   })
 }
 
+function downloadBuffer(url: string): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    const client = url.startsWith('https') ? https : http
+    client.get(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8'
+      }
+    }, (res) => {
+      if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+        return downloadBuffer(res.headers.location).then(resolve).catch(reject)
+      }
+      if (res.statusCode !== 200) {
+        return reject(new Error(`HTTP ${res.statusCode}`))
+      }
+      const chunks: Buffer[] = []
+      res.on('data', (chunk) => chunks.push(chunk))
+      res.on('end', () => resolve(Buffer.concat(chunks)))
+      res.on('error', reject)
+    }).on('error', reject)
+  })
+}
+
 // Setup IPC Listeners
 function setupIpcHandlers() {
   // Window Controls
@@ -569,52 +592,67 @@ function setupIpcHandlers() {
     return settings
   })
 
-  // Helper for downloading buffer via https
-  const downloadBuffer = (url: string): Promise<Buffer> => {
-    return new Promise((resolve, reject) => {
-      const client = url.startsWith('https') ? https : http
-      client.get(url, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8'
-        }
-      }, (res) => {
-        if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-          return downloadBuffer(res.headers.location).then(resolve).catch(reject)
-        }
-        if (res.statusCode !== 200) {
-          return reject(new Error(`HTTP ${res.statusCode}`))
-        }
-        const chunks: Buffer[] = []
-        res.on('data', (chunk) => chunks.push(chunk))
-        res.on('end', () => resolve(Buffer.concat(chunks)))
-        res.on('error', reject)
-      }).on('error', reject)
+  // Skins & Profile IPC
+  ipcMain.handle('save-user-skin-base64', (_, { username, base64Data }: { username: string; base64Data: string }) => {
+    try {
+      if (!fs.existsSync(skinsDir)) {
+        fs.mkdirSync(skinsDir, { recursive: true })
+      }
+      const raw = base64Data.replace(/^data:image\/png;base64,/, '')
+      const buffer = Buffer.from(raw, 'base64')
+      const targetPath = path.join(skinsDir, `${username}.png`)
+      fs.writeFileSync(targetPath, buffer)
+      return true
+    } catch (e) {
+      console.error('Failed saving user skin base64:', e)
+      return false
+    }
+  })
+
+  ipcMain.handle('upload-user-skin', async (_, username: string) => {
+    const { canceled, filePaths } = await dialog.showOpenDialog({
+      title: 'Выберите скин Minecraft (.png)',
+      properties: ['openFile'],
+      filters: [{ name: 'Minecraft Skin (*.png)', extensions: ['png'] }]
     })
-  }
+
+    if (!canceled && filePaths.length > 0) {
+      if (!fs.existsSync(skinsDir)) {
+        fs.mkdirSync(skinsDir, { recursive: true })
+      }
+      const targetPath = path.join(skinsDir, `${username}.png`)
+      fs.copyFileSync(filePaths[0], targetPath)
+      const data = fs.readFileSync(targetPath)
+      return `data:image/png;base64,${data.toString('base64')}`
+    }
+    return null
+  })
 
   ipcMain.handle('parse-command-skin', async (_, payload: { username: string; command: string }) => {
     const { username, command } = payload
     let textureUrl = ''
 
-    // 1. Look for universal Minecraft skin base64 string starting with e3RleHR1 ("{"textures":...")
-    const b64Match = command.match(/e3RleHR1[A-Za-z0-9+/=]+/)
-    if (b64Match) {
-      try {
-        const decoded = Buffer.from(b64Match[0], 'base64').toString('utf-8')
-        const json = JSON.parse(decoded)
-        if (json?.textures?.SKIN?.url) {
-          textureUrl = json.textures.SKIN.url
-        }
-      } catch {}
+    // 1. Search for any base64 payload starting with e3RleHR1 or eyJ0ZXh0 ("{"textures":...")
+    const b64Matches = command.match(/(?:e3RleHR1|eyJ0ZXh0)[A-Za-z0-9+/=]+/g)
+    if (b64Matches && b64Matches.length > 0) {
+      for (const b64 of b64Matches) {
+        try {
+          const decoded = Buffer.from(b64, 'base64').toString('utf-8')
+          const json = JSON.parse(decoded)
+          if (json?.textures?.SKIN?.url) {
+            textureUrl = json.textures.SKIN.url
+            break
+          }
+        } catch {}
+      }
     }
 
-    // 2. Try value:"..." SNBT extraction
+    // 2. Search for Value:"..." or value:"..."
     if (!textureUrl) {
-      const matchValue = command.match(/value[:=]\s*["']?([^"'\]}]+)["']?/i)
-      if (matchValue && matchValue[1]) {
+      const matchVal = command.match(/value[:=]\s*["']?([^"'\]}\s]+)["']?/i)
+      if (matchVal && matchVal[1]) {
         try {
-          const decoded = Buffer.from(matchValue[1], 'base64').toString('utf-8')
+          const decoded = Buffer.from(matchVal[1], 'base64').toString('utf-8')
           const json = JSON.parse(decoded)
           if (json?.textures?.SKIN?.url) {
             textureUrl = json.textures.SKIN.url
@@ -623,21 +661,21 @@ function setupIpcHandlers() {
       }
     }
 
-    // 3. Direct texture URL (64-character hex hash)
+    // 3. Direct Mojang texture URL
     if (!textureUrl) {
-      const matchDirect = command.match(/(https?:\/\/textures\.minecraft\.net\/texture\/[a-f0-9]{32,64})/i)
+      const matchDirect = command.match(/(https?:\/\/textures\.minecraft\.net\/texture\/[a-f0-9]+)/i)
       if (matchDirect) {
         textureUrl = matchDirect[1]
       }
     }
 
-    // 4. NameMC link fallback: scrape real texture URL from NameMC skin page
+    // 4. NameMC link
     if (!textureUrl) {
       const matchNameMc = command.match(/namemc\.com\/skin\/([a-f0-9]+)/i)
       if (matchNameMc && matchNameMc[1]) {
         try {
           const pageHtml = (await downloadBuffer(`https://namemc.com/skin/${matchNameMc[1]}`)).toString('utf-8')
-          const textureMatch = pageHtml.match(/(https?:\/\/textures\.minecraft\.net\/texture\/[a-f0-9]{32,64})/i)
+          const textureMatch = pageHtml.match(/(https?:\/\/textures\.minecraft\.net\/texture\/[a-f0-9]+)/i)
           if (textureMatch) {
             textureUrl = textureMatch[1]
           }
@@ -646,7 +684,7 @@ function setupIpcHandlers() {
     }
 
     if (!textureUrl) {
-      throw new Error('Не удалось найти текстуру скина в команде. Убедитесь, что передан корректный /give или ссылка.')
+      throw new Error('Не удалось найти текстуру скина в команде. Убедитесь, что передан валидный /give или ссылка.')
     }
 
     if (textureUrl.startsWith('http://')) {

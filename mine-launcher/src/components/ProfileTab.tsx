@@ -39,6 +39,7 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ activeUsername }) => {
 
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const viewerRef = useRef<SkinViewer | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (activeUsername && window.electronAPI) {
@@ -46,10 +47,10 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ activeUsername }) => {
       window.electronAPI.getUserSkin(activeUsername).then((url) => {
         if (url) {
           setSkinUrl(url)
-          viewerRef.current?.loadSkin(url)
+          if (viewerRef.current) viewerRef.current.loadSkin(url)
         } else {
           setSkinUrl(DEFAULT_STEVE_SKIN)
-          viewerRef.current?.loadSkin(DEFAULT_STEVE_SKIN)
+          if (viewerRef.current) viewerRef.current.loadSkin(DEFAULT_STEVE_SKIN)
         }
       }).catch(() => {
         setSkinUrl(DEFAULT_STEVE_SKIN)
@@ -104,24 +105,35 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ activeUsername }) => {
     }
   }, [])
 
-  // Dynamically load skin whenever skinUrl updates
-  useEffect(() => {
-    if (viewerRef.current && skinUrl) {
-      try {
-        viewerRef.current.loadSkin(skinUrl)
-      } catch (e) {
-        console.error('Failed loading skin to viewer:', e)
+  // Handle local PNG file upload
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    const reader = new FileReader()
+    reader.onload = (event) => {
+      const dataUri = event.target?.result as string
+      if (dataUri) {
+        setSkinUrl(dataUri)
+        if (viewerRef.current) {
+          try {
+            viewerRef.current.loadSkin(dataUri)
+          } catch {}
+        }
+        if (window.electronAPI && window.electronAPI.saveUserSkinBase64) {
+          window.electronAPI.saveUserSkinBase64({
+            username: activeUsername,
+            base64Data: dataUri
+          })
+        }
       }
     }
-  }, [skinUrl])
+    reader.readAsDataURL(file)
+  }
 
-  const handleUploadSkin = async () => {
-    if (window.electronAPI) {
-      const newSkin = await window.electronAPI.uploadUserSkin(activeUsername)
-      if (newSkin) {
-        setSkinUrl(newSkin)
-        viewerRef.current?.loadSkin(newSkin)
-      }
+  const handleUploadButtonClick = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click()
     }
   }
 
@@ -130,6 +142,30 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ activeUsername }) => {
     if (!cmdText.trim()) return
     setLoadingCmd(true)
     setCmdError('')
+
+    // Client-side quick extraction check
+    const b64Matches = cmdText.match(/(?:e3RleHR1|eyJ0ZXh0)[A-Za-z0-9+/=]+/g)
+    if (b64Matches && b64Matches.length > 0) {
+      for (const b64 of b64Matches) {
+        try {
+          const decoded = atob(b64)
+          const json = JSON.parse(decoded)
+          if (json?.textures?.SKIN?.url) {
+            const textureUrl = json.textures.SKIN.url
+            setSkinUrl(textureUrl)
+            if (viewerRef.current) viewerRef.current.loadSkin(textureUrl)
+            setShowCmdModal(false)
+            setCmdText('')
+            setLoadingCmd(false)
+            if (window.electronAPI) {
+              window.electronAPI.parseCommandSkin({ username: activeUsername, command: cmdText }).catch(() => {})
+            }
+            return
+          }
+        } catch {}
+      }
+    }
+
     try {
       if (window.electronAPI) {
         const newSkin = await window.electronAPI.parseCommandSkin({
@@ -138,7 +174,7 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ activeUsername }) => {
         })
         if (newSkin) {
           setSkinUrl(newSkin)
-          viewerRef.current?.loadSkin(newSkin)
+          if (viewerRef.current) viewerRef.current.loadSkin(newSkin)
           setShowCmdModal(false)
           setCmdText('')
         }
@@ -152,6 +188,15 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ activeUsername }) => {
 
   return (
     <div style={{ flex: 1, display: 'flex', gap: '32px', alignItems: 'center', height: '100%', padding: '10px 20px', overflow: 'hidden' }}>
+      {/* Hidden file input */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        accept=".png"
+        style={{ display: 'none' }}
+        onChange={handleFileChange}
+      />
+
       {/* Left Column: 3D Rotatable Skin Projection Card + 2 Icon Buttons underneath */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', alignItems: 'center' }}>
         <div
@@ -178,7 +223,7 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ activeUsername }) => {
         <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', width: '260px' }}>
           {/* Button 1: Upload PNG file */}
           <button
-            onClick={handleUploadSkin}
+            onClick={handleUploadButtonClick}
             title="Загрузить скин (.png)"
             style={{
               flex: 1,

@@ -39,8 +39,9 @@ const electronAPI = {
   addModFile: (instanceId: string) => ipcRenderer.invoke('add-mod-file', instanceId),
 
   // Skins & Profile
-  saveUserSkin: (username: string) => ipcRenderer.invoke('save-user-skin', username),
+  saveUserSkin: (username: string) => ipcRenderer.invoke('upload-user-skin', username),
   uploadUserSkin: (username: string) => ipcRenderer.invoke('upload-user-skin', username),
+  saveUserSkinBase64: (payload: { username: string; base64Data: string }) => ipcRenderer.invoke('save-user-skin-base64', payload),
   parseCommandSkin: (payload: { username: string; command: string }) => ipcRenderer.invoke('parse-command-skin', payload),
   fetchOnlineSkin: (payload: { username: string; targetUsername: string }) => ipcRenderer.invoke('fetch-online-skin', payload),
   getUserSkin: (username: string) => ipcRenderer.invoke('get-user-skin', username),
