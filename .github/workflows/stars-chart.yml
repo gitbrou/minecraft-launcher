@@ -2,8 +2,8 @@ name: Generate Stars Chart
 
 on:
   schedule:
-    - cron: '0 0 * * *' 
-  workflow_dispatch: 
+    - cron: '0 0 * * *'
+  workflow_dispatch:
 
 jobs:
   update-chart:
@@ -13,13 +13,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: звездочки
-        uses: caarlos0/github-readme-stars@main
+      - name: Generate Star History Chart
+        uses: gregberge/github-activity-stream@v1
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.GITHUB_TOKEN }}
           output: assets/stars.svg
 
-      - name: звездочки
+      - name: Commit and push changes
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: "docs: update stars chart SVG"
