@@ -385,12 +385,24 @@ function setupIpcHandlers() {
         const stat = fs.statSync(fullPath)
         const isEnabled = file.endsWith('.jar')
         const name = file.replace(/\.jar(\.disabled)?$/, '')
+
+        let iconUrl = ''
+        const lower = name.toLowerCase()
+        if (lower.includes('iris')) iconUrl = 'https://cdn.modrinth.com/data/YL57xq9U/a14589d8164bdf6933bbec92c3008061dfcceecb.png'
+        else if (lower.includes('sodium')) iconUrl = 'https://cdn.modrinth.com/data/AANobbFp/d3f0a5015e1a1415df22fa2ff07b46ff4be9cfd8.png'
+        else if (lower.includes('optifine')) iconUrl = 'https://optifine.net/favicon.ico'
+        else if (lower.includes('fabric')) iconUrl = 'https://cdn.modrinth.com/data/P7Rstage/icon.png'
+        else if (lower.includes('lithium')) iconUrl = 'https://cdn.modrinth.com/data/gv2qrgfy/icon.png'
+        else if (lower.includes('indium')) iconUrl = 'https://cdn.modrinth.com/data/OradFiWy/icon.png'
+        else if (lower.includes('ferrite')) iconUrl = 'https://cdn.modrinth.com/data/u6uhacGG/icon.png'
+
         return {
           id: file,
           filename: file,
           name,
           enabled: isEnabled,
-          size: stat.size
+          size: stat.size,
+          iconUrl
         }
       })
     } catch {
@@ -557,6 +569,30 @@ function setupIpcHandlers() {
     return settings
   })
 
+  // Helper for downloading buffer via https
+  const downloadBuffer = (url: string): Promise<Buffer> => {
+    return new Promise((resolve, reject) => {
+      const client = url.startsWith('https') ? https : http
+      client.get(url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8'
+        }
+      }, (res) => {
+        if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+          return downloadBuffer(res.headers.location).then(resolve).catch(reject)
+        }
+        if (res.statusCode !== 200) {
+          return reject(new Error(`HTTP ${res.statusCode}`))
+        }
+        const chunks: Buffer[] = []
+        res.on('data', (chunk) => chunks.push(chunk))
+        res.on('end', () => resolve(Buffer.concat(chunks)))
+        res.on('error', reject)
+      }).on('error', reject)
+    })
+  }
+
   ipcMain.handle('parse-command-skin', async (_, payload: { username: string; command: string }) => {
     const { username, command } = payload
     let textureUrl = ''
@@ -587,55 +623,37 @@ function setupIpcHandlers() {
       }
     }
 
-    // 3. Direct texture URL or NameMC skin link fallback
+    // 3. Direct texture URL (64-character hex hash)
     if (!textureUrl) {
-      const matchDirect = command.match(/(https?:\/\/textures\.minecraft\.net\/texture\/[a-f0-9]+)/i)
+      const matchDirect = command.match(/(https?:\/\/textures\.minecraft\.net\/texture\/[a-f0-9]{32,64})/i)
       if (matchDirect) {
         textureUrl = matchDirect[1]
       }
     }
 
-    // 4. NameMC link fallback https://namemc.com/skin/a1c2aa116b32f70d
+    // 4. NameMC link fallback: scrape real texture URL from NameMC skin page
     if (!textureUrl) {
       const matchNameMc = command.match(/namemc\.com\/skin\/([a-f0-9]+)/i)
       if (matchNameMc && matchNameMc[1]) {
-        // NameMC texture endpoint
-        textureUrl = `https://textures.minecraft.net/texture/${matchNameMc[1]}`
+        try {
+          const pageHtml = (await downloadBuffer(`https://namemc.com/skin/${matchNameMc[1]}`)).toString('utf-8')
+          const textureMatch = pageHtml.match(/(https?:\/\/textures\.minecraft\.net\/texture\/[a-f0-9]{32,64})/i)
+          if (textureMatch) {
+            textureUrl = textureMatch[1]
+          }
+        } catch {}
       }
     }
 
     if (!textureUrl) {
-      throw new Error('Не удалось спарсить скин из команды. Убедитесь, что передан валидный /give или ссылка.')
+      throw new Error('Не удалось найти текстуру скина в команде. Убедитесь, что передан корректный /give или ссылка.')
     }
 
     if (textureUrl.startsWith('http://')) {
       textureUrl = textureUrl.replace('http://', 'https://')
     }
 
-    // Download PNG from Mojang textures server using Node.js https module
-    const downloadImageBuffer = (url: string): Promise<Buffer> => {
-      return new Promise((resolve, reject) => {
-        https.get(url, {
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8'
-          }
-        }, (res) => {
-          if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-            return downloadImageBuffer(res.headers.location).then(resolve).catch(reject)
-          }
-          if (res.statusCode !== 200) {
-            return reject(new Error(`HTTP ${res.statusCode}`))
-          }
-          const chunks: Buffer[] = []
-          res.on('data', (chunk) => chunks.push(chunk))
-          res.on('end', () => resolve(Buffer.concat(chunks)))
-          res.on('error', reject)
-        }).on('error', reject)
-      })
-    }
-
-    const buffer = await downloadImageBuffer(textureUrl)
+    const buffer = await downloadBuffer(textureUrl)
 
     if (!fs.existsSync(skinsDir)) {
       fs.mkdirSync(skinsDir, { recursive: true })
