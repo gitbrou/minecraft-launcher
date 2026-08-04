@@ -1,6 +1,12 @@
 import { ipcRenderer, contextBridge } from 'electron'
 
 const electronAPI = {
+  // Window controls
+  minimizeWindow: () => ipcRenderer.invoke('minimize-window'),
+  maximizeWindow: () => ipcRenderer.invoke('maximize-window'),
+  closeWindow: () => ipcRenderer.invoke('close-window'),
+  isMaximized: () => ipcRenderer.invoke('is-maximized'),
+
   // Accounts
   getAccounts: () => ipcRenderer.invoke('get-accounts'),
   addAccount: (username: string) => ipcRenderer.invoke('add-account', username),

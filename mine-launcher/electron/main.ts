@@ -104,8 +104,8 @@ function createWindow() {
     height: 720,
     minWidth: 900,
     minHeight: 650,
-    frame: true,
-    titleBarStyle: 'default',
+    frame: false,
+    titleBarStyle: 'hidden',
     icon: path.join(process.env.VITE_PUBLIC, 'icon.png'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.mjs'),
@@ -173,6 +173,30 @@ function downloadUrlToFile(url: string, destPath: string): Promise<void> {
 
 // Setup IPC Listeners
 function setupIpcHandlers() {
+  // Window Controls
+  ipcMain.handle('minimize-window', () => {
+    win?.minimize()
+  })
+
+  ipcMain.handle('maximize-window', () => {
+    if (!win) return false
+    if (win.isMaximized()) {
+      win.unmaximize()
+      return false
+    } else {
+      win.maximize()
+      return true
+    }
+  })
+
+  ipcMain.handle('close-window', () => {
+    win?.close()
+  })
+
+  ipcMain.handle('is-maximized', () => {
+    return win?.isMaximized() || false
+  })
+
   // Accounts
   ipcMain.handle('get-accounts', () => accounts)
 
