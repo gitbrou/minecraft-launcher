@@ -204,20 +204,57 @@ export const InstanceManager: React.FC<InstanceManagerProps> = ({
           </button>
         </div>
 
-        {/* Right Action Buttons - Automatically Responsive Icon-Only on Small Windows */}
-        <div className="action-buttons-group">
+        {/* Right Icon-Only Action Buttons */}
+        <div className="action-buttons-group" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           {selectedInstance && (
-            <button className="action-btn" onClick={handleOpenFolder} title="Открыть папку версии" style={{ color: '#facc15' }}>
-              <IconFolder /> <span>Папка</span>
+            <button
+              className="action-btn"
+              onClick={handleOpenFolder}
+              title="Открыть папку версии"
+              style={{
+                color: '#facc15',
+                padding: '8px 12px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: '8px'
+              }}
+            >
+              <IconFolder />
             </button>
           )}
 
-          <button className="action-btn" onClick={onOpenSettings} title="Настройки Java и памяти" style={{ color: '#c084fc' }}>
-            <IconSettings /> <span>Настройки</span>
+          <button
+            className="action-btn"
+            onClick={onOpenSettings}
+            title="Настройки лаунчера и Java"
+            style={{
+              color: '#e2e8f0',
+              padding: '8px 12px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderRadius: '8px'
+            }}
+          >
+            <IconSettings />
           </button>
 
-          <button className="action-btn primary" onClick={() => setShowCreateModal(true)} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <IconAdd /> <span>Новая версия</span>
+          <button
+            className="action-btn primary"
+            onClick={() => setShowCreateModal(true)}
+            title="Добавить новую версию"
+            style={{
+              background: '#53921b',
+              color: '#ffffff',
+              padding: '8px 12px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderRadius: '8px'
+            }}
+          >
+            <IconAdd />
           </button>
         </div>
       </div>
