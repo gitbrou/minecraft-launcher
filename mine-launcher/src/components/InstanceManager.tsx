@@ -362,16 +362,26 @@ export const InstanceManager: React.FC<InstanceManagerProps> = ({
                   key={mod.id}
                   style={{
                     background: 'rgba(255, 255, 255, 0.05)',
-                    borderRadius: '8px',
+                    borderRadius: '10px',
                     padding: '10px 14px',
                     display: 'flex',
                     justifyContent: 'space-between',
-                    alignItems: 'center'
+                    alignItems: 'center',
+                    gap: '12px'
                   }}
                 >
-                  <span style={{ textDecoration: mod.enabled ? 'none' : 'line-through', color: mod.enabled ? '#fff' : '#777' }}>
-                    {mod.filename}
-                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', overflow: 'hidden' }}>
+                    {mod.iconUrl ? (
+                      <img src={mod.iconUrl} alt={mod.name} style={{ width: '28px', height: '28px', borderRadius: '6px', objectFit: 'cover' }} />
+                    ) : (
+                      <div style={{ width: '28px', height: '28px', borderRadius: '6px', background: '#374151', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#3b82f6' }}>
+                        <IconMods />
+                      </div>
+                    )}
+                    <span style={{ textDecoration: mod.enabled ? 'none' : 'line-through', color: mod.enabled ? '#fff' : '#777', fontWeight: '500', fontSize: '13px' }}>
+                      {mod.filename}
+                    </span>
+                  </div>
                   <button
                     className={`btn-secondary`}
                     style={{ padding: '4px 10px', fontSize: '12px' }}

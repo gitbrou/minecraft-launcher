@@ -39,6 +39,7 @@ export interface ModItem {
   name: string;
   enabled: boolean;
   size: number;
+  iconUrl?: string;
 }
 
 export interface LauncherSettings {
