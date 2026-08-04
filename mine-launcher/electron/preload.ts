@@ -25,6 +25,7 @@ const electronAPI = {
   // Settings & Java
   getSettings: () => ipcRenderer.invoke('get-settings'),
   saveSettings: (settings: any) => ipcRenderer.invoke('save-settings', settings),
+  setSelectedInstanceId: (instanceId: string) => ipcRenderer.invoke('set-selected-instance-id', instanceId),
   detectJava: () => ipcRenderer.invoke('detect-java'),
 
   // Launching
