@@ -20,3 +20,8 @@ npm run compile
 npm run build
 ```
 ![звездочки](https://github-readme-stats.vercel.app/api/pin/?username=gitbrou&repo=minecraft-launcher)
+---
+
+<p align="center">
+  MIT License · 2026 gitbrou
+</p>
