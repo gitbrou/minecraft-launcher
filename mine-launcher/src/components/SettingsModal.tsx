@@ -395,28 +395,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
             {/* Launch Parameters View (Параметры запуска) */}
             {activeCategory === 'cmd' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                {/* Mandatory Systems Launch Arguments (Read-Only) */}
-                <fieldset style={{ border: '1px solid rgba(255,255,255,0.12)', borderRadius: '12px', padding: '14px 18px', background: 'rgba(0,0,0,0.2)' }}>
-                  <legend style={{ fontSize: '12px', color: '#888', padding: '0 6px', fontWeight: '600' }}>Обязательные параметры системы (Защищены от удаления)</legend>
-                  <div
-                    style={{
-                      fontFamily: 'monospace',
-                      fontSize: '11px',
-                      color: '#6b7280',
-                      background: '#12141a',
-                      padding: '10px 12px',
-                      borderRadius: '8px',
-                      whiteSpace: 'pre-wrap',
-                      wordBreak: 'break-all',
-                      lineHeight: '1.5',
-                      border: '1px solid rgba(255,255,255,0.05)',
-                      userSelect: 'none'
-                    }}
-                  >
-                    -Xms1024M -Xmx4096M -Djava.library.path=natives net.minecraft.client.main.Main --username [Никнейм] --version [Версия] --gameDir [Папка] --assetsDir assets --assetIndex [Index] --uuid [UUID] --accessToken 00000000 --userType legacy
-                  </div>
-                </fieldset>
-
                 {/* Additional JVM Arguments (Editable) */}
                 <fieldset style={{ border: '1px solid rgba(255,255,255,0.12)', borderRadius: '12px', padding: '14px 18px', background: 'rgba(255,255,255,0.02)' }}>
                   <legend style={{ fontSize: '12px', color: '#53921b', padding: '0 6px', fontWeight: '600' }}>Дополнительные аргументы JVM</legend>
