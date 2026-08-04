@@ -452,8 +452,8 @@ function setupIpcHandlers() {
   ipcMain.handle('get-profile-stats', (_, username: string) => {
     let worldsCount = 0
     const worldNames: string[] = []
-    let favoriteWorld = 'Выживание 1.20'
-    let favoriteServer = 'Hypixel / PlayMine'
+    let favoriteWorld = 'Нет информации'
+    let favoriteServer = 'Нет информации'
     let totalPlayMinutes = 0
     let lastPlayedTime = 0
 
@@ -461,7 +461,7 @@ function setupIpcHandlers() {
       for (const inst of instances) {
         if ((inst as any).lastPlayed) {
           lastPlayedTime = Math.max(lastPlayedTime, (inst as any).lastPlayed)
-          totalPlayMinutes += 45 // Estimated sessions per launch
+          totalPlayMinutes += 45
         }
         const savesDir = path.join(rootDir, 'instances', (inst as any).id, 'saves')
         if (fs.existsSync(savesDir)) {
@@ -481,13 +481,13 @@ function setupIpcHandlers() {
 
     const activeAcc = accounts.find(a => a.username === username) || accounts.find(a => a.isActive) || accounts[0]
     const hours = (totalPlayMinutes / 60).toFixed(1)
-    const lastPlayedFormatted = lastPlayedTime ? new Date(lastPlayedTime).toLocaleString() : 'Не запускался'
+    const lastPlayedFormatted = lastPlayedTime ? new Date(lastPlayedTime).toLocaleString() : 'Нет информации'
 
     return {
       username: activeAcc ? activeAcc.username : username,
       uuid: activeAcc ? activeAcc.uuid : '',
       worldsCount,
-      totalPlayTimeHours: hours,
+      totalPlayTimeHours: totalPlayMinutes > 0 ? `${hours} ч.` : 'Нет информации',
       lastPlayedFormatted,
       favoriteWorld,
       favoriteServer

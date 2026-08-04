@@ -658,7 +658,7 @@ function Fe() {
   }), m.handle("get-profile-stats", (t, s) => {
     let e = 0;
     const i = [];
-    let r = "Выживание 1.20", o = "Hypixel / PlayMine", f = 0, u = 0;
+    let r = "Нет информации", o = "Нет информации", f = 0, u = 0;
     try {
       for (const w of _) {
         w.lastPlayed && (u = Math.max(u, w.lastPlayed), f += 45);
@@ -672,12 +672,12 @@ function Fe() {
       i.length > 0 && (r = i[0]);
     } catch {
     }
-    const c = y.find((w) => w.username === s) || y.find((w) => w.isActive) || y[0], g = (f / 60).toFixed(1), C = u ? new Date(u).toLocaleString() : "Не запускался";
+    const c = y.find((w) => w.username === s) || y.find((w) => w.isActive) || y[0], g = (f / 60).toFixed(1), C = u ? new Date(u).toLocaleString() : "Нет информации";
     return {
       username: c ? c.username : s,
       uuid: c ? c.uuid : "",
       worldsCount: e,
-      totalPlayTimeHours: g,
+      totalPlayTimeHours: f > 0 ? `${g} ч.` : "Нет информации",
       lastPlayedFormatted: C,
       favoriteWorld: r,
       favoriteServer: o
