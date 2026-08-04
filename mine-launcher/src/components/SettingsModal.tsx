@@ -7,6 +7,25 @@ interface SettingsModalProps {
   onSave?: (newSettings: any) => void
 }
 
+// User SVGs
+const IconJava = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+    <path d="m15.638 4.566l.056.032c-.758.4-2.924 1.689-2.924 3.332c0 .554.317 1.088.614 1.59c.262.442.509.857.509 1.238c0 .957-.933 1.7-1.46 2.042l-.1-.058c.199-.243.444-.65.444-1.084c0-.598-.307-1.076-.618-1.561c-.322-.501-.648-1.01-.648-1.67c0-2.292 3.115-3.522 4.127-3.861m-4.095 1.212c1.253-1.12 2.622-2.344 2.622-4.185c0-.833-.341-1.365-.51-1.578L13.6.046c.04.166.1.472.1.872c0 1.676-1.422 2.85-2.798 3.988C9.611 5.974 8.36 7.008 8.36 8.392c0 1.985 1.958 3.206 2.785 3.722l.063.04l.05-.03q-.067-.074-.142-.152c-.636-.677-1.602-1.704-1.602-3.275c0-1.103.974-1.974 2.03-2.919m-.452 9.908c1.764 0 2.998-.253 3.546-.408l.832.48c-.793.403-2.551.71-4.382.71c-2.153 0-4.507-.462-4.514-1.078c-.005-.34.765-.566 1.595-.712l.05.029s-.281.101-.278.333c.004.35 1.42.646 3.15.646m-3.529 2.171c0-.408.839-.6 1.223-.677l.05.03c-.066.049-.102.116-.102.173c0 .267.93.511 2.356.511c1.278 0 1.988-.157 2.41-.258l.99.573c-.045.032-1.02.645-3.402.645c-1.731 0-3.525-.432-3.525-.997m8.529-1.728c1.18-.673 2.361-1.469 2.428-2.747c.044-.839-.727-1.454-1.57-1.29l.045-.112v-.002c.212-.064.474-.116.767-.116c.943 0 1.666.565 1.758 1.356c.186 1.586-2.062 2.618-3.321 2.973zm1.975 2.988c.01 1.09-3.698 1.738-7.012 1.767c-2.861.025-7.474-.516-7.484-1.605c-.006-.753 2-1.275 3.09-1.425l.115.066s-1.625.377-1.62 1.062c.006.683 3.425 1.274 5.894 1.253c3.825-.034 6.414-.657 6.72-1.502l.054-.031c.112.082.24.217.243.415M6.43 21.337a26 26 0 0 0 4.279.325c6.208-.054 7.96-1.58 8.23-1.912l.047.028c-.064 1.208-3.347 2.212-7.396 2.247c-2.061.018-3.937-.22-5.285-.615zm2.602-9.283c-1.079.083-3.396.426-3.396 1.036c0 .462 2.124 1.113 5.452 1.113c2.994 0 4.884-.565 5.325-.78l-.643-.375c-.46.125-2.169.506-4.682.506c-1.48 0-4.03-.273-4.03-.69c0-.374 1.591-.663 2.048-.745l.029-.005z" />
+  </svg>
+)
+
+const IconProxy = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+    <path d="m15.013 9.395l4.57-4.57L21 6.243V2h-4.243l1.411 1.41l-4.834 4.835a3.938 3.938 0 0 0-5.191 2.75H5.72a2 2 0 1 0 .005 2H8.14a3.94 3.94 0 0 0 5.204 2.757l4.83 4.83L16.758 22H21v-4.243l-1.41 1.411l-4.571-4.57a4 4 0 0 0 .841-1.603L18 13v2l3-3l-3-3v2l-2.143-.005a4 4 0 0 0-.844-1.6" />
+  </svg>
+)
+
+const IconFont = () => (
+  <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor">
+    <path d="M4.5 2A3.5 3.5 0 0 1 8 5.5V14H6v-4H3v4H1V5.5A3.5 3.5 0 0 1 4.5 2m0 2A1.5 1.5 0 0 0 3 5.5V8h3V5.5A1.5 1.5 0 0 0 4.5 4M12 6a3 3 0 0 1 3 3v5h-3.5a2.5 2.5 0 0 1 0-5H13a1 1 0 0 0-1-1h-2V6zm-.5 5a.5.5 0 0 0 0 1H13v-1z" />
+  </svg>
+)
+
 export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
   const [activeCategory, setActiveCategory] = useState<'java' | 'proxy' | 'ui'>('java')
 
@@ -123,10 +142,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
 
         {/* Main Split Body */}
         <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-          {/* Left Navigation Sidebar */}
+          {/* Left Navigation Sidebar with Custom SVGs */}
           <div
             style={{
-              width: '180px',
+              width: '190px',
               background: '#1c1e24',
               borderRight: '1px solid rgba(255, 255, 255, 0.08)',
               display: 'flex',
@@ -136,9 +155,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
             }}
           >
             {[
-              { id: 'java', name: 'Java и Память', icon: '☕' },
-              { id: 'proxy', name: 'Прокси (Proxy)', icon: '🔌' },
-              { id: 'ui', name: 'Интерфейс и Шрифт', icon: '🎨' }
+              { id: 'java', name: 'Java и Память', icon: <IconJava /> },
+              { id: 'proxy', name: 'Прокси (Proxy)', icon: <IconProxy /> },
+              { id: 'ui', name: 'Интерфейс и Шрифт', icon: <IconFont /> }
             ].map((item) => (
               <button
                 key={item.id}
@@ -159,7 +178,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                   transition: 'all 0.15s ease'
                 }}
               >
-                <span>{item.icon}</span>
+                <span style={{ display: 'flex', alignItems: 'center', color: activeCategory === item.id ? '#53921b' : '#888' }}>
+                  {item.icon}
+                </span>
                 <span>{item.name}</span>
               </button>
             ))}
@@ -275,7 +296,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
               </div>
             )}
 
-            {/* UI & Font View */}
+            {/* UI & Extensive Font View */}
             {activeCategory === 'ui' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                 <fieldset style={{ border: '1px solid rgba(255,255,255,0.15)', borderRadius: '6px', padding: '12px 16px' }}>
@@ -283,14 +304,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                   <select
                     value={settings.launcherFont || 'system-ui'}
                     onChange={(e) => handleFontChange(e.target.value)}
-                    style={{ width: '100%', padding: '8px', background: '#191b20', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: '4px' }}
+                    style={{ width: '100%', padding: '8px', background: '#191b20', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', borderRadius: '4px', fontSize: '14px' }}
                   >
-                    <option value="system-ui">Системный (По умолчанию)</option>
-                    <option value="Inter, sans-serif">Inter</option>
+                    <option value="system-ui">System UI (По умолчанию)</option>
+                    <option value="Inter, sans-serif">Inter (Современный)</option>
                     <option value="Roboto, sans-serif">Roboto</option>
                     <option value="Segoe UI, sans-serif">Segoe UI</option>
-                    <option value="Noto Sans, sans-serif">Noto Sans</option>
+                    <option value="Outfit, sans-serif">Outfit</option>
+                    <option value="Montserrat, sans-serif">Montserrat</option>
+                    <option value="Open Sans, sans-serif">Open Sans</option>
+                    <option value="Fira Code, monospace">Fira Code (Код)</option>
                     <option value="Consolas, monospace">Consolas (Моноширинный)</option>
+                    <option value="Minecraft, monospace">Minecraft Pixel Font</option>
                   </select>
                 </fieldset>
 
