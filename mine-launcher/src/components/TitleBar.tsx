@@ -68,8 +68,9 @@ export const TitleBar: React.FC = () => {
         justifyContent: 'space-between',
         alignItems: 'center',
         height: '36px',
-        padding: '0 8px 0 14px',
-        background: '#0e0f12'
+        padding: '0 0 0 14px',
+        background: '#0e0f12',
+        overflow: 'hidden'
       } as any}
     >
       <div className="title-bar-drag-area" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -77,25 +78,25 @@ export const TitleBar: React.FC = () => {
         <span className="title-bar-text" style={{ fontSize: '13px', fontWeight: '600', color: '#ccc' }}>Mine Launcher</span>
       </div>
 
-      {/* Non-draggable Custom Window Controls */}
-      <div className="window-controls" style={{ WebkitAppRegion: 'no-drag', display: 'flex', alignItems: 'center', height: '100%' } as any}>
+      {/* Windows-style Edge-to-Edge Rectangular Window Controls */}
+      <div className="window-controls" style={{ WebkitAppRegion: 'no-drag', display: 'flex', alignItems: 'center', height: '100%', margin: 0 } as any}>
         <button
           onClick={handleMinimize}
           title="Свернуть"
           style={{
             background: 'none',
             border: 'none',
-            color: '#888',
+            color: '#cccccc',
             height: '36px',
-            width: '40px',
+            width: '46px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             cursor: 'pointer',
-            transition: 'all 0.15s ease'
+            transition: 'background 0.15s ease'
           }}
-          onMouseEnter={(e) => (e.currentTarget.style.color = '#fff')}
-          onMouseLeave={(e) => (e.currentTarget.style.color = '#888')}
+          onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255, 255, 255, 0.12)')}
+          onMouseLeave={(e) => (e.currentTarget.style.background = 'none')}
         >
           <IconMinimize />
         </button>
@@ -106,17 +107,17 @@ export const TitleBar: React.FC = () => {
           style={{
             background: 'none',
             border: 'none',
-            color: '#888',
+            color: '#cccccc',
             height: '36px',
-            width: '40px',
+            width: '46px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             cursor: 'pointer',
-            transition: 'all 0.15s ease'
+            transition: 'background 0.15s ease'
           }}
-          onMouseEnter={(e) => (e.currentTarget.style.color = '#fff')}
-          onMouseLeave={(e) => (e.currentTarget.style.color = '#888')}
+          onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255, 255, 255, 0.12)')}
+          onMouseLeave={(e) => (e.currentTarget.style.background = 'none')}
         >
           {isMaximized ? <IconCollapse /> : <IconExpand />}
         </button>
@@ -127,21 +128,21 @@ export const TitleBar: React.FC = () => {
           style={{
             background: 'none',
             border: 'none',
-            color: '#888',
+            color: '#cccccc',
             height: '36px',
-            width: '40px',
+            width: '46px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             cursor: 'pointer',
-            transition: 'all 0.15s ease'
+            transition: 'background 0.15s ease'
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.color = '#fff'
-            e.currentTarget.style.background = '#ff4d4d'
+            e.currentTarget.style.color = '#ffffff'
+            e.currentTarget.style.background = '#e81123'
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.color = '#888'
+            e.currentTarget.style.color = '#cccccc'
             e.currentTarget.style.background = 'none'
           }}
         >

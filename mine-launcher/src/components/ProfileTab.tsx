@@ -77,12 +77,9 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ activeUsername }) => {
           position: 'relative',
           cursor: 'grab'
         }}
-        title="Зажмите и тяните мышь для 3D вращения персонажа"
+        title="3D модель персонажа"
       >
         <canvas ref={canvasRef} style={{ width: '260px', height: '470px', borderRadius: '20px', display: 'block' }} />
-        <span style={{ position: 'absolute', bottom: '14px', fontSize: '11px', color: '#10b981', fontWeight: 'bold', background: 'rgba(0,0,0,0.7)', padding: '3px 10px', borderRadius: '6px', border: '1px solid rgba(16,185,129,0.4)' }}>
-          🔄 3D вращение мышью
-        </span>
       </div>
 
       {/* Right Account Info exact labels */}
