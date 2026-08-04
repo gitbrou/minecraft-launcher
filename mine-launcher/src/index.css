@@ -214,6 +214,27 @@ body {
 }
 
 /* Center Content & Layout */
+/* Responsive Action Buttons for Tight Window Sizes */
+@media (max-width: 960px) {
+  .action-btn span,
+  .action-btn text {
+    display: none !important;
+  }
+  .action-btn {
+    padding: 8px 10px !important;
+    min-width: unset !important;
+  }
+  .header-actions-row {
+    gap: 8px !important;
+  }
+  .tabs-group {
+    gap: 4px !important;
+  }
+  .tab-btn {
+    padding: 6px 10px !important;
+    font-size: 13px !important;
+  }
+}
 .main-content {
   flex: 1;
   display: flex;
