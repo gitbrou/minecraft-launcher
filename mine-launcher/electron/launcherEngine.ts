@@ -30,7 +30,8 @@ export interface LaunchConfig {
   memoryMin: number
   memoryMax: number
   javaPath?: string;
-  customJvmArgs?: string
+  customJvmArgs?: string;
+  customGameArgs?: string;
 }
 
 export interface ProgressCallback {
@@ -653,6 +654,15 @@ export async function launchMinecraft(
       args.push('--accessToken', '0')
       args.push('--userType', 'mojang')
       args.push('--versionType', 'release')
+    }
+
+    // Always launch in fullscreen
+    if (!args.includes('--fullscreen')) {
+      args.push('--fullscreen')
+    }
+
+    if (config.customGameArgs) {
+      args.push(...config.customGameArgs.split(' ').filter(Boolean))
     }
 
     onLog({

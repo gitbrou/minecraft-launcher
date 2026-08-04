@@ -363,6 +363,8 @@ function setupIpcHandlers() {
       }
     }
 
+    let customGameArgsCombined = `--fullscreen ${(settings.customGameArgs || '').trim()}`.trim()
+
     launchMinecraft(
       {
         instanceId: inst.id,
@@ -374,7 +376,8 @@ function setupIpcHandlers() {
         memoryMin: inst.memoryMin || settings.memoryMin || 1024,
         memoryMax: inst.memoryMax || settings.memoryMax || 4096,
         javaPath: javaPathToUse,
-        customJvmArgs: customArgsCombined.trim()
+        customJvmArgs: customArgsCombined.trim(),
+        customGameArgs: customGameArgsCombined
       },
       (progressData) => {
         win?.webContents.send('launch-progress', progressData)
@@ -611,14 +614,27 @@ function setupIpcHandlers() {
 
   ipcMain.handle('parse-command-skin', async (_, payload: { username: string; command: string }) => {
     const { username, command } = payload
+    const rawText = (command || '').trim()
     let textureUrl = ''
 
-    // 1. Search for any base64 payload starting with e3RleHR1 or eyJ0ZXh0 ("{"textures":...")
-    const b64Matches = command.match(/(?:e3RleHR1|eyJ0ZXh0)[A-Za-z0-9+/=]+/g)
-    if (b64Matches && b64Matches.length > 0) {
-      for (const b64 of b64Matches) {
+    // 1. Direct textures.minecraft.net URL anywhere in text
+    const matchDirect = rawText.match(/(https?:\/\/textures\.minecraft\.net\/texture\/[a-f0-9]+)/i)
+    if (matchDirect) {
+      textureUrl = matchDirect[1]
+    }
+
+    // 2. Scan all Base64 tokens in text (length >= 16)
+    if (!textureUrl) {
+      const b64Tokens = rawText.match(/[A-Za-z0-9+/=]{16,}/g) || []
+      for (const token of b64Tokens) {
         try {
-          const decoded = Buffer.from(b64, 'base64').toString('utf-8')
+          const decoded = Buffer.from(token, 'base64').toString('utf-8')
+          // Check if decoded JSON contains texture URL
+          const matchInDecoded = decoded.match(/(https?:\/\/textures\.minecraft\.net\/texture\/[a-f0-9]+)/i)
+          if (matchInDecoded) {
+            textureUrl = matchInDecoded[1]
+            break
+          }
           const json = JSON.parse(decoded)
           if (json?.textures?.SKIN?.url) {
             textureUrl = json.textures.SKIN.url
@@ -628,31 +644,9 @@ function setupIpcHandlers() {
       }
     }
 
-    // 2. Search for Value:"..." or value:"..."
+    // 3. NameMC skin URL fallback: https://namemc.com/skin/...
     if (!textureUrl) {
-      const matchVal = command.match(/value[:=]\s*["']?([^"'\]}\s]+)["']?/i)
-      if (matchVal && matchVal[1]) {
-        try {
-          const decoded = Buffer.from(matchVal[1], 'base64').toString('utf-8')
-          const json = JSON.parse(decoded)
-          if (json?.textures?.SKIN?.url) {
-            textureUrl = json.textures.SKIN.url
-          }
-        } catch {}
-      }
-    }
-
-    // 3. Direct Mojang texture URL
-    if (!textureUrl) {
-      const matchDirect = command.match(/(https?:\/\/textures\.minecraft\.net\/texture\/[a-f0-9]+)/i)
-      if (matchDirect) {
-        textureUrl = matchDirect[1]
-      }
-    }
-
-    // 4. NameMC link
-    if (!textureUrl) {
-      const matchNameMc = command.match(/namemc\.com\/skin\/([a-f0-9]+)/i)
+      const matchNameMc = rawText.match(/namemc\.com\/skin\/([a-f0-9]+)/i)
       if (matchNameMc && matchNameMc[1]) {
         try {
           const pageHtml = (await downloadBuffer(`https://namemc.com/skin/${matchNameMc[1]}`)).toString('utf-8')
@@ -664,8 +658,13 @@ function setupIpcHandlers() {
       }
     }
 
+    // 4. Nickname fallback (if user pasted a username like Notch or Steve)
+    if (!textureUrl && rawText.length < 32 && !rawText.includes('/')) {
+      textureUrl = `https://minotar.net/skin/${encodeURIComponent(rawText)}`
+    }
+
     if (!textureUrl) {
-      throw new Error('Не удалось найти текстуру скина в команде. Убедитесь, что передан валидный /give или ссылка.')
+      throw new Error('Не удалось найти скин в введенной команде. Убедитесь, что передан валидный /give, Base64 или ссылка.')
     }
 
     if (textureUrl.startsWith('http://')) {
