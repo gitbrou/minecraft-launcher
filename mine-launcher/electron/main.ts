@@ -566,25 +566,6 @@ function setupIpcHandlers() {
     return null
   })
 
-  ipcMain.handle('upload-user-skin', async (_, username: string) => {
-    const { canceled, filePaths } = await dialog.showOpenDialog({
-      title: 'Выберите скин Minecraft (.png)',
-      properties: ['openFile'],
-      filters: [{ name: 'Minecraft Skin (*.png)', extensions: ['png'] }]
-    })
-
-    if (!canceled && filePaths.length > 0) {
-      if (!fs.existsSync(skinsDir)) {
-        fs.mkdirSync(skinsDir, { recursive: true })
-      }
-      const targetPath = path.join(skinsDir, `${username}.png`)
-      fs.copyFileSync(filePaths[0], targetPath)
-      const data = fs.readFileSync(targetPath)
-      return `data:image/png;base64,${data.toString('base64')}`
-    }
-    return null
-  })
-
   // Selected instance persistence
   ipcMain.handle('set-selected-instance-id', (_, instanceId: string) => {
     settings = { ...settings, selectedInstanceId: instanceId }
