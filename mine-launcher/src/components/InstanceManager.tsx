@@ -72,6 +72,7 @@ export const InstanceManager: React.FC<InstanceManagerProps> = ({
   const [selectedVersion, setSelectedVersion] = useState('1.20.4')
   const [selectedLoader, setSelectedLoader] = useState<'vanilla' | 'fabric' | 'forge' | 'quilt'>('vanilla')
   const [allServerVersions, setAllServerVersions] = useState<MinecraftVersion[]>([])
+  const [copyNotice, setCopyNotice] = useState('')
 
   // Mods State
   const [modsList, setModsList] = useState<ModItem[]>([])
@@ -124,6 +125,14 @@ export const InstanceManager: React.FC<InstanceManagerProps> = ({
     if (selectedInstance && window.electronAPI) {
       window.electronAPI.openInstanceFolder(selectedInstance.id)
     }
+  }
+
+  const handleCopyLogs = (onlyErrors = false) => {
+    const targetLogs = onlyErrors ? logs.filter(l => l.type === 'error' || l.type === 'warn') : logs
+    const text = targetLogs.map(l => `[${new Date(l.timestamp).toLocaleTimeString()}] ${l.message}`).join('\n')
+    navigator.clipboard.writeText(text)
+    setCopyNotice(onlyErrors ? 'Ошибки скопированы в буфер обмена!' : 'Весь лог скопирован в буфер обмена!')
+    setTimeout(() => setCopyNotice(''), 2500)
   }
 
   const getLoaderBadgeStyle = (loader: string) => {
@@ -315,29 +324,55 @@ export const InstanceManager: React.FC<InstanceManagerProps> = ({
         </div>
       )}
 
-      {/* Logs Tab */}
+      {/* Logs Tab with Copy Buttons & Selectable Text */}
       {activeTab === 'logs' && (
-        <div
-          style={{
-            flex: 1,
-            background: '#0a0a0d',
-            borderRadius: '10px',
-            padding: '12px',
-            fontFamily: 'monospace',
-            fontSize: '13px',
-            overflowY: 'auto',
-            color: '#00ff66'
-          }}
-        >
-          {logs.length === 0 ? (
-            <span style={{ color: '#555' }}>Логи запуска пусты... Нажмите "Играть" для запуска.</span>
-          ) : (
-            logs.map((log, idx) => (
-              <div key={idx} style={{ color: log.type === 'error' ? '#ff4d4d' : log.type === 'warn' ? '#ffcc00' : '#00ff66', marginBottom: '4px' }}>
-                [{new Date(log.timestamp).toLocaleTimeString()}] {log.message}
-              </div>
-            ))
-          )}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+            <h4 style={{ margin: 0, color: '#aaa', fontSize: '14px' }}>Консоль и отчеты сбоев:</h4>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              {copyNotice && <span style={{ color: '#53921b', fontSize: '12px', fontWeight: 'bold' }}>{copyNotice}</span>}
+              <button
+                className="btn-secondary"
+                style={{ padding: '4px 10px', fontSize: '12px' }}
+                onClick={() => handleCopyLogs(true)}
+              >
+                ⚠️ Только ошибки
+              </button>
+              <button
+                className="btn-primary"
+                style={{ padding: '4px 12px', fontSize: '12px' }}
+                onClick={() => handleCopyLogs(false)}
+              >
+                📋 Скопировать весь лог
+              </button>
+            </div>
+          </div>
+
+          <div
+            style={{
+              flex: 1,
+              background: '#0a0a0d',
+              borderRadius: '10px',
+              padding: '12px',
+              fontFamily: 'Consolas, Monaco, monospace',
+              fontSize: '12px',
+              overflowY: 'auto',
+              color: '#00ff66',
+              userSelect: 'text',
+              WebkitUserSelect: 'text',
+              border: '1px solid rgba(255,255,255,0.08)'
+            }}
+          >
+            {logs.length === 0 ? (
+              <span style={{ color: '#555' }}>Логи запуска пусты... Нажмите "Играть" для запуска.</span>
+            ) : (
+              logs.map((log, idx) => (
+                <div key={idx} style={{ color: log.type === 'error' ? '#ff4d4d' : log.type === 'warn' ? '#ffcc00' : '#00ff66', marginBottom: '3px', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                  [{new Date(log.timestamp).toLocaleTimeString()}] {log.message}
+                </div>
+              ))
+            )}
+          </div>
         </div>
       )}
 
