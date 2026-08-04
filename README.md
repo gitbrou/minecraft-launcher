@@ -19,4 +19,4 @@ npm run compile
 # Сборка 
 npm run build
 ```
-![звездочки](https://repo-chart.vercel.app/api/stars?repo=gitbrou/minecraft-launcher)
+![звездочки](https://github-readme-stats.vercel.app/api/pin/?username=gitbrou&repo=minecraft-launcher)
