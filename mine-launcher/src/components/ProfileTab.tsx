@@ -46,8 +46,10 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ activeUsername }) => {
       window.electronAPI.getUserSkin(activeUsername).then((url) => {
         if (url) {
           setSkinUrl(url)
+          viewerRef.current?.loadSkin(url)
         } else {
           setSkinUrl(DEFAULT_STEVE_SKIN)
+          viewerRef.current?.loadSkin(DEFAULT_STEVE_SKIN)
         }
       }).catch(() => {
         setSkinUrl(DEFAULT_STEVE_SKIN)
@@ -90,7 +92,7 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ activeUsername }) => {
       } catch (err) {
         console.error('SkinViewer init error:', err)
       }
-    }, 100)
+    }, 80)
 
     return () => {
       clearTimeout(timer)
@@ -100,6 +102,17 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ activeUsername }) => {
         } catch {}
       }
     }
+  }, [])
+
+  // Dynamically load skin whenever skinUrl updates
+  useEffect(() => {
+    if (viewerRef.current && skinUrl) {
+      try {
+        viewerRef.current.loadSkin(skinUrl)
+      } catch (e) {
+        console.error('Failed loading skin to viewer:', e)
+      }
+    }
   }, [skinUrl])
 
   const handleUploadSkin = async () => {
@@ -107,6 +120,7 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ activeUsername }) => {
       const newSkin = await window.electronAPI.uploadUserSkin(activeUsername)
       if (newSkin) {
         setSkinUrl(newSkin)
+        viewerRef.current?.loadSkin(newSkin)
       }
     }
   }
@@ -124,6 +138,7 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ activeUsername }) => {
         })
         if (newSkin) {
           setSkinUrl(newSkin)
+          viewerRef.current?.loadSkin(newSkin)
           setShowCmdModal(false)
           setCmdText('')
         }

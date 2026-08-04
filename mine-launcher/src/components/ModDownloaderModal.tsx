@@ -52,12 +52,13 @@ export const ModDownloaderModal: React.FC<ModDownloaderModalProps> = ({
     setLoading(true)
     setStatusMsg('')
     try {
+      const loaderCategory = (loader && loader !== 'vanilla') ? loader : 'fabric'
       const facets = JSON.stringify([
-        [`categories:${loader || 'fabric'}`],
+        [`categories:${loaderCategory}`],
         ['project_type:mod']
       ])
       const res = await fetch(
-        `https://api.modrinth.com/v2/search?query=${encodeURIComponent(query)}&facets=${encodeURIComponent(facets)}&limit=25`
+        `https://api.modrinth.com/v2/search?query=${encodeURIComponent(query)}&facets=${encodeURIComponent(facets)}&limit=30`
       )
       const data = await res.json()
       if (data.hits) {
@@ -101,8 +102,7 @@ export const ModDownloaderModal: React.FC<ModDownloaderModalProps> = ({
       const downloadUrl = file.url
       const filename = file.filename
 
-      setStatusMsg(`Скачивание ${filename}...`)
-
+      setStatusMsg(`Установка ${filename}...`)
       if (window.electronAPI) {
         await window.electronAPI.downloadModFile({
           instanceId,
@@ -110,9 +110,9 @@ export const ModDownloaderModal: React.FC<ModDownloaderModalProps> = ({
           filename
         })
       }
-
       setStatusMsg(`Мод ${project.title} успешно установлен!`)
       onModInstalled()
+      setTimeout(() => setStatusMsg(''), 3000)
     } catch (err: any) {
       setStatusMsg(`Ошибка установки: ${err.message}`)
     } finally {
@@ -121,105 +121,135 @@ export const ModDownloaderModal: React.FC<ModDownloaderModalProps> = ({
   }
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-card" style={{ width: '700px', maxHeight: '85vh', display: 'flex', flexDirection: 'column' }} onClick={(e) => e.stopPropagation()}>
-        {/* Header title matching requirement 6 */}
-        <h3 className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          🧩 Search mods
-        </h3>
-
-        {/* Live Search Input Box */}
-        <div style={{ position: 'relative', marginBottom: '16px' }}>
-          <div style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#53921b', display: 'flex', alignItems: 'center' }}>
-            <IconSearchPixel />
-          </div>
-
-          <input
-            type="text"
-            placeholder="Живой поиск модов (например Sodium, Iris, Lithium, JourneyMap)..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            style={{
-              width: '100%',
-              paddingLeft: '42px',
-              paddingRight: '14px',
-              height: '46px',
-              borderRadius: '10px',
-              background: '#121317',
-              border: '1.5px solid rgba(83, 146, 27, 0.4)',
-              color: '#ffffff',
-              fontSize: '16px'
-            }}
-          />
+    <div className="modal-overlay" onClick={onClose} style={{ background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(4px)' }}>
+      <div
+        className="modal-card"
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          width: '780px',
+          height: '560px',
+          background: '#1a1c23',
+          border: '1px solid rgba(255,255,255,0.12)',
+          borderRadius: '16px',
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+          padding: 0
+        }}
+      >
+        {/* Header */}
+        <div
+          style={{
+            height: '42px',
+            background: '#12141a',
+            borderBottom: '1px solid rgba(255,255,255,0.08)',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            padding: '0 16px'
+          }}
+        >
+          <span style={{ fontWeight: '600', color: '#fff', fontSize: '14px' }}>
+            Поиск и установка модов (Версия: {gameVersion}, Загрузчик: {loader || 'Vanilla/Fabric'})
+          </span>
+          <button
+            onClick={onClose}
+            style={{ background: 'none', border: 'none', color: '#aaa', cursor: 'pointer', fontSize: '16px' }}
+          >
+            ✕
+          </button>
         </div>
 
+        {/* Search input */}
+        <div style={{ padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', gap: '10px' }}>
+          <div style={{ position: 'relative', flex: 1 }}>
+            <input
+              type="text"
+              placeholder="Поиск модов на Modrinth (Sodium, Iris, JEI, JourneyMap...)"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '10px 14px 10px 40px',
+                background: '#12141a',
+                border: '1px solid rgba(255,255,255,0.15)',
+                color: '#fff',
+                borderRadius: '8px',
+                outline: 'none',
+                fontSize: '13px'
+              }}
+            />
+            <span style={{ position: 'absolute', left: '12px', top: '10px', color: '#777', display: 'flex' }}>
+              <IconSearchPixel />
+            </span>
+          </div>
+        </div>
+
+        {/* Status notice */}
         {statusMsg && (
-          <div style={{ padding: '8px 12px', borderRadius: '6px', background: 'rgba(83, 146, 27, 0.2)', color: '#6eff8b', fontSize: '14px', marginBottom: '12px' }}>
+          <div style={{ padding: '8px 20px', background: 'rgba(83, 146, 27, 0.2)', color: '#53921b', fontSize: '13px', fontWeight: '500' }}>
             {statusMsg}
           </div>
         )}
 
-        <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '10px', paddingRight: '4px' }}>
-          {loading && searchResults.length === 0 && (
-            <p style={{ color: '#888', textAlign: 'center', margin: '30px 0' }}>Загрузка модов...</p>
-          )}
-
-          {!loading && searchResults.length === 0 && (
-            <p style={{ color: '#888', textAlign: 'center', margin: '30px 0' }}>Ничего не найдено</p>
-          )}
-
-          {searchResults.map((mod) => (
-            <div
-              key={mod.project_id}
-              style={{
-                background: 'rgba(255, 255, 255, 0.05)',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
-                borderRadius: '10px',
-                padding: '12px 14px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '14px'
-              }}
-            >
-              {mod.icon_url ? (
-                <img
-                  src={mod.icon_url}
-                  alt=""
-                  loading="lazy"
-                  style={{ width: '46px', height: '46px', borderRadius: '8px', objectFit: 'contain', flexShrink: 0 }}
-                  onError={(e) => { (e.target as any).style.display = 'none' }}
-                />
-              ) : (
-                <div style={{ width: '46px', height: '46px', borderRadius: '8px', background: '#252730', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>🧩</div>
-              )}
-
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <h4 style={{ margin: 0, fontSize: '16px', color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {mod.title} <small style={{ color: '#888' }}>by {mod.author}</small>
-                </h4>
-                <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: '#aaa', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                  {mod.description}
-                </p>
-                <small style={{ color: '#666' }}>📥 {mod.downloads.toLocaleString()} скачиваний</small>
-              </div>
-
-              {/* Action button renamed to Установить мод */}
-              <button
-                className="btn-primary"
-                style={{ padding: '8px 14px', fontSize: '14px', flexShrink: 0, background: '#3b82f6' }}
-                disabled={installingId === mod.project_id}
-                onClick={() => handleInstallMod(mod)}
+        {/* Results List */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          {loading ? (
+            <div style={{ color: '#aaa', textAlign: 'center', marginTop: '40px' }}>Загрузка модов с Modrinth...</div>
+          ) : searchResults.length === 0 ? (
+            <div style={{ color: '#888', textAlign: 'center', marginTop: '40px' }}>Моды не найдены</div>
+          ) : (
+            searchResults.map((proj) => (
+              <div
+                key={proj.project_id}
+                style={{
+                  background: 'rgba(255, 255, 255, 0.03)',
+                  border: '1px solid rgba(255, 255, 255, 0.08)',
+                  borderRadius: '10px',
+                  padding: '12px 16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '14px'
+                }}
               >
-                {installingId === mod.project_id ? 'Загрузка...' : 'Установить мод'}
-              </button>
-            </div>
-          ))}
-        </div>
+                {proj.icon_url ? (
+                  <img src={proj.icon_url} alt={proj.title} style={{ width: '42px', height: '42px', borderRadius: '8px', objectFit: 'cover' }} />
+                ) : (
+                  <div style={{ width: '42px', height: '42px', borderRadius: '8px', background: '#374151', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 'bold' }}>
+                    {proj.title[0]}
+                  </div>
+                )}
 
-        <div className="modal-actions">
-          <button type="button" className="btn-secondary" onClick={onClose}>
-            Закрыть
-          </button>
+                <div style={{ flex: 1, overflow: 'hidden' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <h4 style={{ margin: 0, fontSize: '15px', color: '#fff', fontWeight: '600' }}>{proj.title}</h4>
+                    <span style={{ fontSize: '11px', color: '#888' }}>от {proj.author}</span>
+                  </div>
+                  <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#aaa', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {proj.description}
+                  </p>
+                </div>
+
+                <button
+                  onClick={() => handleInstallMod(proj)}
+                  disabled={installingId === proj.project_id}
+                  style={{
+                    padding: '8px 16px',
+                    background: '#53921b',
+                    border: 'none',
+                    borderRadius: '8px',
+                    color: '#fff',
+                    fontWeight: '600',
+                    fontSize: '12px',
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  {installingId === proj.project_id ? 'Установка...' : 'Установить'}
+                </button>
+              </div>
+            ))
+          )}
         </div>
       </div>
     </div>
