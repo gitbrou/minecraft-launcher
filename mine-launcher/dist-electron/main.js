@@ -200,10 +200,10 @@ hideServerAddress:false
       }
     if (!N) {
       const l = await re();
-      for (const v of l)
-        if (s.existsSync(v))
+      for (const w of l)
+        if (s.existsSync(w))
           try {
-            q(`"${v}" -version 2>&1`), j = v, N = !0;
+            q(`"${w}" -version 2>&1`), j = w, N = !0;
             break;
           } catch {
           }
@@ -229,15 +229,15 @@ hideServerAddress:false
     });
     const H = r.join(d, t.version, `${t.version}.json`), k = await L(B.url);
     if (s.existsSync(r.dirname(H)) || s.mkdirSync(r.dirname(H), { recursive: !0 }), s.writeFileSync(H, JSON.stringify(k, null, 2)), (P = k.assetIndex) != null && P.url) {
-      const l = r.join(o, "indexes"), v = r.join(l, `${k.assetIndex.id}.json`);
-      s.existsSync(v) || (n({
+      const l = r.join(o, "indexes"), w = r.join(l, `${k.assetIndex.id}.json`);
+      s.existsSync(w) || (n({
         instanceId: t.instanceId,
         stage: "downloading",
         statusText: "Загрузка манифеста ресурсов...",
         progress: 25
-      }), await F(k.assetIndex.url, v));
+      }), await F(k.assetIndex.url, w));
       try {
-        const _ = JSON.parse(s.readFileSync(v, "utf-8")).objects || {}, C = Object.keys(_), W = r.join(o, "objects"), $ = [];
+        const _ = JSON.parse(s.readFileSync(w, "utf-8")).objects || {}, C = Object.keys(_), W = r.join(o, "objects"), $ = [];
         for (const T of C) {
           const D = _[T].hash, z = D.slice(0, 2), Z = r.join(W, z, D);
           s.existsSync(Z) || $.push({
@@ -290,16 +290,16 @@ hideServerAddress:false
     for (const l of be)
       if (Me(l.rules)) {
         if ((R = l.downloads) != null && R.artifact) {
-          const v = l.downloads.artifact.path, S = r.join(u, v);
+          const w = l.downloads.artifact.path, S = r.join(u, w);
           if (!s.existsSync(S))
             try {
               await F(l.downloads.artifact.url, S);
             } catch {
             }
-          s.existsSync(S) && (G.push(S), (v.includes("natives") || l.name.includes("natives")) && ie(S, c));
+          s.existsSync(S) && (G.push(S), (w.includes("natives") || l.name.includes("natives")) && ie(S, c));
         }
         if ((me = l.downloads) != null && me.classifiers) {
-          const v = l.downloads.classifiers, S = v["natives-windows"] || v["natives-windows-64"] || v["natives-windows-x86"];
+          const w = l.downloads.classifiers, S = w["natives-windows"] || w["natives-windows-64"] || w["natives-windows-x86"];
           if (S) {
             const _ = S.path, C = r.join(u, _);
             if (!s.existsSync(C))
@@ -311,7 +311,7 @@ hideServerAddress:false
           }
         }
         if (!((fe = l.downloads) != null && fe.artifact) && l.name) {
-          const v = l.name.split(":"), S = v[0].replace(/\./g, "/"), _ = v[1], C = v[2], W = `${S}/${_}/${C}/${_}-${C}.jar`, $ = r.join(u, W), T = l.url ? `${l.url}${W}` : `https://libraries.minecraft.net/${W}`;
+          const w = l.name.split(":"), S = w[0].replace(/\./g, "/"), _ = w[1], C = w[2], W = `${S}/${_}/${C}/${_}-${C}.jar`, $ = r.join(u, W), T = l.url ? `${l.url}${W}` : `https://libraries.minecraft.net/${W}`;
           if (!s.existsSync($))
             try {
               await F(T, $);
@@ -321,7 +321,7 @@ hideServerAddress:false
         }
       }
     G.push(se);
-    let we = k.mainClass || "net.minecraft.client.main.Main";
+    let ve = k.mainClass || "net.minecraft.client.main.Main";
     if (t.loader === "fabric") {
       n({
         instanceId: t.instanceId,
@@ -332,8 +332,8 @@ hideServerAddress:false
       try {
         const l = await L(`https://meta.fabricmc.net/v2/versions/loader/${t.version}`);
         if (l && l.length > 0) {
-          const v = l[0].loader.version, S = await L(`https://meta.fabricmc.net/v2/versions/loader/${t.version}/${v}/profile/json`);
-          if (S.mainClass && (we = S.mainClass), S.libraries)
+          const w = l[0].loader.version, S = await L(`https://meta.fabricmc.net/v2/versions/loader/${t.version}/${w}/profile/json`);
+          if (S.mainClass && (ve = S.mainClass), S.libraries)
             for (const _ of S.libraries) {
               const C = _.name.split(":"), W = C[0].replace(/\./g, "/"), $ = C[1], T = C[2], O = `${W}/${$}/${T}/${$}-${T}.jar`, D = r.join(u, O), z = _.url ? `${_.url}${O}` : `https://maven.fabricmc.net/${O}`;
               if (!s.existsSync(D))
@@ -355,16 +355,16 @@ hideServerAddress:false
       progress: 90
     });
     const Pe = G.join(r.delimiter), y = [];
-    y.push(`-Xms${t.memoryMin || 1024}M`), y.push(`-Xmx${t.memoryMax || 4096}M`), y.push(`-Djava.library.path=${c}`), y.push("-Dminecraft.api.auth.host=http://127.0.0.1"), y.push("-Dminecraft.api.account.host=http://127.0.0.1"), y.push("-Dminecraft.api.session.host=http://127.0.0.1"), y.push("-Dminecraft.api.services.host=http://127.0.0.1"), y.push("-XX:+UseG1GC", "-XX:+UnlockExperimentalVMOptions", "-XX:G1NewSizePercent=20", "-XX:G1ReservePercent=20", "-XX:MaxGCPauseMillis=50", "-XX:G1HeapRegionSize=32M"), t.customJvmArgs && y.push(...t.customJvmArgs.split(" ").filter(Boolean)), y.push("-cp", Pe), y.push(we);
-    const ve = (t.uuid || U(t.username || "Player")).replace(/-/g, "");
+    y.push(`-Xms${t.memoryMin || 1024}M`), y.push(`-Xmx${t.memoryMax || 4096}M`), y.push(`-Djava.library.path=${c}`), y.push("-Dminecraft.api.auth.host=http://127.0.0.1"), y.push("-Dminecraft.api.account.host=http://127.0.0.1"), y.push("-Dminecraft.api.session.host=http://127.0.0.1"), y.push("-Dminecraft.api.services.host=http://127.0.0.1"), y.push("-XX:+UseG1GC", "-XX:+UnlockExperimentalVMOptions", "-XX:G1NewSizePercent=20", "-XX:G1ReservePercent=20", "-XX:MaxGCPauseMillis=50", "-XX:G1HeapRegionSize=32M"), t.customJvmArgs && y.push(...t.customJvmArgs.split(" ").filter(Boolean)), y.push("-cp", Pe), y.push(ve);
+    const we = (t.uuid || U(t.username || "Player")).replace(/-/g, "");
     if (k.minecraftArguments && typeof k.minecraftArguments == "string") {
       const l = k.minecraftArguments.split(" ");
-      for (const v of l) {
-        let S = v.replace("${auth_player_name}", t.username || "Player").replace("${version_name}", t.version).replace("${game_directory}", a).replace("${assets_root}", o).replace("${assets_index_name}", ((pe = k.assetIndex) == null ? void 0 : pe.id) || t.version).replace("${auth_uuid}", ve).replace("${auth_access_token}", "0").replace("${user_type}", "mojang").replace("${version_type}", "release");
+      for (const w of l) {
+        let S = w.replace("${auth_player_name}", t.username || "Player").replace("${version_name}", t.version).replace("${game_directory}", a).replace("${assets_root}", o).replace("${assets_index_name}", ((pe = k.assetIndex) == null ? void 0 : pe.id) || t.version).replace("${auth_uuid}", we).replace("${auth_access_token}", "0").replace("${user_type}", "mojang").replace("${version_type}", "release");
         y.push(S);
       }
     } else
-      y.push("--username", t.username || "Player"), y.push("--version", t.version), y.push("--gameDir", a), y.push("--assetsDir", o), y.push("--assetIndex", ((he = k.assetIndex) == null ? void 0 : he.id) || t.version), y.push("--uuid", ve), y.push("--accessToken", "0"), y.push("--userType", "mojang"), y.push("--versionType", "release");
+      y.push("--username", t.username || "Player"), y.push("--version", t.version), y.push("--gameDir", a), y.push("--assetsDir", o), y.push("--assetIndex", ((he = k.assetIndex) == null ? void 0 : he.id) || t.version), y.push("--uuid", we), y.push("--accessToken", "0"), y.push("--userType", "mojang"), y.push("--versionType", "release");
     y.includes("--fullscreen") || y.push("--fullscreen"), t.customGameArgs && y.push(...t.customGameArgs.split(" ").filter(Boolean)), e({
       timestamp: Date.now(),
       type: "info",
@@ -443,25 +443,25 @@ let g = ue(Y, [
   { id: "3", username: "Nick 3", uuid: U("Nick 3"), type: "offline", isActive: !1, createdAt: Date.now() - 3e4 }
 ]), M = ue(Q, [
   {
-    id: "default-1",
-    name: "1.20.4",
-    version: "1.20.4",
+    id: "default-1122",
+    name: "1.12.2",
+    version: "1.12.2",
     loader: "vanilla",
     created: Date.now() - 1e5,
-    lastPlayed: Date.now() - 5e4,
+    lastPlayed: Date.now(),
     memoryMin: 1024,
     memoryMax: 4096
   },
   {
-    id: "fabric-1",
-    name: "1.20.1",
-    version: "1.20.1",
-    loader: "fabric",
-    created: Date.now() - 8e4,
-    memoryMin: 2048,
+    id: "default-1",
+    name: "1.20.4",
+    version: "1.20.4",
+    loader: "vanilla",
+    created: Date.now() - 9e4,
+    memoryMin: 1024,
     memoryMax: 4096
   }
-]), w = ue(ce, {
+]), v = ue(ce, {
   javaPath: "",
   memoryMin: 1024,
   memoryMax: 4096,
@@ -564,8 +564,8 @@ function Oe() {
       version: n.version,
       loader: n.loader || "vanilla",
       created: Date.now(),
-      memoryMin: w.memoryMin,
-      memoryMax: w.memoryMax
+      memoryMin: v.memoryMin,
+      memoryMax: v.memoryMax
     };
     M.push(e), E(Q, M);
     const i = r.join(A, "instances", e.id), a = r.join(i, "mods");
@@ -580,16 +580,16 @@ function Oe() {
     } catch (t) {
       return console.error("Failed to get versions:", t), { latest: { release: "1.20.4", snapshot: "1.20.4" }, versions: [] };
     }
-  }), f.handle("get-settings", () => w), f.handle("save-settings", (t, n) => (w = { ...w, ...n }, E(ce, w), w)), f.handle("detect-java", async () => await re()), f.handle("launch-instance", async (t, n) => {
+  }), f.handle("get-settings", () => v), f.handle("save-settings", (t, n) => (v = { ...v, ...n }, E(ce, v), v)), f.handle("detect-java", async () => await re()), f.handle("launch-instance", async (t, n) => {
     const e = M.find((d) => d.id === n);
     if (!e) throw new Error("Инстанс не найден");
     const i = g.find((d) => d.isActive) || g[0];
     if (!i) throw new Error("Добавьте хотя бы один аккаунт!");
     e.lastPlayed = Date.now(), E(Q, M);
-    const a = e.javaPath || w.javaPath || (await re())[0];
-    let o = e.jvmArgs || w.customJvmArgs || "";
-    w.useProxy && w.proxyHost && w.proxyPort && (w.proxyType === "socks5" ? o += ` -DsocksProxyHost=${w.proxyHost} -DsocksProxyPort=${w.proxyPort}` : o += ` -Dhttp.proxyHost=${w.proxyHost} -Dhttp.proxyPort=${w.proxyPort} -Dhttps.proxyHost=${w.proxyHost} -Dhttps.proxyPort=${w.proxyPort}`);
-    let u = `--fullscreen ${(w.customGameArgs || "").trim()}`.trim();
+    const a = e.javaPath || v.javaPath || (await re())[0];
+    let o = e.jvmArgs || v.customJvmArgs || "";
+    v.useProxy && v.proxyHost && v.proxyPort && (v.proxyType === "socks5" ? o += ` -DsocksProxyHost=${v.proxyHost} -DsocksProxyPort=${v.proxyPort}` : o += ` -Dhttp.proxyHost=${v.proxyHost} -Dhttp.proxyPort=${v.proxyPort} -Dhttps.proxyHost=${v.proxyHost} -Dhttps.proxyPort=${v.proxyPort}`);
+    let u = `--fullscreen ${(v.customGameArgs || "").trim()}`.trim();
     return Fe(
       {
         instanceId: e.id,
@@ -598,8 +598,8 @@ function Oe() {
         loader: e.loader || "vanilla",
         username: i.username,
         uuid: i.uuid,
-        memoryMin: e.memoryMin || w.memoryMin || 1024,
-        memoryMax: e.memoryMax || w.memoryMax || 4096,
+        memoryMin: e.memoryMin || v.memoryMin || 1024,
+        memoryMax: e.memoryMax || v.memoryMax || 4096,
         javaPath: a,
         customJvmArgs: o.trim(),
         customGameArgs: u
@@ -714,7 +714,7 @@ function Oe() {
   }), f.handle("get-user-skin", (t, n) => {
     const e = r.join(b, `${n}.png`);
     return s.existsSync(e) ? `data:image/png;base64,${s.readFileSync(e).toString("base64")}` : null;
-  }), f.handle("set-selected-instance-id", (t, n) => (w = { ...w, selectedInstanceId: n }, E(ce, w), w)), f.handle("save-user-skin-base64", (t, { username: n, base64Data: e }) => {
+  }), f.handle("set-selected-instance-id", (t, n) => (v = { ...v, selectedInstanceId: n }, E(ce, v), v)), f.handle("save-user-skin-base64", (t, { username: n, base64Data: e }) => {
     try {
       s.existsSync(b) || s.mkdirSync(b, { recursive: !0 });
       const i = e.replace(/^data:image\/png;base64,/, ""), a = Buffer.from(i, "base64"), o = r.join(b, `${n}.png`);

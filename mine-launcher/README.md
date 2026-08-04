@@ -1,30 +1,49 @@
-# React + TypeScript + Vite
+# 🚀 Mine Launcher — Современный Лаунчер Minecraft
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Премиальный, высокопроизводительный кастомный лаунчер для **Minecraft**, созданный на стеке **Electron + React + TypeScript + Vite**.
 
-Currently, two official plugins are available:
+![Mine Launcher Preview](public/icon.png)
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## ✨ Основные особенности:
 
-## Expanding the ESLint configuration
+- 🎮 **Поддержка любых версий**: Быстрый запуск Minecraft (включая **1.12.2 по умолчанию**, 1.20.4, Fabric, Forge, Quilt).
+- 👤 **Управление аккаунтами**: Простой офлайн-вход, переключение никнеймов в один клик.
+- 🎨 **3D Просмотр скинов**: Встроенный интерактивный 3D-просмотрщик скинов на Three.js (`skinview3d`) с вращением мышью на 360°.
+- 📤 **Загрузка скинов любым способом**:
+  - Быстрая загрузка локальных `.png` файлов.
+  - Умный импорт по командам `/give @p minecraft:player_head[...]`, NameMC или ссылке.
+- 🧩 **Встроенный менеджер модов Modrinth**: Поиск и установка модов (Sodium, Iris, JEI и др.) в один клик прямо из лаунчера.
+- 🔒 **Прокси & Сетевые настройки**: Поддержка HTTP и SOCKS5 прокси для обхода блокировок.
+- 🔤 **Кастомизация UI**: Кастомный Windows-style TitleBar, современные тумблеры, выбор красивых шрифтов (Inter, Outfit, Fira Code, Minecraft Pixel).
+- 🖥️ **Автоматический Fullscreen**: Игра сразу запускается на весь экран.
 
-If you are developing a production application, we recommend updating the configuration to enable type aware lint rules:
+---
 
-- Configure the top-level `parserOptions` property like this:
+## 🛠️ Запуск проекта разработчиком:
 
-```js
-export default {
-  // other rules...
-  parserOptions: {
-    ecmaVersion: 'latest',
-    sourceType: 'module',
-    project: ['./tsconfig.json', './tsconfig.node.json'],
-    tsconfigRootDir: __dirname,
-  },
-}
+```bash
+# Установка зависимостей
+npm install
+
+# Запуск в режиме разработки (Vite + Electron Live Reload)
+npm run dev
+
+# Компиляция TypeScript и сборка интерфейса
+npm run compile
+
+# Сборка финального Windows EXE дистрибутива (Onecompile / electron-builder)
+npm run build
 ```
 
-- Replace `plugin:@typescript-eslint/recommended` to `plugin:@typescript-eslint/recommended-type-checked` or `plugin:@typescript-eslint/strict-type-checked`
-- Optionally add `plugin:@typescript-eslint/stylistic-type-checked`
-- Install [eslint-plugin-react](https://github.com/jsx-eslint/eslint-plugin-react) and add `plugin:react/recommended` & `plugin:react/jsx-runtime` to the `extends` list
+---
+
+## 📁 Структура проекта:
+
+- `electron/main.ts` — Главный процесс Electron, управление IPC, сохранениями и скачиванием движков.
+- `electron/launcherEngine.ts` — Движок скачивания библиотек Minecraft, генерации оффлайн UUID и запуска JVM.
+- `src/components/ProfileTab.tsx` — Вкладка профиля с 3D моделями скинов и статистикой.
+- `src/components/SettingsModal.tsx` — Окно настроек в стиле Prism Launcher.
+
+---
+
+Создано для сообщества **gitbrou**.
