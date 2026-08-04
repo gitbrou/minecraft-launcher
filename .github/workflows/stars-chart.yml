@@ -13,11 +13,54 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Generate Star History Chart
-        uses: gregberge/github-activity-stream@v1
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          output: assets/stars.svg
+          python-version: '3.x'
+
+      - name: Install dependencies
+        run: pip install requests matplotlib
+
+      - name: Generate Star Chart SVG
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          import os
+          import requests
+          import matplotlib.pyplot as plt
+          from datetime import datetime
+
+          repo = os.environ['GITHUB_REPOSITORY']
+          headers = {'Authorization': f"token {os.environ['GITHUB_TOKEN']}"}
+          
+          url = f"https://api.github.com/repos/{repo}/stargazers"
+          headers['Accept'] = 'application/vnd.github.v3.star+json'
+          
+          response = requests.get(url, headers=headers)
+          if response.status_code == 200:
+              stars_data = response.json()
+              dates = [datetime.strptime(item['starred_at'], "%Y-%m-%dT%H:%M:%SZ") for item in stars_data]
+              counts = list(range(1, len(dates) + 1))
+
+              plt.style.use('dark_background')
+              fig, ax = plt.subplots(figsize=(8, 4))
+              fig.patch.set_facecolor('#0d1117')
+              ax.set_facecolor('#0d1117')
+              
+              ax.plot(dates, counts, color='#58a6ff', linewidth=2)
+              ax.fill_between(dates, counts, color='#1f6feb', alpha=0.3)
+              
+              ax.spines['top'].set_visible(False)
+              ax.spines['right'].set_visible(False)
+              ax.spines['left'].set_color('#30363d')
+              ax.spines['bottom'].set_color('#30363d')
+              ax.tick_params(colors='#8b949e')
+              ax.title.set_color('#c9d1d9')
+              plt.title('Star History')
+
+              os.makedirs('assets', exist_ok=True)
+              plt.savefig('assets/stars.svg', format='svg', bbox_inches='tight', transparent=True)
+          shell: python
 
       - name: Commit and push changes
         uses: stefanzweifel/git-auto-commit-action@v5
