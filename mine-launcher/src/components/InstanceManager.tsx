@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Instance, MinecraftVersion, ModItem, GameLog } from '../types'
+import { ProfileTab } from './ProfileTab'
 
 interface InstanceManagerProps {
   instances: Instance[]
@@ -60,6 +61,7 @@ const IconDeletePixel = () => (
 export const InstanceManager: React.FC<InstanceManagerProps> = ({
   instances,
   selectedInstance,
+  activeUsername,
   onSelectInstance,
   onCreateInstance,
   onDeleteInstance,
@@ -67,7 +69,7 @@ export const InstanceManager: React.FC<InstanceManagerProps> = ({
   onOpenModDownloader,
   logs
 }) => {
-  const [activeTab, setActiveTab] = useState<'versions' | 'mods' | 'logs'>('versions')
+  const [activeTab, setActiveTab] = useState<'versions' | 'mods' | 'profile' | 'logs'>('versions')
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [selectedVersion, setSelectedVersion] = useState('1.20.4')
   const [selectedLoader, setSelectedLoader] = useState<'vanilla' | 'fabric' | 'forge' | 'quilt'>('vanilla')
@@ -131,7 +133,7 @@ export const InstanceManager: React.FC<InstanceManagerProps> = ({
     const targetLogs = onlyErrors ? logs.filter(l => l.type === 'error' || l.type === 'warn') : logs
     const text = targetLogs.map(l => `[${new Date(l.timestamp).toLocaleTimeString()}] ${l.message}`).join('\n')
     navigator.clipboard.writeText(text)
-    setCopyNotice(onlyErrors ? 'Ошибки скопированы в буфер обмена!' : 'Весь лог скопирован в буфер обмена!')
+    setCopyNotice(onlyErrors ? 'Ошибки скопированы!' : 'Весь лог скопирован!')
     setTimeout(() => setCopyNotice(''), 2500)
   }
 
@@ -168,6 +170,14 @@ export const InstanceManager: React.FC<InstanceManagerProps> = ({
             style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
           >
             <IconMods /> Моды
+          </button>
+
+          <button
+            className={`tab-btn ${activeTab === 'profile' ? 'active' : ''}`}
+            onClick={() => setActiveTab('profile')}
+            style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+          >
+            👤 Профиль
           </button>
 
           <button
@@ -324,7 +334,12 @@ export const InstanceManager: React.FC<InstanceManagerProps> = ({
         </div>
       )}
 
-      {/* Logs Tab with Copy Buttons & Selectable Text */}
+      {/* Profile Tab matching User Mockup Image */}
+      {activeTab === 'profile' && (
+        <ProfileTab activeUsername={activeUsername} />
+      )}
+
+      {/* Logs Tab */}
       {activeTab === 'logs' && (
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>

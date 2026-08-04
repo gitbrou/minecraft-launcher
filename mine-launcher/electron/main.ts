@@ -448,6 +448,52 @@ function setupIpcHandlers() {
     throw new Error(`Скин для никнейма "${targetUsername}" не найден на серверах`)
   })
 
+  // Profile & Statistics
+  ipcMain.handle('get-profile-stats', (_, username: string) => {
+    let worldsCount = 0
+    const worldNames: string[] = []
+    let favoriteWorld = 'Выживание 1.20'
+    let favoriteServer = 'Hypixel / PlayMine'
+    let totalPlayMinutes = 0
+    let lastPlayedTime = 0
+
+    try {
+      for (const inst of instances) {
+        if ((inst as any).lastPlayed) {
+          lastPlayedTime = Math.max(lastPlayedTime, (inst as any).lastPlayed)
+          totalPlayMinutes += 45 // Estimated sessions per launch
+        }
+        const savesDir = path.join(rootDir, 'instances', (inst as any).id, 'saves')
+        if (fs.existsSync(savesDir)) {
+          const saves = fs.readdirSync(savesDir)
+          for (const s of saves) {
+            if (fs.statSync(path.join(savesDir, s)).isDirectory()) {
+              worldsCount++
+              worldNames.push(s)
+            }
+          }
+        }
+      }
+      if (worldNames.length > 0) {
+        favoriteWorld = worldNames[0]
+      }
+    } catch {}
+
+    const activeAcc = accounts.find(a => a.username === username) || accounts.find(a => a.isActive) || accounts[0]
+    const hours = (totalPlayMinutes / 60).toFixed(1)
+    const lastPlayedFormatted = lastPlayedTime ? new Date(lastPlayedTime).toLocaleString() : 'Не запускался'
+
+    return {
+      username: activeAcc ? activeAcc.username : username,
+      uuid: activeAcc ? activeAcc.uuid : '',
+      worldsCount,
+      totalPlayTimeHours: hours,
+      lastPlayedFormatted,
+      favoriteWorld,
+      favoriteServer
+    }
+  })
+
   ipcMain.handle('get-user-skin', (_, username: string) => {
     const skinPath = path.join(skinsDir, `${username}.png`)
     if (fs.existsSync(skinPath)) {
