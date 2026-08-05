@@ -2,6 +2,7 @@
   ![React](https://shields.io/badge/-react-4377cb?logo=react)
   ![Electron](https://img.shields.io/badge/Electron-006C9C)
   ![крутая фотка](image.png)
+  ![моды](mine-launcher/image.png)
 Крутой майнрафт лаунчер
 ## 🛠️ Запуск проекта:
 
