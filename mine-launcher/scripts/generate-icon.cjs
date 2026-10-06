@@ -2,22 +2,25 @@ const fs = require('fs');
 const path = require('path');
 const zlib = require('zlib');
 
-function createMinecraftPng() {
-  const width = 64;
-  const height = 64;
+function createMinecraftPng(size = 512) {
+  const width = size;
+  const height = size;
+  const S = size / 64; // 64px-модель × масштаб
   const buffer = Buffer.alloc(width * height * 4);
 
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
       const idx = (y * width + x) * 4;
+      const ox = Math.floor(x / S); // координата в исходной сетке
+      const oy = Math.floor(y / S);
 
       let r = 24, g = 25, b = 32, a = 255;
 
-      if (x >= 8 && x < 56 && y >= 8 && y < 56) {
+      if (ox >= 8 && ox < 56 && oy >= 8 && oy < 56) {
         r = 83; g = 146; b = 27; a = 255;
 
-        const relX = Math.floor((x - 8) / 3);
-        const relY = Math.floor((y - 8) / 3);
+        const relX = Math.floor((ox - 8) / 3);
+        const relY = Math.floor((oy - 8) / 3);
 
         if (
           (relY >= 3 && relY <= 5 && relX >= 2 && relX <= 5) ||
@@ -100,8 +103,8 @@ icoHeader.writeUInt16LE(0, 0); // reserved
 icoHeader.writeUInt16LE(1, 2); // type = icon
 icoHeader.writeUInt16LE(1, 4); // count
 const icoEntry = Buffer.alloc(16);
-icoEntry.writeUInt8(64, 0);    // width
-icoEntry.writeUInt8(64, 1);    // height
+icoEntry.writeUInt8(0, 0);    // width (0 = 256+)
+icoEntry.writeUInt8(0, 1);    // height (0 = 256+)
 icoEntry.writeUInt8(0, 2);     // palette
 icoEntry.writeUInt8(0, 3);     // reserved
 icoEntry.writeUInt16LE(1, 4);  // color planes
