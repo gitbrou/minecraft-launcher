@@ -1,7 +1,7 @@
 {
   "name": "mine-launcher",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Modern Minecraft Launcher built with Electron + React + TypeScript",
   "author": {
     "name": "gitbrou",
