@@ -12,10 +12,9 @@
   "scripts": {
     "dev": "vite",
     "compile": "tsc && vite build",
-    "build": "npm run icons && tsc && vite build && electron-builder --publish never",
+    "build": "tsc && vite build && electron-builder --publish never",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
-    "icons": "node scripts/generate-icon.cjs",
     "android:sync": "npm run compile && cap sync android",
     "android:open": "cap open android"
   },
