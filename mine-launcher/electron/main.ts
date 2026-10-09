@@ -1,4 +1,5 @@
 import { app, BrowserWindow, ipcMain, shell, dialog, Menu } from 'electron'
+import { autoUpdater } from 'electron-updater'
 
 // Remove default Electron application menu bar
 Menu.setApplicationMenu(null)
@@ -686,4 +687,12 @@ function setupIpcHandlers() {
 app.whenReady().then(() => {
   setupIpcHandlers()
   createWindow()
+
+  // Автообновления при упаковке
+  if (app.isPackaged) {
+    autoUpdater.autoDownload = true
+    autoUpdater.checkForUpdatesAndNotify().catch((err) => {
+      console.error('Auto-update check failed:', err)
+    })
+  }
 })

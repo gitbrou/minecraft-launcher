@@ -12,17 +12,26 @@
   "scripts": {
     "dev": "vite",
     "compile": "tsc && vite build",
-    "build": "tsc && vite build && electron-builder",
+    "build": "npm run icons && tsc && vite build && electron-builder",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "icons": "node scripts/generate-icon.cjs",
+    "android:sync": "npm run compile && cap sync android",
+    "android:open": "cap open android"
   },
   "dependencies": {
+    "@capacitor/android": "^6.2.0",
+    "@capacitor/core": "^6.2.0",
+    "@types/extract-zip": "^2.0.0",
+    "electron-updater": "^6.3.9",
+    "extract-zip": "^2.0.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "skinview3d": "^3.4.2",
     "three": "^0.185.1"
   },
   "devDependencies": {
+    "@capacitor/cli": "^6.2.0",
     "@types/react": "^18.2.64",
     "@types/react-dom": "^18.2.21",
     "@typescript-eslint/eslint-plugin": "^7.1.1",
@@ -53,11 +62,15 @@
       "target": [
         {
           "target": "nsis",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         },
         {
           "target": "portable",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ],
       "signAndEditExecutable": false,
@@ -75,7 +88,9 @@
       "target": [
         {
           "target": "AppImage",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ],
       "category": "Game",
@@ -86,11 +101,21 @@
       "target": [
         {
           "target": "dmg",
-          "arch": ["x64", "arm64"]
+          "arch": [
+            "x64",
+            "arm64"
+          ]
         }
       ],
       "icon": "public/icon.png",
       "category": "public.app-category.games"
-    }
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "gitbrou",
+        "repo": "minecraft-launcher"
+      }
+    ]
   }
 }

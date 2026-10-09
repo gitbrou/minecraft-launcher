@@ -5,6 +5,48 @@ import https from 'node:https'
 import http from 'node:http'
 import { spawn, execSync } from 'node:child_process'
 import { app } from 'electron'
+import extract from 'extract-zip'
+
+// Java major по версии Minecraft
+export function requiredJavaMajor(mcVersion: string): number {
+  const v = mcVersion.replace(/[^0-9.].*$/, '')
+  const parts = v.split('.').map(n => parseInt(n, 10))
+  const major = parts[0]
+  const minor = parts[1] ?? 0
+  const patch = parts[2] ?? 0
+  if (major > 1) return 21
+  if (minor > 20 || (minor === 20 && patch >= 5)) return 21 // 1.20.5+
+  if (minor >= 17) return 17                                 // 1.17–1.20.4
+  return 8                                                   // ≤ 1.16.5
+}
+
+const TEMURIN: Record<number, { win: string; mac_x64: string; mac_aarch64: string; linux_x64: string }> = {
+  8:  {
+    win:          'https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u422-b05/OpenJDK8U-jre_x64_windows_hotspot_8u422b05.zip',
+    mac_x64:      'https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u422-b05/OpenJDK8U-jre_x64_mac_hotspot_8u422b05.tar.gz',
+    mac_aarch64:  'https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u422-b05/OpenJDK8U-jre_aarch64_mac_hotspot_8u422b05.tar.gz',
+    linux_x64:    'https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u422-b05/OpenJDK8U-jre_x64_linux_hotspot_8u422b05.tar.gz',
+  },
+  17: {
+    win:          'https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.13%2B11/OpenJDK17U-jre_x64_windows_hotspot_17.0.13_11.zip',
+    mac_x64:      'https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.13%2B11/OpenJDK17U-jre_x64_mac_hotspot_17.0.13_11.tar.gz',
+    mac_aarch64:  'https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.13%2B11/OpenJDK17U-jre_aarch64_mac_hotspot_17.0.13_11.tar.gz',
+    linux_x64:    'https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.13%2B11/OpenJDK17U-jre_x64_linux_hotspot_17.0.13_11.tar.gz',
+  },
+  21: {
+    win:          'https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.5%2B11/OpenJDK21U-jre_x64_windows_hotspot_21.0.5_11.zip',
+    mac_x64:      'https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.5%2B11/OpenJDK21U-jre_x64_mac_hotspot_21.0.5_11.tar.gz',
+    mac_aarch64:  'https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.5%2B11/OpenJDK21U-jre_aarch64_mac_hotspot_21.0.5_11.tar.gz',
+    linux_x64:    'https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.5%2B11/OpenJDK21U-jre_x64_linux_hotspot_21.0.5_11.tar.gz',
+  },
+}
+
+function temurinUrl(javaMajor: number): string {
+  const t = TEMURIN[javaMajor] || TEMURIN[17]
+  if (process.platform === 'win32') return t.win
+  if (process.platform === 'darwin') return process.arch === 'arm64' ? t.mac_aarch64 : t.mac_x64
+  return t.linux_x64
+}
 
 export interface VersionManifest {
   latest: {
@@ -127,16 +169,28 @@ function downloadFile(url: string, destPath: string): Promise<void> {
   })
 }
 
-function extractNativeDlls(jarPath: string, destDir: string) {
+async function extractNativeDlls(jarPath: string, destDir: string) {
   if (!fs.existsSync(jarPath)) return
   try {
-    const command = `powershell -Command "Add-Type -AssemblyName System.IO.Compression.FileSystem; [System.IO.Compression.ZipFile]::OpenRead('${jarPath.replace(/'/g, "''")}').Entries | Where-Object { $_.FullName -like '*.dll' } | ForEach-Object { $dest = [System.IO.Path]::Combine('${destDir.replace(/'/g, "''")}', $_.Name); [System.IO.Compression.ZipFileExtensions]::ExtractToFile($_, $dest, $true) }"`
-    execSync(command, { stdio: 'ignore' })
-  } catch {
-    try {
-      execSync(`powershell -Command "Expand-Archive -Path '${jarPath}' -DestinationPath '${destDir}' -Force"`, { stdio: 'ignore' })
-    } catch {}
-  }
+    // Extract + фильтр нативов по ОС
+    const tmpDir = path.join(destDir, '.extract-' + Date.now())
+    fs.mkdirSync(tmpDir, { recursive: true })
+    await extract(jarPath, { dir: tmpDir })
+    const wanted = process.platform === 'win32' ? '.dll'
+                 : process.platform === 'darwin' ? '.dylib'
+                 : '.so'
+    const walk = (d: string) => {
+      for (const item of fs.readdirSync(d)) {
+        const full = path.join(d, item)
+        if (fs.statSync(full).isDirectory()) walk(full)
+        else if (item.toLowerCase().endsWith(wanted)) {
+          fs.copyFileSync(full, path.join(destDir, item))
+        }
+      }
+    }
+    walk(tmpDir)
+    fs.rmSync(tmpDir, { recursive: true, force: true })
+  } catch {}
 }
 
 function isLibraryAllowed(rules?: Array<{ action: string; os?: { name: string } }>): boolean {
@@ -158,13 +212,12 @@ export async function detectJavaPaths(): Promise<string[]> {
   const javaName = isWin ? 'javaw.exe' : 'java'
 
   const rootDir = getRootDir()
-  const internalJava = path.join(rootDir, 'java', 'java-17')
   const findInternalJavaw = (dir: string): string | null => {
     if (!fs.existsSync(dir)) return null
     const items = fs.readdirSync(dir)
     for (const item of items) {
       const full = path.join(dir, item)
-      if (item.toLowerCase() === 'javaw.exe') return full
+      if (item.toLowerCase() === (process.platform === 'win32' ? 'javaw.exe' : 'java')) return full
       if (fs.statSync(full).isDirectory()) {
         const res = findInternalJavaw(full)
         if (res) return res
@@ -172,9 +225,9 @@ export async function detectJavaPaths(): Promise<string[]> {
     }
     return null
   }
-  const internalJavaw = findInternalJavaw(internalJava)
-  if (internalJavaw) {
-    found.push(internalJavaw)
+  for (const major of [17, 21, 8]) {
+    const internalJavaw = findInternalJavaw(path.join(rootDir, 'java', `java-${major}`))
+    if (internalJavaw) found.push(internalJavaw)
   }
 
   if (process.env.JAVA_HOME) {
@@ -209,6 +262,21 @@ export async function detectJavaPaths(): Promise<string[]> {
         }
       }
     }
+  } else {
+    // Unix-пути JVM
+    const unixDirs = ['/usr/lib/jvm', '/usr/lib64/jvm', '/Library/Java/JavaVirtualMachines', '/opt/java']
+    for (const d of unixDirs) {
+      if (fs.existsSync(d)) {
+        try {
+          for (const sub of fs.readdirSync(d)) {
+            for (const candidate of [`${sub}/bin/java`, `${sub}/Contents/Home/bin/java`]) {
+              const full = path.join(d, candidate)
+              if (fs.existsSync(full) && !found.includes(full)) found.push(full)
+            }
+          }
+        } catch { /* ignore */ }
+      }
+    }
   }
 
   return found
@@ -216,17 +284,18 @@ export async function detectJavaPaths(): Promise<string[]> {
 
 export async function downloadJavaRuntime(
   onProgress: ProgressCallback,
-  onLog: LogCallback
+  onLog: LogCallback,
+  javaMajor: number = 17
 ): Promise<string> {
   const rootDir = getRootDir()
-  const javaDir = path.join(rootDir, 'java', 'java-17')
+  const javaDir = path.join(rootDir, 'java', `java-${javaMajor}`)
 
   const findJavaw = (dir: string): string | null => {
     if (!fs.existsSync(dir)) return null
     const items = fs.readdirSync(dir)
     for (const item of items) {
       const full = path.join(dir, item)
-      if (item.toLowerCase() === 'javaw.exe') return full
+      if (item.toLowerCase() === (process.platform === 'win32' ? 'javaw.exe' : 'java')) return full
       if (fs.statSync(full).isDirectory()) {
         const res = findJavaw(full)
         if (res) return res
@@ -243,13 +312,15 @@ export async function downloadJavaRuntime(
   onProgress({
     instanceId: 'java-auto',
     stage: 'downloading',
-    statusText: 'Авто-скачивание OpenJDK Java 17...',
+    statusText: `Авто-скачивание OpenJDK Java ${javaMajor}...`,
     progress: 15
   })
-  onLog({ timestamp: Date.now(), type: 'info', message: 'Java не найдена на ПК. Автоматическое скачивание OpenJDK Java 17 (Temurin)...' })
+  onLog({ timestamp: Date.now(), type: 'info', message: `Java не найдена на ПК. Автоматическое скачивание OpenJDK Java ${javaMajor} (Temurin)...` })
 
-  const zipUrl = 'https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.10%2B7/OpenJDK17U-jre_x64_windows_hotspot_17.0.10_7.zip'
-  const zipPath = path.join(rootDir, 'java', 'java-17.zip')
+  const isWin = process.platform === 'win32'
+  const zipUrl = temurinUrl(javaMajor)
+  const ext = isWin ? 'zip' : 'tar.gz'
+  const zipPath = path.join(rootDir, 'java', `java-${javaMajor}.${ext}`)
 
   if (!fs.existsSync(path.dirname(zipPath))) {
     fs.mkdirSync(path.dirname(zipPath), { recursive: true })
@@ -258,7 +329,7 @@ export async function downloadJavaRuntime(
   onProgress({
     instanceId: 'java-auto',
     stage: 'downloading',
-    statusText: 'Загрузка OpenJDK Java 17 (40 MB)...',
+    statusText: `Загрузка OpenJDK Java ${javaMajor}...`,
     progress: 35
   })
 
@@ -267,28 +338,34 @@ export async function downloadJavaRuntime(
   onProgress({
     instanceId: 'java-auto',
     stage: 'extracting',
-    statusText: 'Распаковка Java 17 Runtime...',
+    statusText: `Распаковка Java ${javaMajor} Runtime...`,
     progress: 75
   })
-  onLog({ timestamp: Date.now(), type: 'info', message: 'Распаковка архива Java 17...' })
+  onLog({ timestamp: Date.now(), type: 'info', message: `Распаковка архива Java ${javaMajor}...` })
 
   if (!fs.existsSync(javaDir)) {
     fs.mkdirSync(javaDir, { recursive: true })
   }
 
   try {
-    execSync(`powershell -Command "Expand-Archive -Path '${zipPath}' -DestinationPath '${javaDir}' -Force"`)
+    if (isWin) {
+      await extract(zipPath, { dir: javaDir })
+    } else {
+      // macOS/Linux: tar есть всегда
+      execSync(`tar -xzf "${zipPath}" -C "${javaDir}"`)
+    }
     fs.unlinkSync(zipPath)
   } catch (e: any) {
-    onLog({ timestamp: Date.now(), type: 'warn', message: `Ошибка PowerShell распаковки: ${e.message}` })
+    onLog({ timestamp: Date.now(), type: 'warn', message: `Ошибка распаковки: ${e.message}` })
+    throw e
   }
 
   const finalJavaw = findJavaw(javaDir)
   if (!finalJavaw) {
-    throw new Error('Не удалось найти javaw.exe после распаковки Java 17. Установите Java вручную.')
+    throw new Error(`Не удалось найти javaw.exe после распаковки Java ${javaMajor}. Установите Java вручную.`)
   }
 
-  onLog({ timestamp: Date.now(), type: 'info', message: `Java 17 успешно установлена: ${finalJavaw}` })
+  onLog({ timestamp: Date.now(), type: 'info', message: `Java ${javaMajor} успешно установлена: ${finalJavaw}` })
   return finalJavaw
 }
 
@@ -352,6 +429,8 @@ export async function launchMinecraft(
 
     if (!isJavaValid) {
       const detected = await detectJavaPaths()
+      const want = `java-${requiredJavaMajor(config.version)}`
+      detected.sort((a, b) => (b.includes(want) ? 1 : 0) - (a.includes(want) ? 1 : 0))
       for (const d of detected) {
         if (fs.existsSync(d)) {
           try {
@@ -365,7 +444,7 @@ export async function launchMinecraft(
     }
 
     if (!isJavaValid) {
-      javaBin = await downloadJavaRuntime(onProgress, onLog)
+      javaBin = await downloadJavaRuntime(onProgress, onLog, requiredJavaMajor(config.version))
     }
 
     onLog({
@@ -506,7 +585,7 @@ export async function launchMinecraft(
         if (fs.existsSync(libFullPath)) {
           cpList.push(libFullPath)
           if (libRelPath.includes('natives') || lib.name.includes('natives')) {
-            extractNativeDlls(libFullPath, nativesDir)
+             await extractNativeDlls(libFullPath, nativesDir)
           }
         }
       }
@@ -523,7 +602,7 @@ export async function launchMinecraft(
             } catch {}
           }
           if (fs.existsSync(nativeFullPath)) {
-            extractNativeDlls(nativeFullPath, nativesDir)
+             await extractNativeDlls(nativeFullPath, nativesDir)
           }
         }
       }
@@ -544,7 +623,7 @@ export async function launchMinecraft(
         if (fs.existsSync(libFullPath)) {
           cpList.push(libFullPath)
           if (lib.name.includes('natives')) {
-            extractNativeDlls(libFullPath, nativesDir)
+             await extractNativeDlls(libFullPath, nativesDir)
           }
         }
       }

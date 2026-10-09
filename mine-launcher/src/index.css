@@ -1,18 +1,20 @@
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Source+Sans+Pro:wght@400;600;700&display=swap');
 
 :root {
-  --bg-dark: #121317;
-  --bg-card: #1a1b20;
-  --bg-sidebar: #16171c;
-  --panel-bg: rgba(255, 255, 255, 0.04);
-  --panel-border: rgba(255, 255, 255, 0.12);
+  --bg-dark: #0e0f13;
+  --bg-card: #17181e;
+  --bg-sidebar: #14151b;
+  --panel-bg: rgba(255, 255, 255, 0.05);
+  --panel-border: rgba(255, 255, 255, 0.10);
   --accent-green: #53921b;
-  --accent-green-hover: #63a824;
-  --text-main: #ffffff;
-  --text-muted: #9ba0a6;
+  --accent-green-hover: #66b023;
+  --accent-gradient: linear-gradient(135deg, #5fa31f 0%, #47800f 100%);
+  --text-main: #f5f7fa;
+  --text-muted: #8b93a1;
   --radius-lg: 18px;
   --radius-md: 12px;
-  --font-family: 'Source Sans Pro', 'Outfit', system-ui, -apple-system, sans-serif;
+  --shadow-card: 0 10px 40px rgba(0, 0, 0, 0.45);
+  --font-family: 'Outfit', 'Source Sans Pro', system-ui, -apple-system, sans-serif;
 }
 
 * {
@@ -72,7 +74,7 @@ body {
   padding: 18px;
   gap: 18px;
   overflow: hidden;
-  background: linear-gradient(135deg, #121317 0%, #191b22 100%);
+  background: linear-gradient(135deg, #0e0f13 0%, #161a14 60%, #12150f 100%);
 }
 
 /* Left Sidebar - Accounts (Matching Group.svg design) */
@@ -291,10 +293,10 @@ body {
 }
 
 .tab-btn.active {
-  background: var(--accent-green);
+  background: var(--accent-gradient);
   color: #fff;
   font-weight: 600;
-  box-shadow: 0 4px 12px rgba(83, 146, 27, 0.3);
+  box-shadow: 0 4px 12px rgba(83, 146, 27, 0.35);
 }
 
 .action-buttons-group {
@@ -435,7 +437,7 @@ body {
 .play-button {
   height: 64px;
   width: 100%;
-  background: var(--accent-green);
+  background: var(--accent-gradient);
   border: none;
   border-radius: var(--radius-lg);
   color: #ffffff;
