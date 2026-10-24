@@ -19,6 +19,8 @@ const electronAPI = {
   renameInstance: (payload: { id: string; name: string }) => ipcRenderer.invoke('rename-instance', payload),
   deleteInstance: (id: string) => ipcRenderer.invoke('delete-instance', id),
   openInstanceFolder: (id: string) => ipcRenderer.invoke('open-instance-folder', id),
+  exportInstance: (id: string) => ipcRenderer.invoke('export-instance', id),
+  importInstance: () => ipcRenderer.invoke('import-instance'),
 
   // Versions
   getVersions: () => ipcRenderer.invoke('get-versions'),

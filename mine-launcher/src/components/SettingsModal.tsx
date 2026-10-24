@@ -7,8 +7,14 @@ interface SettingsModalProps {
   onSave: (newSettings: Partial<LauncherSettings>) => void
 }
 
-const Switch: React.FC<{ checked: boolean; onChange: (v: boolean) => void }> = ({ checked, onChange }) => (
-  <button className={`switch ${checked ? 'on' : ''}`} onClick={() => onChange(!checked)}>
+const Switch: React.FC<{ checked: boolean; onChange: (v: boolean) => void; label: string }> = ({ checked, onChange, label }) => (
+  <button
+    className={`switch ${checked ? 'on' : ''}`}
+    role="switch"
+    aria-checked={checked}
+    aria-label={label}
+    onClick={() => onChange(!checked)}
+  >
     <span className="switch-knob" />
   </button>
 )
@@ -72,7 +78,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
       <div className="modal" style={{ width: '540px' }} onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <span className="modal-title">Настройки лаунчера</span>
-          <button className="modal-close" onClick={onClose}>
+          <button className="modal-close" onClick={onClose} aria-label="Закрыть настройки">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m6 6l12 12M18 6L6 18" /></svg>
           </button>
         </div>
@@ -169,7 +175,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
                 <div className="switch-row-label">Полноэкранный режим</div>
                 <div className="switch-row-hint">Запускать Minecraft в fullscreen</div>
               </div>
-              <Switch checked={settings.fullscreen} onChange={(v) => setSettings({ ...settings, fullscreen: v })} />
+              <Switch checked={settings.fullscreen} onChange={(v) => setSettings({ ...settings, fullscreen: v })} label="Полноэкранный режим" />
             </div>
 
             <div className="switch-row">
@@ -177,7 +183,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
                 <div className="switch-row-label">Свёртывать лаунчер</div>
                 <div className="switch-row-hint">Скрывать окно лаунчера когда игра запустилась</div>
               </div>
-              <Switch checked={settings.closeLauncherOnGameStart} onChange={(v) => setSettings({ ...settings, closeLauncherOnGameStart: v })} />
+              <Switch checked={settings.closeLauncherOnGameStart} onChange={(v) => setSettings({ ...settings, closeLauncherOnGameStart: v })} label="Свёртывать лаунчер при запуске игры" />
             </div>
           </div>
         </div>

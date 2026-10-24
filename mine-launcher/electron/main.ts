@@ -9,6 +9,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import https from 'node:https'
 import http from 'node:http'
+import AdmZip from 'adm-zip'
 import {
   getRootDir,
   getMinecraftVersions,
@@ -18,6 +19,7 @@ import {
   generateOfflineUUID,
   requiredJavaMajor
 } from './launcherEngine'
+import { buildInstanceMeta, validateArchiveEntries, parseExportedMeta, uniqueInstanceName, MAX_MOD_BYTES_EXPORTED } from './instancePack'
 
 // Запрещаем второй экземпляр лаунчера
 if (!app.requestSingleInstanceLock()) {
@@ -367,6 +369,111 @@ function setupIpcHandlers() {
     }
 
     return instances
+  })
+
+  // ── Instance export / import ─────────────────────────────────
+  ipcMain.handle('export-instance', async (_, instanceId: string) => {
+    safeInstId(instanceId)
+    const inst = instances.find((i: any) => i.id === instanceId)
+    if (!inst) throw new Error('Сборка не найдена')
+
+    const modsDir = path.join(rootDir, 'instances', instanceId, 'mods')
+    const modFiles = fs.existsSync(modsDir)
+      ? fs.readdirSync(modsDir).filter((f) => /\.jar(\.disabled)?$/i.test(f))
+      : []
+    if (modFiles.length === 0) throw new Error('В этой сборке нет модов — делиться нечем')
+
+    // Имя файла чистим от символов, запрещённых в Windows-путях
+    const safeName = (inst.name || 'instance').replace(/[\\/:*?"<>|]/g, '_').trim() || 'instance'
+    const saveResult = win
+      ? await dialog.showSaveDialog(win, {
+          title: 'Экспорт сборки',
+          defaultPath: path.join(app.getPath('documents'), `${safeName}.zip`),
+          filters: [{ name: 'Сборка Mine Launcher', extensions: ['zip'] }]
+        })
+      : { canceled: true, filePath: undefined }
+    if (saveResult.canceled || !saveResult.filePath) return { ok: false, canceled: true }
+
+    const zip = new AdmZip()
+    zip.addFile('instance.json', Buffer.from(JSON.stringify(buildInstanceMeta(inst), null, 2), 'utf-8'))
+    for (const file of modFiles) {
+      zip.addLocalFile(path.join(modsDir, file), 'mods')
+    }
+    zip.writeZip(saveResult.filePath)
+
+    return { ok: true, path: saveResult.filePath }
+  })
+
+  ipcMain.handle('import-instance', async () => {
+    const pick = win
+      ? await dialog.showOpenDialog(win, {
+          title: 'Импорт сборки',
+          properties: ['openFile'],
+          filters: [{ name: 'Сборка Mine Launcher', extensions: ['zip'] }]
+        })
+      : { canceled: true, filePaths: [] as string[] }
+    if (pick.canceled || pick.filePaths.length === 0) return { ok: false, canceled: true }
+
+    const archivePath = pick.filePaths[0]
+    const stat = fs.statSync(archivePath)
+    if (stat.size > 600 * 1024 * 1024) throw new Error('Архив больше 600 МБ — отказ')
+
+    const zip = new AdmZip(archivePath)
+    const fileEntries = zip.getEntries().filter((e) => !e.isDirectory)
+    // Валидация ДО любой записи на диск: zip-slip, абсолютные пути, лимиты
+    const modFiles = validateArchiveEntries(
+      fileEntries.map((e) => ({ entryName: e.entryName, size: e.header.size }))
+    )
+
+    const metaEntry = zip.getEntry('instance.json')
+    if (!metaEntry) throw new Error('В архиве нет instance.json')
+    const meta = parseExportedMeta(JSON.parse(metaEntry.getData().toString('utf-8')))
+
+    const newId = 'inst-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6)
+    const newInst: any = {
+      id: newId,
+      name: uniqueInstanceName(meta.name, instances.map((i: any) => i.name)),
+      version: meta.version,
+      loader: meta.loader,
+      created: Date.now(),
+      memoryMin: settings.memoryMin,
+      memoryMax: settings.memoryMax
+    }
+
+    const instDir = path.join(rootDir, 'instances', newId)
+    const modsDir = path.join(instDir, 'mods')
+    try {
+      fs.mkdirSync(modsDir, { recursive: true })
+
+      // Сопоставляем нормализованные имена с записями архива (обратные слэши тоже бывают)
+      const byBasename = new Map<string, AdmZip.IZipEntry>()
+      for (const entry of fileEntries) {
+        const normalized = entry.entryName.replace(/\\/g, '/').replace(/\/+$/, '')
+        if (normalized.startsWith('mods/')) {
+          byBasename.set(normalized.slice('mods/'.length), entry)
+        }
+      }
+      for (const file of modFiles) {
+        const entry = byBasename.get(file)
+        if (!entry) throw new Error(`Файл мода пропал при чтении: ${file}`)
+        const data = entry.getData()
+        // Заголовок zip может врать о размере — проверяем фактический объём (zip-bomb)
+        if (data.length > MAX_MOD_BYTES_EXPORTED) {
+          throw new Error(`Файл мода распаковался больше лимита: ${file}`)
+        }
+        fs.writeFileSync(path.join(modsDir, file), data)
+      }
+      fs.mkdirSync(path.join(instDir, 'saves'), { recursive: true })
+    } catch (err) {
+      // Откат: не оставляем полураспакованную сборку
+      fs.rmSync(instDir, { recursive: true, force: true })
+      throw err
+    }
+
+    instances.push(newInst)
+    saveJsonData(instancesFile, instances)
+
+    return { ok: true, instances, importedId: newId }
   })
 
   // ── Versions ─────────────────────────────────────────────────

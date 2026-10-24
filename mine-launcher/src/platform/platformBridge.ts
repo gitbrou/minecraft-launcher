@@ -58,6 +58,8 @@ export function ensurePlatformBridge() {
       return stubState.instances
     },
     openInstanceFolder: async () => {},
+    exportInstance: async () => ({ ok: false, canceled: true }),
+    importInstance: async () => ({ ok: false, canceled: true }),
 
     getVersions: async () => ({ latest: { release: '', snapshot: '' }, versions: [] }),
 

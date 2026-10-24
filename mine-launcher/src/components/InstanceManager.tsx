@@ -12,6 +12,8 @@ interface InstanceManagerProps {
   launchProgress: LaunchProgress | null
   onSelectInstance: (instance: Instance) => void
   onQuickPlay: (instance: Instance) => void
+  onExportInstance: (instance: Instance) => void
+  onImportInstance: () => void
   onCreateInstance: (data: { name: string; version: string; loader: 'vanilla' | 'fabric' | 'quilt' }) => Promise<void>
   onRenameInstance: (id: string, name: string) => void
   onDeleteInstance: (id: string) => void
@@ -63,6 +65,18 @@ const IconPlay = () => (
   </svg>
 )
 
+const IconShare = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 16V4m0 0L8 8m4-4l4 4M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3" />
+  </svg>
+)
+
+const IconImport = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 4v12m0 0l-4-4m4 4l4-4M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3" />
+  </svg>
+)
+
 const IconPackage = () => (
   <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
     <path d="M20.5 7.278L12 12l-8.5-4.722m0 0a2 2 0 0 1 .978-1.698l6.543-3.92c.601-.359 1.459-.36 2.061.002l6.538 3.918a2 2 0 0 1 .98 1.698v9.444c0 .68-.365 1.31-.978 1.698l-6.543 3.92c-.601.359-1.459.36-2.061.002l-6.538-3.918a2 2 0 0 1-.98-1.698zM12 22V12" />
@@ -85,6 +99,8 @@ export const InstanceManager: React.FC<InstanceManagerProps> = ({
   launchProgress,
   onSelectInstance,
   onQuickPlay,
+  onExportInstance,
+  onImportInstance,
   onCreateInstance,
   onRenameInstance,
   onDeleteInstance,
@@ -168,7 +184,7 @@ export const InstanceManager: React.FC<InstanceManagerProps> = ({
     if (instances.length === 0) {
       return (
         <>
-          <EmptyOnboarding onCreate={() => setShowCreateModal(true)} />
+          <EmptyOnboarding onCreate={() => setShowCreateModal(true)} onImport={onImportInstance} />
           {showCreateModal && (
             <CreateInstanceModal
               onClose={() => setShowCreateModal(false)}
@@ -195,6 +211,9 @@ export const InstanceManager: React.FC<InstanceManagerProps> = ({
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
+            <button className="btn" onClick={onImportInstance} title="Импортировать сборку из zip-архива">
+              <IconImport /> Импорт
+            </button>
             <button className="btn btn-primary" onClick={() => setShowCreateModal(true)}>
               <IconPlus /> Новая сборка
             </button>
@@ -223,6 +242,7 @@ export const InstanceManager: React.FC<InstanceManagerProps> = ({
                   <button
                     className="card-play"
                     title={runningForThis ? 'Игра запущена' : 'Играть в эту сборку'}
+                    aria-label={`Играть в сборку ${inst.name}`}
                     disabled={!!busyForThis || !!runningForThis}
                     onClick={(e) => { e.stopPropagation(); onQuickPlay(inst) }}
                   >
@@ -267,6 +287,9 @@ export const InstanceManager: React.FC<InstanceManagerProps> = ({
                     {runningForThis ? 'запущена' : inst.lastPlayed ? new Date(inst.lastPlayed).toLocaleDateString() : 'Не запускалась'}
                   </span>
                   <div className="instance-card-actions" onClick={(e) => e.stopPropagation()}>
+                    <button className="icon-btn" title="Экспортировать сборку (zip)" aria-label={`Экспортировать сборку ${inst.name}`} onClick={() => onExportInstance(inst)}>
+                      <IconShare />
+                    </button>
                     <button className="icon-btn" title="Переименовать" onClick={() => { setRenamingId(inst.id); setRenameText(inst.name) }}>
                       <IconPen />
                     </button>
@@ -556,7 +579,7 @@ const CreateInstanceModal: React.FC<{
 }
 
 // ───────────────── Onboarding empty state ─────────────────
-const EmptyOnboarding: React.FC<{ onCreate: () => void }> = ({ onCreate }) => (
+const EmptyOnboarding: React.FC<{ onCreate: () => void; onImport: () => void }> = ({ onCreate, onImport }) => (
   <div className="empty-state" style={{ padding: '80px 40px' }}>
     <div className="empty-state-icon"><IconPackage /></div>
     <div className="empty-state-title">Пока нет сборок</div>
@@ -564,8 +587,13 @@ const EmptyOnboarding: React.FC<{ onCreate: () => void }> = ({ onCreate }) => (
       Создайте свою первую сборку — выберите версию Minecraft и загрузчик (Fabric или Quilt для модов).
       Лаунчер сам скачает игру, библиотеки и нужную Java при первом запуске.
     </div>
-    <button className="btn btn-primary" style={{ marginTop: '10px' }} onClick={onCreate}>
-      <IconPlus /> Создать сборку
-    </button>
+    <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
+      <button className="btn btn-primary" onClick={onCreate}>
+        <IconPlus /> Создать сборку
+      </button>
+      <button className="btn" onClick={onImport} title="Открыть zip-архив сборки, которым поделился друг">
+        <IconImport /> Импорт из zip
+      </button>
+    </div>
   </div>
 )

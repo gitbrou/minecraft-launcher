@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Account, Instance, LaunchProgress, GameLog, LauncherSettings } from './types'
 import { TitleBar } from './components/TitleBar'
 import { Sidebar, NavSection } from './components/Sidebar'
@@ -13,12 +13,20 @@ export function App() {
   const [selectedInstance, setSelectedInstance] = useState<Instance | null>(null)
   const [launchProgress, setLaunchProgress] = useState<LaunchProgress | null>(null)
   const [logs, setLogs] = useState<GameLog[]>([])
+  const logBufferRef = useRef<GameLog[]>([])
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const [isModDownloaderOpen, setIsModDownloaderOpen] = useState(false)
   const [isBooted, setIsBooted] = useState(false)
   const [updateState, setUpdateState] = useState<any>(null)
   const [navSection, setNavSection] = useState<NavSection>('builds')
   const [modsRefreshKey, setModsRefreshKey] = useState(0)
+  const [toast, setToast] = useState('')
+
+  useEffect(() => {
+    if (!toast) return
+    const timer = setTimeout(() => setToast(''), 4500)
+    return () => clearTimeout(timer)
+  }, [toast])
 
   useEffect(() => {
     if (!window.electronAPI) return
@@ -46,14 +54,23 @@ export function App() {
       }
     })
     const unsubscribeLogs = window.electronAPI.onGameLog((data: GameLog) => {
-      setLogs((prev) => [...prev.slice(-300), data])
+      // Не ре-рендерим App на каждую строку stdout: копим и флашим пачкой
+      logBufferRef.current.push(data)
     })
+    // 250 мс — компромисс между «живым» логом и отсутствием шторма ре-рендеров
+    const logFlushTimer = setInterval(() => {
+      if (logBufferRef.current.length === 0) return
+      const pending = logBufferRef.current
+      logBufferRef.current = []
+      setLogs((prev) => [...prev, ...pending].slice(-300))
+    }, 250)
     const unsubscribeUpdate = window.electronAPI.onUpdateState?.((state: any) => setUpdateState(state))
 
     return () => {
       unsubscribeProgress()
       unsubscribeLogs()
       unsubscribeUpdate?.()
+      clearInterval(logFlushTimer)
     }
   }, [])
 
@@ -118,6 +135,29 @@ export function App() {
     }
   }
 
+  // Экспорт / импорт сборок
+  const handleExportInstance = async (instance: Instance) => {
+    try {
+      const result = await window.electronAPI.exportInstance(instance.id)
+      if (result?.ok) setToast(`Сборка «${instance.name}» сохранена в zip`)
+    } catch (err: any) {
+      setToast(err?.message || 'Не удалось экспортировать сборку')
+    }
+  }
+
+  const handleImportInstance = async () => {
+    try {
+      const result = await window.electronAPI.importInstance()
+      if (!result?.ok) return
+      setInstances(result.instances)
+      const imported = result.instances.find((i: Instance) => i.id === result.importedId)
+      if (imported) handleSelectInstance(imported)
+      setToast(`Импортирована сборка «${imported?.name || 'без названия'}»`)
+    } catch (err: any) {
+      setToast(err?.message || 'Не удалось импортировать сборку')
+    }
+  }
+
   // Launch — принимает необязательную сборку (quick-play с карточки)
   const handleLaunch = (instance?: Instance) => {
     const target = instance || selectedInstance
@@ -125,6 +165,7 @@ export function App() {
     const targetId = target.id
     if (window.electronAPI) {
       setLogs([])
+      logBufferRef.current = []
       window.electronAPI.launchInstance(targetId).catch((err: Error) => {
         setLaunchProgress({
           instanceId: targetId,
@@ -172,6 +213,10 @@ export function App() {
   return (
     <>
       <TitleBar />
+
+      {toast && (
+        <div className="app-toast" role="status" aria-live="polite">{toast}</div>
+      )}
 
       {updateBannerText && (
         <div className="update-banner" role="status" aria-live="polite">
@@ -227,6 +272,8 @@ export function App() {
               launchProgress={launchProgress}
               onSelectInstance={handleSelectInstance}
               onQuickPlay={(inst) => handleLaunch(inst)}
+              onExportInstance={handleExportInstance}
+              onImportInstance={handleImportInstance}
               onCreateInstance={handleCreateInstance}
               onRenameInstance={handleRenameInstance}
               onDeleteInstance={handleDeleteInstance}

@@ -115,8 +115,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <button
               key={item.id}
               className={`side-nav-item ${activeSection === item.id ? 'active' : ''}`}
-              onClick={() => !disabled && onNavigate(item.id)}
-              disabled={disabled}
+              aria-disabled={disabled || undefined}
+              onClick={() => {
+                if (disabled) return
+                onNavigate(item.id)
+              }}
               title={disabled ? 'Сначала создайте сборку или добавьте аккаунт' : item.label}
             >
               <item.icon />
@@ -147,6 +150,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <button
               className="account-delete"
               title="Удалить аккаунт"
+              aria-label={`Удалить аккаунт ${acc.username}`}
               onClick={(e) => { e.stopPropagation(); onDeleteAccount(acc.id) }}
             >
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

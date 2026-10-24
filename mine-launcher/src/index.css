@@ -200,8 +200,8 @@ body {
 }
 .side-nav-item:hover { background: rgba(255, 255, 255, 0.05); color: var(--text); }
 .side-nav-item.active { background: var(--accent-soft); color: var(--accent); }
-.side-nav-item:disabled { opacity: 0.45; cursor: not-allowed; }
-.side-nav-item:disabled:hover { background: transparent; color: var(--text-muted); }
+.side-nav-item[aria-disabled="true"] { opacity: 0.45; cursor: not-allowed; }
+.side-nav-item[aria-disabled="true"]:hover { background: transparent; color: var(--text-muted); }
 
 .side-block-header {
   padding: 12px 16px 6px;
@@ -470,6 +470,11 @@ body {
 .card-play:hover { background: var(--accent-hover); }
 .card-play:disabled { opacity: 0.45 !important; cursor: not-allowed; }
 
+/* Тач-устройства (Android-сборка): hover не существует — кнопка должна быть видна всегда */
+@media (hover: none) {
+  .card-play { opacity: 1; transform: none; }
+}
+
 .instance-card-top {
   display: flex;
   justify-content: space-between;
@@ -627,8 +632,7 @@ body {
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.65);
-  backdrop-filter: blur(3px);
+  background: rgba(0, 0, 0, 0.7);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1162,6 +1166,34 @@ body {
   flex-direction: column;
   gap: 16px;
   color: var(--text-muted);
+}
+
+/* ───────────────────────── Toast (экспорт/импорт) ───────────── */
+.app-toast {
+  position: fixed;
+  right: 18px;
+  bottom: 82px;
+  z-index: 90;
+  max-width: 380px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-strong);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow);
+  color: var(--text);
+  font-size: 12.5px;
+  line-height: 1.45;
+  padding: 10px 14px;
+  animation: toast-in 0.18s ease-out both;
+}
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-toast { animation: none; }
 }
 
 /* ───────────────────────── Update banner ────────────────────── */
