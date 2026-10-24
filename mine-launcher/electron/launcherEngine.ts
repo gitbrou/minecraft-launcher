@@ -215,6 +215,28 @@ function buildCrashHint(): string {
     return 'Игра объёмом не хватило памяти. Увеличьте «Максимальную память» в настройках лаунчера (в МБ) и попробуйте снова.'
   }
 
+  // Windows: 0xC0000135 = DLL not found — почти всегда отсутствует VC++ Redistributable
+  if (/-1073741515|0xc0000135/i.test(joined)) {
+    return 'Не найдены системные библиотеки Windows. Установите Microsoft Visual C++ Redistributable (x64) — это самая частая причина на чистой Windows.'
+  }
+
+  // 0xC0000005 = access violation — обычно видеодрайвер либо побитый native
+  if (/-1073741819|0xc0000005/i.test(joined)) {
+    return 'Крит native-кода. Чаще всего помогает обновление видеодрайвера. Если не помогло — запустите без модов и посмотрите лог.'
+  }
+
+  if (/UnsatisfiedLinkError/i.test(joined)) {
+    return 'Не загрузились системные библиотеки игры (LWJGL natives). Проверьте, не блокирует ли их антивирус, и запустите снова — недостающие файлы скачаются заново.'
+  }
+
+  if (/No space left|disk full|ENOSPC/i.test(joined)) {
+    return 'Закончилось место на диске. Освободите его и попробуйте снова.'
+  }
+
+  if (/Failed to (download|fetch)|Could not (download|fetch)|assets/i.test(joined) && /asset|resources/i.test(joined)) {
+    return 'Не удалось скачать игровые ресурсы (assets) — часто это сетевая блокировка CDN Mojang у провайдера. Попробуйте другое подключение или VPN и запустите снова.'
+  }
+
   if (/Could not create the Java Virtual Machine|Invalid or corrupt jarfile| unrecognized/.test(joined)) {
     return 'Проверьте аргументы JVM в настройках лаунчера — Java не смогла запуститься с текущими параметрами.'
   }
