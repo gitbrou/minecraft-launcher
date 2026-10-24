@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- Mine Launcher app icon: flat pixel-grass block on dark rounded tile -->
+  <defs>
+    <clipPath id="tile">
+      <rect x="0" y="0" width="1024" height="1024" rx="196" ry="196" />
+    </clipPath>
+  </defs>
+  <g clip-path="url(#tile)">
+    <!-- base dirt -->
+    <rect x="0" y="0" width="1024" height="1024" fill="#171a21" />
+    <!-- block: inner 832px square, centered -->
+    <!-- grass cap -->
+    <rect x="96" y="96" width="832" height="216" fill="#55c84f" />
+    <!-- grass darker pixels (texture notches) -->
+    <rect x="96"  y="96"  width="160" height="104" fill="#47ab43" />
+    <rect x="480" y="160" width="128" height="152" fill="#47ab43" />
+    <rect x="768" y="96"  width="160" height="72"  fill="#47ab43" />
+    <rect x="288" y="232" width="96"  height="80"  fill="#47ab43" />
+    <!-- dirt body -->
+    <rect x="96" y="312" width="832" height="616" fill="#7d5233" />
+    <!-- dirt darker pixels -->
+    <rect x="192" y="440" width="176" height="160" fill="#6a452c" />
+    <rect x="576" y="312" width="240" height="128" fill="#6a452c" />
+    <rect x="480" y="640" width="208" height="144" fill="#6a452c" />
+    <rect x="160" y="760" width="128" height="168" fill="#6a452c" />
+    <rect x="816" y="560" width="112" height="368" fill="#6a452c" />
+    <!-- dirt lighter pixels -->
+    <rect x="408" y="496" width="112" height="112" fill="#8f5f3c" />
+    <rect x="704" y="728" width="80"  height="96"  fill="#8f5f3c" />
+    <rect x="320" y="832" width="80"  height="80"  fill="#8f5f3c" />
+  </g>
+</svg>

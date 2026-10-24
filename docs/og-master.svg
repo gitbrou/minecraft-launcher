@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <!-- OG image: flat, readable, no gradients -->
+  <rect width="1200" height="630" fill="#171a21" />
+  <!-- subtle flat grid accents -->
+  <rect x="0" y="560" width="1200" height="4" fill="#2a2f3a" />
+  <!-- app icon mark (from icon-master, scaled) -->
+  <defs>
+    <clipPath id="tile">
+      <rect x="96" y="173" width="284" height="284" rx="54" ry="54" />
+    </clipPath>
+  </defs>
+  <g clip-path="url(#tile)">
+    <rect x="96" y="173" width="284" height="284" fill="#171a21" />
+    <rect x="121" y="198" width="234" height="61" fill="#55c84f" />
+    <rect x="121" y="198" width="45"  height="29" fill="#47ab43" />
+    <rect x="259" y="217" width="36"  height="42" fill="#47ab43" />
+    <rect x="317" y="198" width="38"  height="20" fill="#47ab43" />
+    <rect x="121" y="259" width="234" height="173" fill="#7d5233" />
+    <rect x="148" y="296" width="49"  height="45" fill="#6a452c" />
+    <rect x="240" y="259" width="67"  height="36" fill="#6a452c" />
+    <rect x="211" y="345" width="58"  height="40" fill="#6a452c" />
+    <rect x="121" y="372" width="36"  height="60" fill="#6a452c" />
+    <rect x="295" y="318" width="31"  height="114" fill="#6a452c" />
+    <rect x="190" y="341" width="31"  height="31" fill="#8f5f3c" />
+  </g>
+  <!-- headline -->
+  <text x="440" y="300" font-family="Segoe UI, Arial, sans-serif" font-size="88" font-weight="700" fill="#ffffff">Mine Launcher</text>
+  <!-- tagline -->
+  <text x="442" y="372" font-family="Segoe UI, Arial, sans-serif" font-size="34" fill="#9aa3b2">Лаунчер Minecraft, который не мешает играть</text>
+  <!-- feature chips: flat outline -->
+  <g font-family="Segoe UI, Arial, sans-serif" font-size="24" fill="#c8cfda">
+    <rect x="442" y="430" width="230" height="56" rx="12" fill="none" stroke="#2a2f3a" stroke-width="2" />
+    <text x="486" y="466">Сборки</text>
+    <rect x="688" y="430" width="230" height="56" rx="12" fill="none" stroke="#2a2f3a" stroke-width="2" />
+    <text x="742" y="466">Modrinth</text>
+    <rect x="934" y="430" width="200" height="56" rx="12" fill="none" stroke="#2a2f3a" stroke-width="2" />
+    <text x="982" y="466">Java сама</text>
+  </g>
+  <!-- repo url -->
+  <text x="442" y="540" font-family="Segoe UI, Arial, sans-serif" font-size="22" fill="#737d8d">github.com/gitbrou/minecraft-launcher</text>
+</svg>

@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="docs/og.png" alt="Mine Launcher" width="860" />
+
 ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=TypeScript&logoColor=FFF)
 ![React](https://shields.io/badge/-react-4377cb?logo=react)
 ![Electron](https://img.shields.io/badge/Electron-006C9C)
@@ -59,7 +61,7 @@ npm run build    # установщик/портативка → dist-build/
 ## Структура
 
 ```
-mine-launcher/
+mine-launcher/             # приложение
 ├── electron/              # main-процесс
 │   ├── main.ts            # окно, трей, IPC, автообновление
 │   ├── launcherEngine.ts  # скачивание и запуск Minecraft, разбор крашей
@@ -68,7 +70,10 @@ mine-launcher/
 ├── src/                   # интерфейс (React + CSS-переменные, без UI-фреймворков)
 │   ├── components/        # панели, модалки, вкладки
 │   └── platform/          # мобильная заглушка (Capacitor)
+├── build/                 # иконка приложения для electron-builder (icon.ico/icon.png)
 └── dist-build/            # вывод сборки
+
+docs/                      # брендинг на уровне репозитория: мастер иконки (svg) и OG-картинка
 ```
 
 ## Безопасность
