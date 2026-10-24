@@ -38,6 +38,7 @@ cd mine-launcher
 npm install      # зависимости
 npm run dev      # режим разработки
 npm run compile  # typecheck + продакшн-сборка (dist/, dist-electron/)
+npm test         # юнит-тесты движка (vitest): версии Java, UUID, правила библиотек, парсер крашей
 npm run build    # установщик/портативка → dist-build/
 ```
 
@@ -62,7 +63,8 @@ mine-launcher/
 ├── electron/              # main-процесс
 │   ├── main.ts            # окно, трей, IPC, автообновление
 │   ├── launcherEngine.ts  # скачивание и запуск Minecraft, разбор крашей
-│   └── preload.ts         # безопасный мост в renderer
+│   ├── preload.ts         # безопасный мост в renderer
+│   └── __tests__/         # юнит-тесты чистых функций движка (vitest)
 ├── src/                   # интерфейс (React + CSS-переменные, без UI-фреймворков)
 │   ├── components/        # панели, модалки, вкладки
 │   └── platform/          # мобильная заглушка (Capacitor)

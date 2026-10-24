@@ -683,7 +683,7 @@ export async function launchMinecraft(
 
     // 6. Loader (Fabric / Quilt)
     let mainClass = versionData.mainClass || 'net.minecraft.client.main.Main'
-    let loaderArgs: string[] = []
+    const loaderArgs: string[] = []
 
     if (config.loader === 'fabric') {
       onProgress({ instanceId: config.instanceId, stage: 'downloading', statusText: 'Установка Fabric...', progress: 72 })

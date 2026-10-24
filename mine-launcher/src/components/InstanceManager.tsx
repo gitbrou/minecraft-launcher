@@ -99,14 +99,16 @@ export const InstanceManager: React.FC<InstanceManagerProps> = ({
   const [renameText, setRenameText] = useState('')
   const [copyNotice, setCopyNotice] = useState('')
 
+  const selectedInstanceId = selectedInstance?.id
+
   useEffect(() => {
-    if (section === 'mods' && selectedInstance && window.electronAPI) {
+    if (section === 'mods' && selectedInstanceId && window.electronAPI) {
       setModsLoading(true)
-      window.electronAPI.getInstanceMods(selectedInstance.id)
+      window.electronAPI.getInstanceMods(selectedInstanceId)
         .then(setModsList)
         .finally(() => setModsLoading(false))
     }
-  }, [section, selectedInstance?.id, modsRefreshKey])
+  }, [section, selectedInstanceId, modsRefreshKey])
 
   const refreshMods = () => {
     if (selectedInstance && window.electronAPI) {
@@ -428,7 +430,7 @@ const CreateInstanceModal: React.FC<{
   useEffect(() => {
     const releases = versions.filter(v => v.type === 'release')
     if (!version && releases.length > 0) setVersion(releases[0].id)
-  }, [versions])
+  }, [versions, version])
 
   const popularIds = ['1.21.4', '1.21.1', '1.20.1', '1.19.2', '1.18.2', '1.16.5', '1.12.2', '1.8.9']
   const popularChips = popularIds

@@ -11029,7 +11029,8 @@ async function Ux(e, t, n) {
       }
     }
     ne.push(Q);
-    let oe = Y.mainClass || "net.minecraft.client.main.Main", D = [];
+    let oe = Y.mainClass || "net.minecraft.client.main.Main";
+    const D = [];
     if (e.loader === "fabric") {
       t({ instanceId: e.instanceId, stage: "downloading", statusText: "Установка Fabric...", progress: 72 });
       try {

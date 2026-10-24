@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 
 interface ModrinthProject {
   project_id: string
@@ -54,13 +54,7 @@ export const ModDownloaderModal: React.FC<ModDownloaderModalProps> = ({
     return () => window.removeEventListener('keydown', onKey)
   }, [isOpen, onClose])
 
-  useEffect(() => {
-    if (!isOpen) return
-    const timer = setTimeout(() => fetchMods(searchQuery), 300)
-    return () => clearTimeout(timer)
-  }, [searchQuery, isOpen, loader])
-
-  const fetchMods = async (query: string) => {
+  const fetchMods = useCallback(async (query: string) => {
     setLoading(true)
     setStatus(null)
     try {
@@ -91,7 +85,13 @@ export const ModDownloaderModal: React.FC<ModDownloaderModalProps> = ({
     } finally {
       setLoading(false)
     }
-  }
+  }, [loader, gameVersion])
+
+  useEffect(() => {
+    if (!isOpen) return
+    const timer = setTimeout(() => fetchMods(searchQuery), 300)
+    return () => clearTimeout(timer)
+  }, [searchQuery, isOpen, loader, fetchMods])
 
   if (!isOpen) return null
 
