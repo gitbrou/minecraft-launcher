@@ -1,58 +1,34 @@
 import { useState, useEffect } from 'react'
 import { Instance, ModItem, LaunchProgress, GameLog, MinecraftVersion } from '../types'
+import { NavSection } from './Sidebar'
 import { ProfileTab } from './ProfileTab'
 
 interface InstanceManagerProps {
+  section: NavSection
   instances: Instance[]
   selectedInstance: Instance | null
   activeUsername: string
+  modsRefreshKey: number
   launchProgress: LaunchProgress | null
   onSelectInstance: (instance: Instance) => void
+  onQuickPlay: (instance: Instance) => void
   onCreateInstance: (data: { name: string; version: string; loader: 'vanilla' | 'fabric' | 'quilt' }) => Promise<void>
   onRenameInstance: (id: string, name: string) => void
   onDeleteInstance: (id: string) => void
-  onOpenSettings: () => void
   onOpenModDownloader: () => void
   logs: GameLog[]
 }
 
-const IconBox = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round">
-    <path d="m7.298 9.999l-2.947 1.558a.5.5 0 0 0 0 .884l7.182 3.796a1 1 0 0 0 .934 0l7.182-3.796a.5.5 0 0 0 0-.884l-2.948-1.558m-9.403 4l-2.947 1.558a.5.5 0 0 0 0 .884l7.182 3.796a1 1 0 0 0 .934 0l7.182-3.796a.5.5 0 0 0 0-.884l-2.948-1.558M4.352 8.44l7.182 3.796a1 1 0 0 0 .934 0L19.65 8.44a.5.5 0 0 0 0-.884L12.467 3.76a1 1 0 0 0-.934 0L4.35 7.557a.5.5 0 0 0 0 .884Z" />
-  </svg>
-)
-
 const IconMods = () => (
-  <svg width="16" height="16" viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+  <svg width="14" height="14" viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
     <path d="m4.83 13.661l17.6 10.161v20.196L4.83 33.857z" />
     <path d="m22.43 3.5l17.599 10.161l-17.6 10.161l-17.6-10.16zm7.517 36.177l-7.518 4.34V23.823h0l17.6-10.16v18.382" />
-  </svg>
-)
-
-const IconProfile = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-    <g fillRule="evenodd" clipRule="evenodd">
-      <path d="M16 9a4 4 0 1 1-8 0a4 4 0 0 1 8 0m-2 0a2 2 0 1 1-4 0a2 2 0 0 1 4 0" />
-      <path d="M12 1C5.925 1 1 5.925 1 12s4.925 11 11 11s11-4.925 11-11S18.075 1 12 1M3 12c0 2.09.713 4.014 1.908 5.542A8.99 8.99 0 0 1 12.065 14a8.98 8.98 0 0 1 7.092 3.458A9 9 0 1 0 3 12m9 9a8.96 8.96 0 0 1-5.672-2.012A6.99 6.99 0 0 1 12.065 16a6.99 6.99 0 0 1 5.689 2.92A8.96 8.96 0 0 1 12 21" />
-    </g>
-  </svg>
-)
-
-const IconLogs = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M4 12h.01M4 6h.01M4 18h.01M8 18h2m-2-6h2M8 6h2m4 0h6m-6 6h6m-6 6h6" />
   </svg>
 )
 
 const IconFolder = () => (
   <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
     <path d="M4 20q-.825 0-1.412-.587T2 18V6q0-.825.588-1.412T4 4h6l2 2h8q.825 0 1.413.588T22 8v10q0 .825-.587 1.413T20 20z" />
-  </svg>
-)
-
-const IconSettings = () => (
-  <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
-    <path d="m9.25 22l-.4-3.2q-.325-.125-.612-.3t-.563-.375L4.7 19.375l-2.75-4.75l2.575-1.95Q4.5 12.5 4.5 12.338v-.675q0-.163.025-.338L1.95 9.375l2.75-4.75l2.975 1.25q.275-.2.575-.375t.6-.3l.4-3.2h5.5l.4 3.2q.325.125.613.3t.562.375l2.975-1.25l2.75 4.75l-2.575 1.95q.025.175.025.338v.674q0 .163-.05.338l2.575 1.95l-2.75 4.75l-2.95-1.25q-.275.2-.575.375t-.6.3l-.4 3.2zM11 20h1.975l.35-2.65q.775-.2 1.438-.587t1.212-.938l2.475 1.025l.975-1.7l-2.15-1.625q.125-.35.175-.737T17.5 12t-.05-.787t-.175-.738l2.15-1.625l-.975-1.7l-2.475 1.05q-.55-.575-1.212-.962t-1.438-.588L13 4h-1.975l-.35 2.65q-.775.2-1.437.588t-1.213.937L5.55 7.15l-.975 1.7l2.15 1.6q-.125.375-.175.75t-.05.8q0 .4.05.775t.175.75l-2.15 1.625l.975 1.7l2.475-1.05q.55.575 1.213.963t1.437.587zm1.05-4.5q1.45 0 2.475-1.025T15.55 12t-1.025-2.475T12.05 8.5q-1.475 0-2.488 1.025T8.55 12t1.013 2.475T12.05 15.5M12 12" />
   </svg>
 )
 
@@ -81,26 +57,40 @@ const IconSearch = () => (
   </svg>
 )
 
+const IconPlay = () => (
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+    <path d="M8 5.14v14l11-7-11-7z" />
+  </svg>
+)
+
 const IconPackage = () => (
   <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
     <path d="M20.5 7.278L12 12l-8.5-4.722m0 0a2 2 0 0 1 .978-1.698l6.543-3.92c.601-.359 1.459-.36 2.061.002l6.538 3.918a2 2 0 0 1 .98 1.698v9.444c0 .68-.365 1.31-.978 1.698l-6.543 3.92c-.601.359-1.459.36-2.061.002l-6.538-3.918a2 2 0 0 1-.98-1.698zM12 22V12" />
   </svg>
 )
 
+const SectionTitles: Record<NavSection, string> = {
+  builds: 'Сборки',
+  mods: 'Моды',
+  profile: 'Профиль',
+  logs: 'Логи'
+}
+
 export const InstanceManager: React.FC<InstanceManagerProps> = ({
+  section,
   instances,
   selectedInstance,
   activeUsername,
+  modsRefreshKey,
   launchProgress,
   onSelectInstance,
+  onQuickPlay,
   onCreateInstance,
   onRenameInstance,
   onDeleteInstance,
-  onOpenSettings,
   onOpenModDownloader,
   logs
 }) => {
-  const [activeTab, setActiveTab] = useState<'versions' | 'mods' | 'profile' | 'logs'>('versions')
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [modsList, setModsList] = useState<ModItem[]>([])
   const [modsLoading, setModsLoading] = useState(false)
@@ -110,13 +100,13 @@ export const InstanceManager: React.FC<InstanceManagerProps> = ({
   const [copyNotice, setCopyNotice] = useState('')
 
   useEffect(() => {
-    if (activeTab === 'mods' && selectedInstance && window.electronAPI) {
+    if (section === 'mods' && selectedInstance && window.electronAPI) {
       setModsLoading(true)
       window.electronAPI.getInstanceMods(selectedInstance.id)
         .then(setModsList)
         .finally(() => setModsLoading(false))
     }
-  }, [activeTab, selectedInstance?.id])
+  }, [section, selectedInstance?.id, modsRefreshKey])
 
   const refreshMods = () => {
     if (selectedInstance && window.electronAPI) {
@@ -162,17 +152,132 @@ export const InstanceManager: React.FC<InstanceManagerProps> = ({
   }
 
   const isGameRunning = launchProgress?.stage === 'running'
+  const isBusy = (p: LaunchProgress | null) =>
+    p && (p.stage === 'downloading' || p.stage === 'checking' || p.stage === 'launching' || p.stage === 'extracting')
 
   const filteredInstances = instances.filter(inst =>
     !searchQuery ||
-    inst.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    inst.version.includes(searchQuery)
+    (inst.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (inst.version || '').includes(searchQuery)
   )
 
-  if (instances.length === 0 && activeTab === 'versions') {
+  // ── Builds section ─────────────────────────────────────────────
+  if (section === 'builds') {
+    if (instances.length === 0) {
+      return (
+        <>
+          <EmptyOnboarding onCreate={() => setShowCreateModal(true)} />
+          {showCreateModal && (
+            <CreateInstanceModal
+              onClose={() => setShowCreateModal(false)}
+              onSubmit={(data) => {
+                onCreateInstance(data).then(() => setShowCreateModal(false)).catch(() => {})
+              }}
+            />
+          )}
+        </>
+      )
+    }
+
     return (
       <>
-        <EmptyOnboarding onCreate={() => setShowCreateModal(true)} />
+        <div className="content-toolbar">
+          <h1 className="section-title">{SectionTitles.builds}</h1>
+          <div className="toolbar-actions">
+            <div className="search-bar">
+              <IconSearch />
+              <input
+                type="text"
+                placeholder="Поиск..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+            <button className="btn btn-primary" onClick={() => setShowCreateModal(true)}>
+              <IconPlus /> Новая сборка
+            </button>
+          </div>
+        </div>
+
+        <div className="card-grid">
+          {filteredInstances.map((inst, idx) => {
+            const busyForThis = isBusy(launchProgress) && launchProgress!.instanceId === inst.id
+            const runningForThis = isGameRunning && launchProgress!.instanceId === inst.id
+            return (
+              <div
+                key={inst.id}
+                className={`instance-card ${selectedInstance?.id === inst.id ? 'selected' : ''}`}
+                style={{ animationDelay: `${Math.min(idx, 8) * 30}ms` }}
+                role="button"
+                tabIndex={0}
+                aria-pressed={selectedInstance?.id === inst.id}
+                onClick={() => onSelectInstance(inst)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelectInstance(inst) }
+                }}
+              >
+                <div className={`instance-cover cover-${inst.loader}`} aria-hidden="true">
+                  <span className="instance-cover-letter">{(inst.name || '?').slice(0, 1).toUpperCase()}</span>
+                  <button
+                    className="card-play"
+                    title={runningForThis ? 'Игра запущена' : 'Играть в эту сборку'}
+                    disabled={!!busyForThis || !!runningForThis}
+                    onClick={(e) => { e.stopPropagation(); onQuickPlay(inst) }}
+                  >
+                    <IconPlay />
+                  </button>
+                </div>
+
+                <div className="instance-card-top">
+                  {renamingId === inst.id ? (
+                    <input
+                      className="form-input"
+                      style={{ padding: '4px 8px', fontSize: '14px' }}
+                      autoFocus
+                      value={renameText}
+                      onChange={(e) => setRenameText(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') commitRename()
+                        if (e.key === 'Escape') setRenamingId(null)
+                      }}
+                      onBlur={commitRename}
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  ) : (
+                    <div
+                      className="instance-name"
+                      onDoubleClick={(e) => {
+                        e.stopPropagation()
+                        setRenamingId(inst.id)
+                        setRenameText(inst.name)
+                      }}
+                      title="Двойной клик — переименовать"
+                    >
+                      {inst.name}
+                    </div>
+                  )}
+                  <span className={`loader-badge ${inst.loader}`}>{inst.loader}</span>
+                </div>
+
+                <div className="instance-card-meta">
+                  <span className="version-pill">MC {inst.version}</span>
+                  <span>
+                    {runningForThis ? 'запущена' : inst.lastPlayed ? new Date(inst.lastPlayed).toLocaleDateString() : 'Не запускалась'}
+                  </span>
+                  <div className="instance-card-actions" onClick={(e) => e.stopPropagation()}>
+                    <button className="icon-btn" title="Переименовать" onClick={() => { setRenamingId(inst.id); setRenameText(inst.name) }}>
+                      <IconPen />
+                    </button>
+                    <button className="icon-btn danger" title="Удалить сборку" onClick={() => onDeleteInstance(inst.id)}>
+                      <IconTrash />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+
         {showCreateModal && (
           <CreateInstanceModal
             onClose={() => setShowCreateModal(false)}
@@ -185,229 +290,111 @@ export const InstanceManager: React.FC<InstanceManagerProps> = ({
     )
   }
 
-  return (
-    <>
-      {/* Toolbar */}
-      <div className="content-toolbar">
-        <div className="content-tabs">
-          <button className={`content-tab ${activeTab === 'versions' ? 'active' : ''}`} onClick={() => setActiveTab('versions')}>
-            <IconBox /> Сборки
-          </button>
-          <button
-            className={`content-tab ${activeTab === 'mods' ? 'active' : ''}`}
-            onClick={() => setActiveTab('mods')}
-            disabled={!selectedInstance}
-            style={{ opacity: selectedInstance ? 1 : 0.4 }}
-          >
-            <IconMods /> Моды
-          </button>
-          <button
-            className={`content-tab ${activeTab === 'profile' ? 'active' : ''}`}
-            onClick={() => setActiveTab('profile')}
-            disabled={!activeUsername}
-            style={{ opacity: activeUsername ? 1 : 0.4 }}
-          >
-            <IconProfile /> Профиль
-          </button>
-          <button className={`content-tab ${activeTab === 'logs' ? 'active' : ''}`} onClick={() => setActiveTab('logs')}>
-            <IconLogs /> Логи
-          </button>
+  // ── Mods section ───────────────────────────────────────────────
+  if (section === 'mods') {
+    if (!selectedInstance) return null
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+        <div className="content-toolbar">
+          <h1 className="section-title">Моды · {selectedInstance.name}</h1>
+          <div className="toolbar-actions">
+            <button className="btn" onClick={handleOpenFolder}>
+              <IconFolder /> Папка
+            </button>
+            <button className="btn btn-primary" onClick={onOpenModDownloader}>
+              <IconMods /> Из Modrinth
+            </button>
+            <button className="btn" onClick={handleAddModFile}>
+              <IconPlus /> .jar файл
+            </button>
+          </div>
         </div>
 
-        <div className="toolbar-actions">
-          {activeTab === 'versions' && (
-            <div className="search-bar">
-              <IconSearch />
-              <input
-                type="text"
-                placeholder="Поиск сборок..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
-          )}
+        {selectedInstance.loader === 'vanilla' && (
+          <div className="status-banner info" style={{ borderRadius: '10px', marginBottom: '10px' }}>
+            Это Vanilla-сборка — моды в игре не загрузятся. Для модов создайте Fabric или Quilt.
+          </div>
+        )}
 
-          {selectedInstance && (
-            <button className="btn btn-ghost btn-icon" title="Открыть папку сборки" onClick={handleOpenFolder}>
-              <IconFolder />
-            </button>
-          )}
-          <button className="btn btn-ghost btn-icon" title="Настройки лаунчера" onClick={onOpenSettings}>
-            <IconSettings />
-          </button>
-          <button className="btn btn-primary" title="Создать сборку" onClick={() => setShowCreateModal(true)}>
-            <IconPlus /> Новая сборка
+        {modsLoading ? (
+          <div className="empty-state"><div className="spinner" /></div>
+        ) : modsList.length === 0 ? (
+          <div className="empty-state">
+            <div className="empty-state-icon"><IconMods /></div>
+            <div className="empty-state-title">Модов нет</div>
+            <div className="empty-state-text">
+              Скачайте моды из каталога Modrinth или добавьте свой .jar файл.
+            </div>
+          </div>
+        ) : (
+          <div className="list-rows">
+            {modsList.map((mod) => (
+              <div key={mod.id} className="row-item">
+                <div className="row-item-icon"><IconMods /></div>
+                <div className="row-item-main">
+                  <div className="row-item-title" style={{ textDecoration: mod.enabled ? 'none' : 'line-through', color: mod.enabled ? 'var(--text)' : 'var(--text-faint)' }}>
+                    {mod.name}
+                  </div>
+                  <div className="row-item-sub">
+                    {(mod.size / 1024 / 1024).toFixed(1)} МБ
+                  </div>
+                </div>
+                <div className="row-item-actions">
+                  <button
+                    className={`toggle-chip ${mod.enabled ? 'on' : ''}`}
+                    onClick={() => handleToggleMod(mod.filename)}
+                  >
+                    {mod.enabled ? 'Включён' : 'Отключён'}
+                  </button>
+                  <button className="icon-btn danger" onClick={() => handleDeleteMod(mod.filename)} title="Удалить мод">
+                    <IconTrash />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // ── Profile section ────────────────────────────────────────────
+  if (section === 'profile') {
+    if (!activeUsername) return null
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+        <div className="content-toolbar">
+          <h1 className="section-title">Профиль</h1>
+        </div>
+        <ProfileTab activeUsername={activeUsername} />
+      </div>
+    )
+  }
+
+  // ── Logs section ───────────────────────────────────────────────
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+      <div className="content-toolbar">
+        <h1 className="section-title">Логи</h1>
+        <div className="toolbar-actions">
+          {copyNotice && <span style={{ color: 'var(--accent)', fontSize: '12px' }}>{copyNotice}</span>}
+          <button className="btn" onClick={handleCopyLogs} disabled={logs.length === 0}>
+            Скопировать логи
           </button>
         </div>
       </div>
-
-      {/* Tab content */}
-      {activeTab === 'versions' && (
-        <div className="card-grid">
-          {filteredInstances.map((inst) => (
-            <div
-              key={inst.id}
-              role="button"
-              tabIndex={0}
-              aria-pressed={selectedInstance?.id === inst.id}
-              className={`instance-card ${selectedInstance?.id === inst.id ? 'selected' : ''}`}
-              onClick={() => onSelectInstance(inst)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelectInstance(inst) }
-              }}
-            >
-              <div className="instance-card-top">
-                {renamingId === inst.id ? (
-                  <input
-                    className="form-input"
-                    style={{ padding: '4px 8px', fontSize: '14px' }}
-                    autoFocus
-                    value={renameText}
-                    onChange={(e) => setRenameText(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') commitRename()
-                      if (e.key === 'Escape') setRenamingId(null)
-                    }}
-                    onBlur={commitRename}
-                    onClick={(e) => e.stopPropagation()}
-                  />
-                ) : (
-                  <div
-                    className="instance-name"
-                    onDoubleClick={(e) => {
-                      e.stopPropagation()
-                      setRenamingId(inst.id)
-                      setRenameText(inst.name)
-                    }}
-                    title="Двойной клик — переименовать"
-                  >
-                    {inst.name}
-                  </div>
-                )}
-                <span className={`loader-badge ${inst.loader}`}>{inst.loader}</span>
-              </div>
-
-              <span className="version-pill" style={{ alignSelf: 'flex-start' }}>MC {inst.version}</span>
-
-              <div className="instance-card-meta">
-                <span>{inst.lastPlayed ? new Date(inst.lastPlayed).toLocaleDateString() : 'Не запускалась'}</span>
-                {!isGameRunning && (
-                  <div className="instance-card-actions" onClick={(e) => e.stopPropagation()}>
-                    <button
-                      className="icon-btn"
-                      title="Переименовать"
-                      onClick={() => { setRenamingId(inst.id); setRenameText(inst.name) }}
-                    >
-                      <IconPen />
-                    </button>
-                    <button
-                      className="icon-btn danger"
-                      title="Удалить сборку"
-                      onClick={() => onDeleteInstance(inst.id)}
-                    >
-                      <IconTrash />
-                    </button>
-                  </div>
-                )}
-              </div>
+      <div className="log-view">
+        {logs.length === 0 ? (
+          <span style={{ color: 'var(--text-faint)' }}>Логи пусты. Нажмите «Играть», чтобы запустить Minecraft.</span>
+        ) : (
+          logs.map((log, idx) => (
+            <div key={idx} className={`log-line ${log.type === 'error' ? 'error' : log.type === 'warn' ? 'warn' : ''}`}>
+              <span className="log-time">[{new Date(log.timestamp).toLocaleTimeString()}]</span>{log.message}
             </div>
-          ))}
-        </div>
-      )}
-
-      {activeTab === 'mods' && selectedInstance && (
-        <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
-          {selectedInstance.loader === 'vanilla' && (
-            <div className="status-banner info" style={{ marginBottom: '10px', padding: '10px 14px', borderRadius: '10px' }}>
-              Это Vanilla-сборка — моды в игре не загрузятся. Для модов создайте сборку Fabric или Quilt.
-            </div>
-          )}
-
-          <div style={{ display: 'flex', gap: '10px', marginBottom: '12px' }}>
-            <button className="btn btn-primary" onClick={onOpenModDownloader}>
-              <IconMods /> Моды из Modrinth
-            </button>
-            <button className="btn" onClick={handleAddModFile}>
-              <IconPlus /> Файл .jar
-            </button>
-          </div>
-
-          {modsLoading ? (
-            <div className="empty-state"><div className="spinner" /></div>
-          ) : modsList.length === 0 ? (
-            <div className="empty-state">
-              <div className="empty-state-icon"><IconMods /></div>
-              <div className="empty-state-title">Модов нет</div>
-              <div className="empty-state-text">
-                Скачайте моды из каталога Modrinth или добавьте свой .jar файл.
-              </div>
-            </div>
-          ) : (
-            <div className="list-rows">
-              {modsList.map((mod) => (
-                <div key={mod.id} className="row-item">
-                  <div className="row-item-icon"><IconMods /></div>
-                  <div className="row-item-main">
-                    <div className="row-item-title" style={{ textDecoration: mod.enabled ? 'none' : 'line-through', color: mod.enabled ? 'var(--text)' : 'var(--text-faint)' }}>
-                      {mod.name}
-                    </div>
-                    <div className="row-item-sub">
-                      {(mod.size / 1024 / 1024).toFixed(1)} МБ
-                    </div>
-                  </div>
-                  <div className="row-item-actions">
-                    <button
-                      className={`toggle-chip ${mod.enabled ? 'on' : ''}`}
-                      onClick={() => handleToggleMod(mod.filename)}
-                    >
-                      {mod.enabled ? 'Включён' : 'Отключён'}
-                    </button>
-                    <button className="icon-btn danger" onClick={() => handleDeleteMod(mod.filename)} title="Удалить мод">
-                      <IconTrash />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {activeTab === 'profile' && activeUsername && (
-        <ProfileTab activeUsername={activeUsername} />
-      )}
-
-      {activeTab === 'logs' && (
-        <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '10px', alignItems: 'center', gap: '10px' }}>
-            {copyNotice && <span style={{ color: 'var(--accent)', fontSize: '12px' }}>{copyNotice}</span>}
-            <button className="btn" onClick={handleCopyLogs} disabled={logs.length === 0}>
-              Скопировать логи
-            </button>
-          </div>
-          <div className="log-view">
-            {logs.length === 0 ? (
-              <span style={{ color: 'var(--text-faint)' }}>Логи пусты. Нажмите «Играть», чтобы запустить Minecraft.</span>
-            ) : (
-              logs.map((log, idx) => (
-                <div key={idx} className={`log-line ${log.type === 'error' ? 'error' : log.type === 'warn' ? 'warn' : ''}`}>
-                  <span className="log-time">[{new Date(log.timestamp).toLocaleTimeString()}]</span>{log.message}
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-      )}
-
-      {showCreateModal && (
-        <CreateInstanceModal
-          onClose={() => setShowCreateModal(false)}
-          onSubmit={(data) => {
-            onCreateInstance(data).then(() => setShowCreateModal(false)).catch(() => {})
-          }}
-        />
-      )}
-    </>
+          ))
+        )}
+      </div>
+    </div>
   )
 }
 
@@ -462,11 +449,11 @@ const CreateInstanceModal: React.FC<{
   }
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-overlay" onClick={onClose} role="dialog" aria-modal="true" aria-label="Новая сборка">
       <div className="modal" style={{ width: '460px' }} onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <span className="modal-title">Новая сборка</span>
-          <button className="modal-close" onClick={onClose}>
+          <button className="modal-close" onClick={onClose} aria-label="Закрыть">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m6 6l12 12M18 6L6 18" /></svg>
           </button>
         </div>
@@ -521,7 +508,9 @@ const CreateInstanceModal: React.FC<{
             </div>
             <div className="version-picker-list">
               {loadingVersions ? (
-                <div style={{ padding: '20px', textAlign: 'center' }}><div className="spinner" style={{ margin: '0 auto' }} /></div>
+                <div style={{ padding: '20px', textAlign: 'center' }}>
+                  <div className="spinner" style={{ margin: '0 auto' }} />
+                </div>
               ) : listedVersions.length === 0 ? (
                 <div style={{ padding: '16px', textAlign: 'center', color: 'var(--text-faint)' }}>
                   Ничего не найдено

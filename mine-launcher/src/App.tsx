@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Account, Instance, LaunchProgress, GameLog, LauncherSettings } from './types'
 import { TitleBar } from './components/TitleBar'
-import { AccountsPanel } from './components/AccountsPanel'
+import { Sidebar, NavSection } from './components/Sidebar'
 import { InstanceManager } from './components/InstanceManager'
 import { BottomBar } from './components/BottomBar'
 import { SettingsModal } from './components/SettingsModal'
@@ -17,6 +17,8 @@ export function App() {
   const [isModDownloaderOpen, setIsModDownloaderOpen] = useState(false)
   const [isBooted, setIsBooted] = useState(false)
   const [updateState, setUpdateState] = useState<any>(null)
+  const [navSection, setNavSection] = useState<NavSection>('builds')
+  const [modsRefreshKey, setModsRefreshKey] = useState(0)
 
   useEffect(() => {
     if (!window.electronAPI) return
@@ -116,14 +118,16 @@ export function App() {
     }
   }
 
-  // Launch
-  const handleLaunch = () => {
-    if (!selectedInstance) return
+  // Launch — принимает необязательную сборку (quick-play с карточки)
+  const handleLaunch = (instance?: Instance) => {
+    const target = instance || selectedInstance
+    if (!target) return
+    const targetId = target.id
     if (window.electronAPI) {
       setLogs([])
-      window.electronAPI.launchInstance(selectedInstance.id).catch((err: Error) => {
+      window.electronAPI.launchInstance(targetId).catch((err: Error) => {
         setLaunchProgress({
-          instanceId: selectedInstance.id,
+          instanceId: targetId,
           stage: 'error',
           statusText: `Ошибка: ${err.message}`,
           progress: 0,
@@ -200,25 +204,32 @@ export function App() {
       )}
 
       <div className="app-shell">
-        <AccountsPanel
+        <Sidebar
           accounts={accounts}
+          activeSection={navSection}
+          hasSelectedInstance={!!selectedInstance}
+          hasActiveUsername={!!accounts.find((a) => a.isActive)?.username}
           onSelectAccount={handleSelectAccount}
           onAddAccount={handleAddAccount}
           onDeleteAccount={handleDeleteAccount}
+          onNavigate={(section) => setNavSection(section)}
+          onOpenSettings={() => setIsSettingsOpen(true)}
         />
 
         <main className="main-content">
           <div className="content-area">
             <InstanceManager
+              section={navSection}
               instances={instances}
               selectedInstance={selectedInstance}
               activeUsername={accounts.find((a) => a.isActive)?.username || ''}
+              modsRefreshKey={modsRefreshKey}
               launchProgress={launchProgress}
               onSelectInstance={handleSelectInstance}
+              onQuickPlay={(inst) => handleLaunch(inst)}
               onCreateInstance={handleCreateInstance}
               onRenameInstance={handleRenameInstance}
               onDeleteInstance={handleDeleteInstance}
-              onOpenSettings={() => setIsSettingsOpen(true)}
               onOpenModDownloader={() => setIsModDownloaderOpen(true)}
               logs={logs}
             />
@@ -251,9 +262,7 @@ export function App() {
           gameVersion={selectedInstance.version}
           loader={selectedInstance.loader}
           onClose={() => setIsModDownloaderOpen(false)}
-          onModInstalled={async () => {
-            // refresh mods list is handled inside InstanceManager via tabs; nothing needed here
-          }}
+          onModInstalled={() => setModsRefreshKey((k) => k + 1)}
         />
       )}
     </>

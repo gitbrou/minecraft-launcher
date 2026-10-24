@@ -143,8 +143,68 @@ body {
   flex-shrink: 0;
 }
 
-.sidebar-header {
-  padding: 14px 16px 10px;
+.side-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 14px 12px;
+}
+
+.side-brand-mark {
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  background: var(--accent);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.side-brand-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.2;
+}
+
+.side-brand-sub {
+  font-size: 11px;
+  color: var(--text-faint);
+  line-height: 1.2;
+}
+
+.side-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 2px 10px 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.side-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 10px;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-md);
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+.side-nav-item:hover { background: rgba(255, 255, 255, 0.05); color: var(--text); }
+.side-nav-item.active { background: var(--accent-soft); color: var(--accent); }
+.side-nav-item:disabled { opacity: 0.45; cursor: not-allowed; }
+.side-nav-item:disabled:hover { background: transparent; color: var(--text-muted); }
+
+.side-block-header {
+  padding: 12px 16px 6px;
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.6px;
@@ -269,33 +329,15 @@ body {
   gap: 12px;
 }
 
-.content-tabs {
-  display: flex;
-  gap: 4px;
-  background: var(--bg-input);
-  padding: 3px;
-  border-radius: var(--radius-md);
-}
-
-.content-tab {
-  background: transparent;
-  border: none;
-  color: var(--text-muted);
-  padding: 7px 13px;
-  font-size: 13px;
-  font-weight: 500;
-  border-radius: 7px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  transition: background 0.15s, color 0.15s;
-}
-.content-tab:hover { color: var(--text); }
-.content-tab.active {
-  background: var(--bg-card);
+.section-title {
+  margin: 0;
+  font-size: 19px;
+  font-weight: 600;
   color: var(--text);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  letter-spacing: -0.2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .toolbar-actions {
@@ -364,6 +406,7 @@ body {
   flex-direction: column;
   gap: 10px;
   min-height: 118px;
+  overflow: hidden;
   transition: border-color 0.15s, background 0.15s;
   position: relative;
   animation: rise-in 0.18s ease-out both;
@@ -373,6 +416,59 @@ body {
   border-color: var(--accent);
   background: rgba(76, 175, 80, 0.06);
 }
+
+.instance-cover {
+  margin: -14px -14px 2px;
+  height: 72px;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.cover-vanilla { background: rgba(76, 175, 80, 0.13); }
+.cover-fabric { background: rgba(152, 103, 197, 0.16); }
+.cover-quilt { background: rgba(58, 139, 181, 0.16); }
+
+.instance-cover-letter {
+  font-size: 34px;
+  font-weight: 700;
+  letter-spacing: -1px;
+  color: var(--text);
+  opacity: 0.55;
+  user-select: none;
+}
+.cover-vanilla .instance-cover-letter { color: #7bc46a; }
+.cover-fabric .instance-cover-letter { color: #c39be0; }
+.cover-quilt .instance-cover-letter { color: #6fb1d6; }
+
+.card-play {
+  position: absolute;
+  right: 10px;
+  bottom: 9px;
+  width: 34px;
+  height: 34px;
+  border: none;
+  border-radius: 9px;
+  background: var(--accent);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0;
+  transform: translateY(3px);
+  transition: opacity 0.15s ease, transform 0.15s ease, background 0.15s ease;
+}
+.instance-card:hover .card-play,
+.instance-card:focus-within .card-play {
+  opacity: 1;
+  transform: translateY(0);
+}
+.card-play:hover { background: var(--accent-hover); }
+.card-play:disabled { opacity: 0.45 !important; cursor: not-allowed; }
 
 .instance-card-top {
   display: flex;

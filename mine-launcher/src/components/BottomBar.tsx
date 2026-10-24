@@ -103,7 +103,7 @@ export const BottomBar: React.FC<BottomBarProps> = ({
 
       <button
         className={`play-button ${isActiveForSelected ? 'launching' : ''}`}
-        onClick={onLaunch}
+        onClick={() => onLaunch()}
         disabled={disabled}
         title={disabledReason || 'Запустить Minecraft'}
       >
