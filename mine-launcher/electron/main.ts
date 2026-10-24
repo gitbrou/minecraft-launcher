@@ -35,7 +35,6 @@ process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path.join(process.env.APP_ROOT, 
 
 let win: BrowserWindow | null = null
 let tray: Tray | null = null
-let isQuittingForUpdate = false
 
 const rootDir = getRootDir()
 const accountsFile = path.join(rootDir, 'accounts.json')
@@ -202,10 +201,7 @@ app.on('second-instance', () => {
 })
 
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    if (isQuittingForUpdate) return
-    app.quit()
-  }
+  if (process.platform !== 'darwin') app.quit()
   win = null
 })
 
@@ -681,7 +677,6 @@ function setupIpcHandlers() {
   ipcMain.handle('updater:install', () => {
     if (VITE_DEV_SERVER_URL) return false
     try {
-      isQuittingForUpdate = true
       setImmediate(() => {
         autoUpdater.quitAndInstall()
       })
