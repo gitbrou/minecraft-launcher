@@ -16,6 +16,7 @@ const electronAPI = {
   // Instances
   getInstances: () => ipcRenderer.invoke('get-instances'),
   createInstance: (data: { name: string; version: string; loader: string }) => ipcRenderer.invoke('create-instance', data),
+  renameInstance: (payload: { id: string; name: string }) => ipcRenderer.invoke('rename-instance', payload),
   deleteInstance: (id: string) => ipcRenderer.invoke('delete-instance', id),
   openInstanceFolder: (id: string) => ipcRenderer.invoke('open-instance-folder', id),
 
@@ -27,24 +28,26 @@ const electronAPI = {
   saveSettings: (settings: any) => ipcRenderer.invoke('save-settings', settings),
   setSelectedInstanceId: (instanceId: string) => ipcRenderer.invoke('set-selected-instance-id', instanceId),
   detectJava: () => ipcRenderer.invoke('detect-java'),
+  getRequiredJava: (version: string) => ipcRenderer.invoke('get-required-java', version),
+  openLauncherFolder: () => ipcRenderer.invoke('open-launcher-folder'),
 
   // Launching
   launchInstance: (id: string) => ipcRenderer.invoke('launch-instance', id),
   stopInstance: (id: string) => ipcRenderer.invoke('stop-instance', id),
+  restoreWindow: () => ipcRenderer.invoke('restore-window'),
 
   // Mods
   getInstanceMods: (id: string) => ipcRenderer.invoke('get-instance-mods', id),
   toggleMod: (payload: { instanceId: string; modFilename: string }) => ipcRenderer.invoke('toggle-mod', payload),
+  deleteMod: (payload: { instanceId: string; modFilename: string }) => ipcRenderer.invoke('delete-mod', payload),
   downloadModFile: (payload: { instanceId: string; downloadUrl: string; filename: string }) => ipcRenderer.invoke('download-mod-file', payload),
   addModFile: (instanceId: string) => ipcRenderer.invoke('add-mod-file', instanceId),
 
   // Skins & Profile
-  saveUserSkin: (username: string) => ipcRenderer.invoke('upload-user-skin', username),
   uploadUserSkin: (username: string) => ipcRenderer.invoke('upload-user-skin', username),
-  saveUserSkinBase64: (payload: { username: string; base64Data: string }) => ipcRenderer.invoke('save-user-skin-base64', payload),
-  parseCommandSkin: (payload: { username: string; command: string }) => ipcRenderer.invoke('parse-command-skin', payload),
   fetchOnlineSkin: (payload: { username: string; targetUsername: string }) => ipcRenderer.invoke('fetch-online-skin', payload),
   getUserSkin: (username: string) => ipcRenderer.invoke('get-user-skin', username),
+  getAccountHead: (username: string) => ipcRenderer.invoke('get-account-head', username),
   getProfileStats: (username: string) => ipcRenderer.invoke('get-profile-stats', username),
 
   // Subscriptions
@@ -57,7 +60,7 @@ const electronAPI = {
     const handler = (_: any, data: any) => callback(data)
     ipcRenderer.on('game-log', handler)
     return () => ipcRenderer.removeListener('game-log', handler)
-  }
+  },
 }
 
 contextBridge.exposeInMainWorld('electronAPI', electronAPI)

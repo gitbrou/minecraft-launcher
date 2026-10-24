@@ -1,32 +1,33 @@
 import React, { useState, useEffect } from 'react'
 
-const IconMinecraft = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="#53921b">
+const IconLogo = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
     <path d="M4 2h16a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2m2 4v4h4v2H8v6h2v-2h4v2h2v-6h-2v-2h4V6h-4v4h-4V6z" />
   </svg>
 )
 
 const IconMinimize = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-    <path d="M7 20q-.213 0-.356-.144t-.144-.357t.144-.356T7 19h10q.213 0 .356.144t.144.357t-.144.356T17 20z" />
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+    <path d="M5 12h14" />
   </svg>
 )
 
-const IconExpand = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeMiterlimit="16" strokeWidth="1.5">
-    <path d="M19 12V9c0-1.886 0-2.828-.586-3.414S16.886 5 15 5h-3m-7 7v3c0 1.886 0 2.828.586 3.414S7.114 19 9 19h3" />
+const IconMaximize = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <rect x="5" y="5" width="14" height="14" rx="1.5" />
   </svg>
 )
 
-const IconCollapse = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-    <path d="M2 15h7v7h2v-9H2zM15 2h-2v9h9V9h-7z" />
+const IconRestore = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <rect x="4" y="9" width="11" height="11" rx="1.5" />
+    <path d="M8 9V6a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-3" />
   </svg>
 )
 
 const IconClose = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-    <path d="m12 12.708l-5.246 5.246q-.14.14-.344.15t-.364-.15t-.16-.354t.16-.354L11.292 12L6.046 6.754q-.14-.14-.15-.344t.15-.364t.354-.16t.354.16L12 11.292l5.246-5.246q.14-.14.345-.15q.203-.01.363.15t.16.354t-.16.354L12.708 12l5.246 5.246q.14.14.15.345q.01.203-.15.363t-.354.16t-.354-.16z" />
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+    <path d="m6 6l12 12M18 6L6 18" />
   </svg>
 )
 
@@ -34,118 +35,30 @@ export const TitleBar: React.FC = () => {
   const [isMaximized, setIsMaximized] = useState(false)
 
   useEffect(() => {
-    if (window.electronAPI) {
-      window.electronAPI.isMaximized().then(setIsMaximized)
-    }
+    window.electronAPI?.isMaximized?.().then(setIsMaximized)
   }, [])
 
-  const handleMinimize = () => {
-    if (window.electronAPI) {
-      window.electronAPI.minimizeWindow()
-    }
-  }
-
-  const handleToggleMaximize = async () => {
-    if (window.electronAPI) {
-      const maxed = await window.electronAPI.maximizeWindow()
-      setIsMaximized(maxed)
-    }
-  }
-
-  const handleClose = () => {
-    if (window.electronAPI) {
-      window.electronAPI.closeWindow()
-    }
+  const handleToggleMaximize = () => {
+    window.electronAPI?.maximizeWindow?.().then((maxed: boolean) => setIsMaximized(maxed))
   }
 
   return (
-    <header
-      className="title-bar"
-      style={{
-        WebkitAppRegion: 'drag',
-        userSelect: 'none',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        height: '36px',
-        padding: '0 0 0 14px',
-        background: '#0e0f12',
-        overflow: 'hidden'
-      } as any}
-    >
-      <div className="title-bar-drag-area" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-        <IconMinecraft />
-        <span className="title-bar-text" style={{ fontSize: '13px', fontWeight: '600', color: '#ccc' }}>Mine Launcher</span>
+    <header className="titlebar">
+      <div className="titlebar-brand">
+        <span className="titlebar-logo"><IconLogo /></span>
+        <span className="titlebar-title">Mine Launcher</span>
       </div>
 
-      {/* Windows-style Edge-to-Edge Rectangular Window Controls */}
-      <div className="window-controls" style={{ WebkitAppRegion: 'no-drag', display: 'flex', alignItems: 'center', height: '100%', margin: 0 } as any}>
-        <button
-          onClick={handleMinimize}
-          title="Свернуть"
-          style={{
-            background: 'none',
-            border: 'none',
-            color: '#cccccc',
-            height: '36px',
-            width: '46px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            cursor: 'pointer',
-            transition: 'background 0.15s ease'
-          }}
-          onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255, 255, 255, 0.12)')}
-          onMouseLeave={(e) => (e.currentTarget.style.background = 'none')}
-        >
+      <div className="titlebar-controls">
+        <button className="titlebar-btn" title="Свернуть" onClick={() => window.electronAPI?.minimizeWindow?.()}>
           <IconMinimize />
         </button>
 
-        <button
-          onClick={handleToggleMaximize}
-          title={isMaximized ? 'Восстановить' : 'Развернуть'}
-          style={{
-            background: 'none',
-            border: 'none',
-            color: '#cccccc',
-            height: '36px',
-            width: '46px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            cursor: 'pointer',
-            transition: 'background 0.15s ease'
-          }}
-          onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255, 255, 255, 0.12)')}
-          onMouseLeave={(e) => (e.currentTarget.style.background = 'none')}
-        >
-          {isMaximized ? <IconCollapse /> : <IconExpand />}
+        <button className="titlebar-btn" title={isMaximized ? 'Восстановить' : 'Развернуть'} onClick={handleToggleMaximize}>
+          {isMaximized ? <IconRestore /> : <IconMaximize />}
         </button>
 
-        <button
-          onClick={handleClose}
-          title="Закрыть"
-          style={{
-            background: 'none',
-            border: 'none',
-            color: '#cccccc',
-            height: '36px',
-            width: '46px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            cursor: 'pointer',
-            transition: 'background 0.15s ease'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.color = '#ffffff'
-            e.currentTarget.style.background = '#e81123'
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.color = '#cccccc'
-            e.currentTarget.style.background = 'none'
-          }}
-        >
+        <button className="titlebar-btn close" title="Закрыть" onClick={() => window.electronAPI?.closeWindow?.()}>
           <IconClose />
         </button>
       </div>

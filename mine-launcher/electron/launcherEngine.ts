@@ -49,31 +49,24 @@ function temurinUrl(javaMajor: number): string {
 }
 
 export interface VersionManifest {
-  latest: {
-    release: string
-    snapshot: string
-  }
-  versions: Array<{
-    id: string
-    type: string
-    url: string
-    time: string
-    releaseTime: string
-  }>
+  latest: { release: string; snapshot: string }
+  versions: Array<{ id: string; type: string; url: string; time: string; releaseTime: string }>
 }
 
 export interface LaunchConfig {
   instanceId: string
   instanceName: string
   version: string
-  loader: 'vanilla' | 'fabric' | 'forge' | 'quilt'
+  loader: 'vanilla' | 'fabric' | 'quilt'
   username: string
   uuid: string
   memoryMin: number
   memoryMax: number
-  javaPath?: string;
-  customJvmArgs?: string;
-  customGameArgs?: string;
+  javaPath?: string
+  customJvmArgs?: string
+  customGameArgs?: string
+  fullscreen: boolean
+  hideLauncher: boolean
 }
 
 export interface ProgressCallback {
@@ -82,8 +75,9 @@ export interface ProgressCallback {
     stage: 'idle' | 'checking' | 'downloading' | 'extracting' | 'launching' | 'running' | 'error'
     statusText: string
     progress: number
-    downloadedFiles?: number
-    totalFiles?: number
+    downloadedMb?: string
+    totalMb?: string
+    speed?: string
     error?: string
   }): void
 }
@@ -93,6 +87,9 @@ export interface LogCallback {
 }
 
 const activeProcesses = new Map<string, any>()
+
+let lastLaunchAt = 0
+let lastLaunchBytes = 0
 
 export function getRootDir(): string {
   const baseDir = app.getPath('userData')
@@ -116,49 +113,51 @@ export function generateOfflineUUID(username: string): string {
 function fetchJson<T>(url: string): Promise<T> {
   return new Promise((resolve, reject) => {
     const client = url.startsWith('https') ? https : http
-    client.get(url, (res) => {
+    const req = client.get(url, { headers: { 'User-Agent': 'MineLauncher/2.0' } }, (res) => {
       if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+        res.resume()
         return fetchJson<T>(res.headers.location).then(resolve).catch(reject)
       }
       if (res.statusCode !== 200) {
-        return reject(new Error(`HTTP ${res.statusCode} loading ${url}`))
+        res.resume()
+        return reject(new Error(`HTTP ${res.statusCode} — ${url}`))
       }
       let rawData = ''
+      res.setEncoding('utf-8')
       res.on('data', (chunk) => { rawData += chunk })
       res.on('end', () => {
-        try {
-          resolve(JSON.parse(rawData))
-        } catch (e) {
-          reject(e)
-        }
+        try { resolve(JSON.parse(rawData)) } catch (e) { reject(e) }
       })
-    }).on('error', reject)
+      res.on('error', reject)
+    })
+    req.on('error', reject)
   })
 }
 
-function downloadFile(url: string, destPath: string): Promise<void> {
+function downloadFile(url: string, destPath: string, onBytes?: (bytesSinceLast: number) => void): Promise<void> {
   return new Promise((resolve, reject) => {
     const dir = path.dirname(destPath)
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true })
-    }
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
+
     const file = fs.createWriteStream(destPath)
     const client = url.startsWith('https') ? https : http
 
-    const request = client.get(url, (response) => {
+    const request = client.get(url, { headers: { 'User-Agent': 'MineLauncher/2.0' } }, (response) => {
       if (response.statusCode && response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
         file.close()
-        return downloadFile(response.headers.location, destPath).then(resolve).catch(reject)
+        fs.unlinkSync(destPath)
+        return downloadFile(response.headers.location, destPath, onBytes).then(resolve).catch(reject)
       }
       if (response.statusCode !== 200) {
         file.close()
         fs.unlink(destPath, () => {})
-        return reject(new Error(`Failed to download ${url}: HTTP ${response.statusCode}`))
+        response.resume()
+        return reject(new Error(`HTTP ${response.statusCode}: ${url}`))
       }
+      response.on('data', (chunk) => onBytes?.(chunk.length))
       response.pipe(file)
-      file.on('finish', () => {
-        file.close(() => resolve())
-      })
+      file.on('finish', () => file.close(() => resolve()))
+      file.on('error', reject)
     })
 
     request.on('error', (err) => {
@@ -172,7 +171,6 @@ function downloadFile(url: string, destPath: string): Promise<void> {
 async function extractNativeDlls(jarPath: string, destDir: string) {
   if (!fs.existsSync(jarPath)) return
   try {
-    // Extract + фильтр нативов по ОС
     const tmpDir = path.join(destDir, '.extract-' + Date.now())
     fs.mkdirSync(tmpDir, { recursive: true })
     await extract(jarPath, { dir: tmpDir })
@@ -195,12 +193,13 @@ async function extractNativeDlls(jarPath: string, destDir: string) {
 
 function isLibraryAllowed(rules?: Array<{ action: string; os?: { name: string } }>): boolean {
   if (!rules || rules.length === 0) return true
+  const wantedOs = process.platform === 'win32' ? 'windows'
+                 : process.platform === 'darwin' ? 'osx'
+                 : 'linux'
   let allowed = false
   for (const r of rules) {
-    if (r.action === 'allow') {
-      if (!r.os || r.os.name === 'windows') allowed = true
-    } else if (r.action === 'disallow') {
-      if (!r.os || r.os.name === 'windows') allowed = false
+    if (!r.os || r.os.name === wantedOs) {
+      allowed = r.action === 'allow'
     }
   }
   return allowed
@@ -212,22 +211,28 @@ export async function detectJavaPaths(): Promise<string[]> {
   const javaName = isWin ? 'javaw.exe' : 'java'
 
   const rootDir = getRootDir()
-  const findInternalJavaw = (dir: string): string | null => {
-    if (!fs.existsSync(dir)) return null
-    const items = fs.readdirSync(dir)
-    for (const item of items) {
-      const full = path.join(dir, item)
-      if (item.toLowerCase() === (process.platform === 'win32' ? 'javaw.exe' : 'java')) return full
-      if (fs.statSync(full).isDirectory()) {
-        const res = findInternalJavaw(full)
-        if (res) return res
+
+  const findJava = (dir: string, depth = 0): string | null => {
+    if (!fs.existsSync(dir) || depth > 6) return null
+    try {
+      const items = fs.readdirSync(dir)
+      for (const item of items) {
+        const full = path.join(dir, item)
+        if (item.toLowerCase() === javaName.toLowerCase()) return full
+        try {
+          if (fs.statSync(full).isDirectory()) {
+            const res = findJava(full, depth + 1)
+            if (res) return res
+          }
+        } catch {}
       }
-    }
+    } catch {}
     return null
   }
-  for (const major of [17, 21, 8]) {
-    const internalJavaw = findInternalJavaw(path.join(rootDir, 'java', `java-${major}`))
-    if (internalJavaw) found.push(internalJavaw)
+
+  for (const major of [21, 17, 8]) {
+    const internalJava = findJava(path.join(rootDir, 'java', `java-${major}`))
+    if (internalJava) found.push(internalJava)
   }
 
   if (process.env.JAVA_HOME) {
@@ -246,36 +251,27 @@ export async function detectJavaPaths(): Promise<string[]> {
       path.join(process.env.LOCALAPPDATA || '', 'Programs', 'AdoptOpenJDK'),
       'C:\\Program Files (x86)\\Minecraft Launcher\\runtime'
     ]
-
     for (const sDir of searchDirs) {
-      if (fs.existsSync(sDir)) {
-        try {
-          const subdirs = fs.readdirSync(sDir)
-          for (const sub of subdirs) {
-            const fullPath = path.join(sDir, sub, 'bin', javaName)
-            if (fs.existsSync(fullPath) && !found.includes(fullPath)) {
-              found.push(fullPath)
-            }
-          }
-        } catch {
-          // ignore
+      if (!fs.existsSync(sDir)) continue
+      try {
+        for (const sub of fs.readdirSync(sDir)) {
+          const fullPath = path.join(sDir, sub, 'bin', javaName)
+          if (fs.existsSync(fullPath) && !found.includes(fullPath)) found.push(fullPath)
         }
-      }
+      } catch {}
     }
   } else {
-    // Unix-пути JVM
     const unixDirs = ['/usr/lib/jvm', '/usr/lib64/jvm', '/Library/Java/JavaVirtualMachines', '/opt/java']
     for (const d of unixDirs) {
-      if (fs.existsSync(d)) {
-        try {
-          for (const sub of fs.readdirSync(d)) {
-            for (const candidate of [`${sub}/bin/java`, `${sub}/Contents/Home/bin/java`]) {
-              const full = path.join(d, candidate)
-              if (fs.existsSync(full) && !found.includes(full)) found.push(full)
-            }
+      if (!fs.existsSync(d)) continue
+      try {
+        for (const sub of fs.readdirSync(d)) {
+          for (const candidate of [`${sub}/bin/java`, `${sub}/Contents/Home/bin/java`]) {
+            const full = path.join(d, candidate)
+            if (fs.existsSync(full) && !found.includes(full)) found.push(full)
           }
-        } catch { /* ignore */ }
-      }
+        }
+      } catch {}
     }
   }
 
@@ -290,88 +286,87 @@ export async function downloadJavaRuntime(
   const rootDir = getRootDir()
   const javaDir = path.join(rootDir, 'java', `java-${javaMajor}`)
 
-  const findJavaw = (dir: string): string | null => {
-    if (!fs.existsSync(dir)) return null
-    const items = fs.readdirSync(dir)
-    for (const item of items) {
-      const full = path.join(dir, item)
-      if (item.toLowerCase() === (process.platform === 'win32' ? 'javaw.exe' : 'java')) return full
-      if (fs.statSync(full).isDirectory()) {
-        const res = findJavaw(full)
-        if (res) return res
+  const findJava = (dir: string, depth = 0): string | null => {
+    if (!fs.existsSync(dir) || depth > 6) return null
+    try {
+      for (const item of fs.readdirSync(dir)) {
+        const full = path.join(dir, item)
+        if (item.toLowerCase() === (process.platform === 'win32' ? 'javaw.exe' : 'java').toLowerCase()) return full
+        try {
+          if (fs.statSync(full).isDirectory()) {
+            const res = findJava(full, depth + 1)
+            if (res) return res
+          }
+        } catch {}
       }
-    }
+    } catch {}
     return null
   }
 
-  const existingJavaw = findJavaw(javaDir)
-  if (existingJavaw) {
-    return existingJavaw
-  }
+  const existing = findJava(javaDir)
+  if (existing) return existing
 
   onProgress({
     instanceId: 'java-auto',
     stage: 'downloading',
-    statusText: `Авто-скачивание OpenJDK Java ${javaMajor}...`,
-    progress: 15
+    statusText: `Скачивание Java ${javaMajor}...`,
+    progress: 55
   })
-  onLog({ timestamp: Date.now(), type: 'info', message: `Java не найдена на ПК. Автоматическое скачивание OpenJDK Java ${javaMajor} (Temurin)...` })
+  onLog({
+    timestamp: Date.now(),
+    type: 'info',
+    message: `Java ${javaMajor} не найдена на ПК — скачиваю Eclipse Temurin JRE ${javaMajor}...`
+  })
 
   const isWin = process.platform === 'win32'
   const zipUrl = temurinUrl(javaMajor)
-  const ext = isWin ? 'zip' : 'tar.gz'
+  const ext = isWin ? 'zip' : '.tar.gz'
   const zipPath = path.join(rootDir, 'java', `java-${javaMajor}.${ext}`)
 
-  if (!fs.existsSync(path.dirname(zipPath))) {
-    fs.mkdirSync(path.dirname(zipPath), { recursive: true })
-  }
+  if (!fs.existsSync(path.dirname(zipPath))) fs.mkdirSync(path.dirname(zipPath), { recursive: true })
 
-  onProgress({
-    instanceId: 'java-auto',
-    stage: 'downloading',
-    statusText: `Загрузка OpenJDK Java ${javaMajor}...`,
-    progress: 35
+  await downloadFile(zipUrl, zipPath, (bytes) => {
+    lastLaunchBytes += bytes
+    const now = Date.now()
+    if (now - lastLaunchAt > 1000) {
+      const speed = lastLaunchBytes / Math.max(1, (now - lastLaunchAt) / 1000)
+      lastLaunchAt = now
+      lastLaunchBytes = 0
+      onProgress({
+        instanceId: 'java-auto',
+        stage: 'downloading',
+        statusText: `Скачивание Java ${javaMajor}... (${(speed / 1024 / 1024).toFixed(1)} МБ/с)`,
+        progress: 55
+      })
+    }
   })
-
-  await downloadFile(zipUrl, zipPath)
 
   onProgress({
     instanceId: 'java-auto',
     stage: 'extracting',
-    statusText: `Распаковка Java ${javaMajor} Runtime...`,
+    statusText: `Распаковка Java ${javaMajor}...`,
     progress: 75
   })
   onLog({ timestamp: Date.now(), type: 'info', message: `Распаковка архива Java ${javaMajor}...` })
 
-  if (!fs.existsSync(javaDir)) {
-    fs.mkdirSync(javaDir, { recursive: true })
-  }
+  if (!fs.existsSync(javaDir)) fs.mkdirSync(javaDir, { recursive: true })
 
-  try {
-    if (isWin) {
-      await extract(zipPath, { dir: javaDir })
-    } else {
-      // macOS/Linux: tar есть всегда
-      execSync(`tar -xzf "${zipPath}" -C "${javaDir}"`)
-    }
-    fs.unlinkSync(zipPath)
-  } catch (e: any) {
-    onLog({ timestamp: Date.now(), type: 'warn', message: `Ошибка распаковки: ${e.message}` })
-    throw e
+  if (isWin) {
+    await extract(zipPath, { dir: javaDir })
+  } else {
+    execSync(`tar -xzf "${zipPath}" -C "${javaDir}"`)
   }
+  fs.unlinkSync(zipPath)
 
-  const finalJavaw = findJavaw(javaDir)
-  if (!finalJavaw) {
-    throw new Error(`Не удалось найти javaw.exe после распаковки Java ${javaMajor}. Установите Java вручную.`)
-  }
+  const finalJava = findJava(javaDir)
+  if (!finalJava) throw new Error(`Java ${javaMajor} распакована некорректно — попробуйте установить её вручную`)
 
-  onLog({ timestamp: Date.now(), type: 'info', message: `Java ${javaMajor} успешно установлена: ${finalJavaw}` })
-  return finalJavaw
+  onLog({ timestamp: Date.now(), type: 'info', message: `Java ${javaMajor} установлена: ${finalJava}` })
+  return finalJava
 }
 
 export async function getMinecraftVersions(): Promise<VersionManifest> {
-  const url = 'https://launchermeta.mojang.com/mc/game/version_manifest_v2.json'
-  return await fetchJson<VersionManifest>(url)
+  return await fetchJson<VersionManifest>('https://launchermeta.mojang.com/mc/game/version_manifest_v2.json')
 }
 
 export async function launchMinecraft(
@@ -379,6 +374,9 @@ export async function launchMinecraft(
   onProgress: ProgressCallback,
   onLog: LogCallback
 ): Promise<void> {
+  lastLaunchAt = 0
+  lastLaunchBytes = 0
+
   const rootDir = getRootDir()
   const instanceDir = path.join(rootDir, 'instances', config.instanceId)
   const assetsDir = path.join(rootDir, 'assets')
@@ -386,60 +384,31 @@ export async function launchMinecraft(
   const versionsDir = path.join(rootDir, 'versions')
   const nativesDir = path.join(instanceDir, 'natives')
 
-  if (!fs.existsSync(instanceDir)) fs.mkdirSync(instanceDir, { recursive: true })
-  if (!fs.existsSync(nativesDir)) fs.mkdirSync(nativesDir, { recursive: true })
-
-  // Force options.txt to unlock Multiplayer and Chat in 1.16.5 and all versions
-  const optionsPath = path.join(instanceDir, 'options.txt')
-  const optionsContent = `version:2586\nchatVisibility:0\nforceUnicodeFont:false\nrealmsNotifications:false\nhideServerAddress:false\n`
-  fs.writeFileSync(optionsPath, optionsContent, 'utf-8')
-
-  // Clean up any stale Fabric .tmp files
-  const fabricDir = path.join(instanceDir, '.fabric')
-  if (fs.existsSync(fabricDir)) {
-    try {
-      const removeTmpFiles = (dirPath: string) => {
-        const entries = fs.readdirSync(dirPath)
-        for (const entry of entries) {
-          const full = path.join(dirPath, entry)
-          if (fs.statSync(full).isDirectory()) {
-            removeTmpFiles(full)
-          } else if (entry.endsWith('.tmp')) {
-            fs.unlinkSync(full)
-          }
-        }
-      }
-      removeTmpFiles(fabricDir)
-    } catch {
-      // ignore
-    }
+  for (const d of [instanceDir, nativesDir]) {
+    if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true })
   }
 
   try {
-    // 1. Resolve Java Runtime
-    let javaBin = config.javaPath
+    // 1. Java
+    let javaBin: string | undefined = config.javaPath
     let isJavaValid = false
 
     if (javaBin && fs.existsSync(javaBin)) {
       try {
-        execSync(`"${javaBin}" -version 2>&1`)
+        execSync(`"${javaBin}" -version 2>&1`, { stdio: 'ignore' })
         isJavaValid = true
       } catch {}
     }
 
     if (!isJavaValid) {
       const detected = await detectJavaPaths()
-      const want = `java-${requiredJavaMajor(config.version)}`
-      detected.sort((a, b) => (b.includes(want) ? 1 : 0) - (a.includes(want) ? 1 : 0))
       for (const d of detected) {
-        if (fs.existsSync(d)) {
-          try {
-            execSync(`"${d}" -version 2>&1`)
-            javaBin = d
-            isJavaValid = true
-            break
-          } catch {}
-        }
+        try {
+          execSync(`"${d}" -version 2>&1`, { stdio: 'ignore' })
+          javaBin = d
+          isJavaValid = true
+          break
+        } catch {}
       }
     }
 
@@ -447,129 +416,122 @@ export async function launchMinecraft(
       javaBin = await downloadJavaRuntime(onProgress, onLog, requiredJavaMajor(config.version))
     }
 
-    onLog({
-      timestamp: Date.now(),
-      type: 'info',
-      message: `Используемый файл Java: ${javaBin}`
-    })
+    onLog({ timestamp: Date.now(), type: 'info', message: `Java: ${javaBin}` })
 
-    // 2. Fetch Version Manifest
-    onProgress({
-      instanceId: config.instanceId,
-      stage: 'checking',
-      statusText: 'Получение манифеста версий...',
-      progress: 10
-    })
+    // 2. Version manifest / version JSON
+    onProgress({ instanceId: config.instanceId, stage: 'checking', statusText: 'Проверка версии...', progress: 5 })
 
-    const manifest = await getMinecraftVersions()
-    const verInfo = manifest.versions.find((v) => v.id === config.version)
-    if (!verInfo) {
-      throw new Error(`Версия Minecraft ${config.version} не найдена в манифесте Mojang`)
-    }
-
-    onProgress({
-      instanceId: config.instanceId,
-      stage: 'downloading',
-      statusText: `Загрузка структуры версии ${config.version}...`,
-      progress: 20
-    })
+    const verInfo = (await getMinecraftVersions()).versions.find((v) => v.id === config.version)
+    if (!verInfo) throw new Error(`Версия ${config.version} не найдена на серверах Mojang`)
 
     const versionJsonPath = path.join(versionsDir, config.version, `${config.version}.json`)
-    const versionData = await fetchJson<any>(verInfo.url)
-    if (!fs.existsSync(path.dirname(versionJsonPath))) {
-      fs.mkdirSync(path.dirname(versionJsonPath), { recursive: true })
+    let versionData: any
+    if (fs.existsSync(versionJsonPath)) {
+      try {
+        versionData = JSON.parse(fs.readFileSync(versionJsonPath, 'utf-8'))
+      } catch {
+        versionData = null
+      }
     }
-    fs.writeFileSync(versionJsonPath, JSON.stringify(versionData, null, 2))
+    if (!versionData) {
+      onProgress({ instanceId: config.instanceId, stage: 'downloading', statusText: `Загрузка версии ${config.version}...`, progress: 10 })
+      versionData = await fetchJson<any>(verInfo.url)
+      if (!fs.existsSync(path.dirname(versionJsonPath))) fs.mkdirSync(path.dirname(versionJsonPath), { recursive: true })
+      fs.writeFileSync(versionJsonPath, JSON.stringify(versionData, null, 2))
+    }
 
-    // Download Asset Index JSON & Asset Objects
+    // 3. Assets
     if (versionData.assetIndex?.url) {
-      const assetIndexDir = path.join(assetsDir, 'indexes')
-      const assetIndexPath = path.join(assetIndexDir, `${versionData.assetIndex.id}.json`)
+      const assetIndexPath = path.join(assetsDir, 'indexes', `${versionData.assetIndex.id}.json`)
       if (!fs.existsSync(assetIndexPath)) {
-        onProgress({
-          instanceId: config.instanceId,
-          stage: 'downloading',
-          statusText: 'Загрузка манифеста ресурсов...',
-          progress: 25
-        })
+        onProgress({ instanceId: config.instanceId, stage: 'downloading', statusText: 'Загрузка манифеста ресурсов...', progress: 12 })
         await downloadFile(versionData.assetIndex.url, assetIndexPath)
       }
 
       try {
-        const indexContent = JSON.parse(fs.readFileSync(assetIndexPath, 'utf-8'))
-        const objects = indexContent.objects || {}
-        const objectKeys = Object.keys(objects)
+        const index = JSON.parse(fs.readFileSync(assetIndexPath, 'utf-8'))
+        const objects = index.objects || {}
         const objectsDir = path.join(assetsDir, 'objects')
 
-        const missingObjects: Array<{ hash: string; url: string; dest: string }> = []
-
-        for (const key of objectKeys) {
-          const obj = objects[key]
-          const hash = obj.hash
-          const prefix = hash.slice(0, 2)
-          const dest = path.join(objectsDir, prefix, hash)
-          if (!fs.existsSync(dest)) {
-            missingObjects.push({
-              hash,
-              url: `https://resources.download.minecraft.net/${prefix}/${hash}`,
-              dest
-            })
-          }
+        const missing: Array<{ hash: string }> = []
+        for (const key of Object.keys(objects)) {
+          const hash = objects[key].hash
+          const dest = path.join(objectsDir, hash.slice(0, 2), hash)
+          if (!fs.existsSync(dest)) missing.push({ hash })
         }
 
-        if (missingObjects.length > 0) {
+        if (missing.length > 0) {
           onProgress({
             instanceId: config.instanceId,
             stage: 'downloading',
-            statusText: `Загрузка ресурсов (${missingObjects.length} файлов)...`,
-            progress: 30
+            statusText: `Загрузка ресурсов (0/${missing.length})...`,
+            progress: 15
           })
-
-          const batchSize = 75
           let completed = 0
+          const batchSize = 64
+          let windowStarted = Date.now()
+          let windowBytes = 0
 
-          for (let i = 0; i < missingObjects.length; i += batchSize) {
-            const chunk = missingObjects.slice(i, i + batchSize)
+          for (let i = 0; i < missing.length; i += batchSize) {
+            const chunk = missing.slice(i, i + batchSize)
             await Promise.all(
-              chunk.map(item => downloadFile(item.url, item.dest).catch(() => {}))
+              chunk.map(item => downloadFile(
+                `https://resources.download.minecraft.net/${item.hash.slice(0, 2)}/${item.hash}`,
+                path.join(objectsDir, item.hash.slice(0, 2), item.hash),
+                (b) => { windowBytes += b }
+              ).catch(() => {}))
             )
             completed += chunk.length
-            const pct = Math.round(30 + (completed / missingObjects.length) * 15)
-            onProgress({
-              instanceId: config.instanceId,
-              stage: 'downloading',
-              statusText: `Загрузка ресурсов (${completed}/${missingObjects.length})...`,
-              progress: pct
-            })
+
+            const now = Date.now()
+            if (now - windowStarted > 1500) {
+              const speed = windowBytes / Math.max(1, (now - windowStarted) / 1000)
+              onProgress({
+                instanceId: config.instanceId,
+                stage: 'downloading',
+                statusText: `Загрузка ресурсов (${completed}/${missing.length}) — ${(speed / 1024 / 1024).toFixed(1)} МБ/с`,
+                progress: 15 + (completed / missing.length) * 25
+              })
+              windowStarted = now
+              windowBytes = 0
+            }
           }
         }
       } catch (e: any) {
-        onLog({ timestamp: Date.now(), type: 'warn', message: `Ошибка ресурсов: ${e.message}` })
+        onLog({ timestamp: Date.now(), type: 'warn', message: `Ресурсы: ${e.message}` })
       }
     }
 
-    // Download client JAR
+    // 4. Client JAR
     const clientJarPath = path.join(versionsDir, config.version, `${config.version}.jar`)
     if (!fs.existsSync(clientJarPath) && versionData.downloads?.client?.url) {
-      onProgress({
-        instanceId: config.instanceId,
-        stage: 'downloading',
-        statusText: 'Загрузка Minecraft client.jar...',
-        progress: 50
-      })
-      await downloadFile(versionData.downloads.client.url, clientJarPath)
+      const onBytes = (b: number) => {
+        lastLaunchBytes += b
+        const now = Date.now()
+        if (now - lastLaunchAt > 500) {
+          const speed = lastLaunchBytes / Math.max(1, (now - lastLaunchAt) / 1000)
+          lastLaunchAt = now
+          lastLaunchBytes = 0
+          onProgress({
+            instanceId: config.instanceId,
+            stage: 'downloading',
+            statusText: `Загрузка Minecraft ${config.version}.jar — ${(speed / 1024 / 1024).toFixed(1)} МБ/с`,
+            progress: 45
+          })
+        }
+      }
+      onProgress({ instanceId: config.instanceId, stage: 'downloading', statusText: `Загрузка Minecraft ${config.version}.jar...`, progress: 42 })
+      await downloadFile(versionData.downloads.client.url, clientJarPath, onBytes)
     }
 
-    // Download & Extract Libraries & Native DLLs
-    onProgress({
-      instanceId: config.instanceId,
-      stage: 'downloading',
-      statusText: 'Загрузка и распаковка библиотек...',
-      progress: 60
-    })
+    // 5. Libraries
+    onProgress({ instanceId: config.instanceId, stage: 'downloading', statusText: 'Загрузка библиотек...', progress: 50 })
 
     const cpList: string[] = []
     const libraries = versionData.libraries || []
+    let lastSpeedUpdate = 0
+    let libBytes = 0
+    let libDone = 0
 
     for (const lib of libraries) {
       if (!isLibraryAllowed(lib.rules)) continue
@@ -579,31 +541,33 @@ export async function launchMinecraft(
         const libFullPath = path.join(librariesDir, libRelPath)
         if (!fs.existsSync(libFullPath)) {
           try {
-            await downloadFile(lib.downloads.artifact.url, libFullPath)
+            await downloadFile(lib.downloads.artifact.url, libFullPath, (b) => { libBytes += b })
           } catch {}
         }
         if (fs.existsSync(libFullPath)) {
           cpList.push(libFullPath)
           if (libRelPath.includes('natives') || lib.name.includes('natives')) {
-             await extractNativeDlls(libFullPath, nativesDir)
+            await extractNativeDlls(libFullPath, nativesDir)
           }
         }
       }
 
       if (lib.downloads?.classifiers) {
         const classifiers = lib.downloads.classifiers
-        const winNative = classifiers['natives-windows'] || classifiers['natives-windows-64'] || classifiers['natives-windows-x86']
-        if (winNative) {
-          const nativeRelPath = winNative.path
+        const wantedNative = process.platform === 'win32'
+          ? (classifiers['natives-windows'] || classifiers['natives-windows-64'] || classifiers['natives-windows-x86'])
+          : process.platform === 'darwin'
+            ? classifiers['natives-osx'] || classifiers['natives-macos']
+            : classifiers['natives-linux']
+        if (wantedNative) {
+          const nativeRelPath = wantedNative.path
           const nativeFullPath = path.join(librariesDir, nativeRelPath)
           if (!fs.existsSync(nativeFullPath)) {
             try {
-              await downloadFile(winNative.url, nativeFullPath)
+              await downloadFile(wantedNative.url, nativeFullPath, (b) => { libBytes += b })
             } catch {}
           }
-          if (fs.existsSync(nativeFullPath)) {
-             await extractNativeDlls(nativeFullPath, nativesDir)
-          }
+          if (fs.existsSync(nativeFullPath)) await extractNativeDlls(nativeFullPath, nativesDir)
         }
       }
 
@@ -617,36 +581,45 @@ export async function launchMinecraft(
         const url = lib.url ? `${lib.url}${relPath}` : `https://libraries.minecraft.net/${relPath}`
         if (!fs.existsSync(libFullPath)) {
           try {
-            await downloadFile(url, libFullPath)
+            await downloadFile(url, libFullPath, (b) => { libBytes += b })
           } catch {}
         }
         if (fs.existsSync(libFullPath)) {
           cpList.push(libFullPath)
-          if (lib.name.includes('natives')) {
-             await extractNativeDlls(libFullPath, nativesDir)
-          }
+          if (lib.name.includes('natives')) await extractNativeDlls(libFullPath, nativesDir)
         }
+      }
+
+      libDone++
+      const now = Date.now()
+      if (now - lastSpeedUpdate > 800 && libBytes > 0) {
+        const speed = libBytes / Math.max(1, (now - lastSpeedUpdate) / 1000)
+        onProgress({
+          instanceId: config.instanceId,
+          stage: 'downloading',
+          statusText: `Библиотеки ${libDone}/${libraries.length} — ${(speed / 1024 / 1024).toFixed(1)} МБ/с`,
+          progress: 50 + (libDone / libraries.length) * 15
+        })
+        lastSpeedUpdate = now
+        libBytes = 0
       }
     }
     cpList.push(clientJarPath)
 
-    // Handle Loader Profile (Fabric / Forge)
+    // 6. Loader (Fabric / Quilt)
     let mainClass = versionData.mainClass || 'net.minecraft.client.main.Main'
+    let loaderArgs: string[] = []
+
     if (config.loader === 'fabric') {
-      onProgress({
-        instanceId: config.instanceId,
-        stage: 'downloading',
-        statusText: 'Настройка Fabric...',
-        progress: 75
-      })
+      onProgress({ instanceId: config.instanceId, stage: 'downloading', statusText: 'Установка Fabric...', progress: 72 })
       try {
         const fabricMeta = await fetchJson<any[]>(`https://meta.fabricmc.net/v2/versions/loader/${config.version}`)
-        if (fabricMeta && fabricMeta.length > 0) {
+        if (fabricMeta?.length) {
           const loaderVer = fabricMeta[0].loader.version
-          const fabricProfile = await fetchJson<any>(`https://meta.fabricmc.net/v2/versions/loader/${config.version}/${loaderVer}/profile/json`)
-          if (fabricProfile.mainClass) {
-            mainClass = fabricProfile.mainClass
-          }
+          const fabricProfile = await fetchJson<any>(
+            `https://meta.fabricmc.net/v2/versions/loader/${config.version}/${loaderVer}/profile/json`
+          )
+          if (fabricProfile.mainClass) mainClass = fabricProfile.mainClass
           if (fabricProfile.libraries) {
             for (const fLib of fabricProfile.libraries) {
               const parts = fLib.name.split(':')
@@ -657,112 +630,133 @@ export async function launchMinecraft(
               const fLibPath = path.join(librariesDir, relPath)
               const url = fLib.url ? `${fLib.url}${relPath}` : `https://maven.fabricmc.net/${relPath}`
               if (!fs.existsSync(fLibPath)) {
-                try {
-                  await downloadFile(url, fLibPath)
-                } catch {
-                  // ignore
-                }
+                try { await downloadFile(url, fLibPath) } catch {}
               }
-              if (fs.existsSync(fLibPath)) {
-                cpList.unshift(fLibPath)
-              }
+              if (fs.existsSync(fLibPath)) cpList.unshift(fLibPath)
             }
           }
         }
       } catch (err: any) {
-        onLog({ timestamp: Date.now(), type: 'warn', message: `Fabric метаданные: ${err.message}` })
+        throw new Error(`Ошибка загрузки Fabric: ${err.message}`)
       }
     }
 
-    onProgress({
-      instanceId: config.instanceId,
-      stage: 'launching',
-      statusText: 'Запуск Minecraft...',
-      progress: 90
-    })
+    if (config.loader === 'quilt') {
+      onProgress({ instanceId: config.instanceId, stage: 'downloading', statusText: 'Установка Quilt...', progress: 72 })
+      try {
+        const quiltMeta = await fetchJson<any[]>(`https://meta.quiltmc.org/v3/versions/loader/${config.version}`)
+        if (quiltMeta?.length) {
+          const loaderVer = quiltMeta[0].loader.version
+          const quiltProfile = await fetchJson<any>(
+            `https://meta.quiltmc.org/v3/versions/loader/${config.version}/${loaderVer}/profile/json`
+          )
+          if (quiltProfile.mainClass) mainClass = quiltProfile.mainClass
+          if (quiltProfile.libraries) {
+            for (const qLib of quiltProfile.libraries) {
+              const parts = qLib.name.split(':')
+              const domain = parts[0].replace(/\./g, '/')
+              const name = parts[1]
+              const ver = parts[2]
+              const relPath = `${domain}/${name}/${ver}/${name}-${ver}.jar`
+              const qLibPath = path.join(librariesDir, relPath)
+              const url = qLib.url ? `${qLib.url}${relPath}` : `https://maven.quiltmc.org/repository/release/${relPath}`
+              if (!fs.existsSync(qLibPath)) {
+                try { await downloadFile(url, qLibPath) } catch {}
+              }
+              if (fs.existsSync(qLibPath)) cpList.unshift(qLibPath)
+            }
+          }
+        }
+      } catch (err: any) {
+        throw new Error(`Ошибка загрузки Quilt: ${err.message}`)
+      }
+    }
+
+    // 7. Build JVM args
+    onProgress({ instanceId: config.instanceId, stage: 'launching', statusText: 'Запуск игры...', progress: 92 })
 
     const classpath = cpList.join(path.delimiter)
     const args: string[] = []
 
-    // Memory & JVM Flags
     args.push(`-Xms${config.memoryMin || 1024}M`)
     args.push(`-Xmx${config.memoryMax || 4096}M`)
-    args.push(`-Djava.library.path=${nativesDir}`)
+    if (!config.customJvmArgs?.includes('-Djava.library.path')) {
+      args.push(`-Djava.library.path=${nativesDir}`)
+    }
 
-    // Disable SocialInteractions blocklist check to unlock Multiplayer 100%
-    args.push('-Dminecraft.api.auth.host=http://127.0.0.1')
-    args.push('-Dminecraft.api.account.host=http://127.0.0.1')
-    args.push('-Dminecraft.api.session.host=http://127.0.0.1')
-    args.push('-Dminecraft.api.services.host=http://127.0.0.1')
-
-    // High-Performance G1GC JVM Flags
-    args.push('-XX:+UseG1GC', '-XX:+UnlockExperimentalVMOptions', '-XX:G1NewSizePercent=20', '-XX:G1ReservePercent=20', '-XX:MaxGCPauseMillis=50', '-XX:G1HeapRegionSize=32M')
+    args.push(
+      '-XX:+UseG1GC',
+      '-XX:+UnlockExperimentalVMOptions',
+      '-XX:G1NewSizePercent=20',
+      '-XX:G1ReservePercent=20',
+      '-XX:MaxGCPauseMillis=50',
+      '-XX:G1HeapRegionSize=32M'
+    )
 
     if (config.customJvmArgs) {
       args.push(...config.customJvmArgs.split(' ').filter(Boolean))
     }
 
-    args.push('-cp', classpath)
-    args.push(mainClass)
+    loaderArgs.push('-cp', classpath, mainClass)
+    args.push(...loaderArgs)
 
-    // Minecraft Game Arguments - Formatted for Offline Multiplayer Support
+    // 8. Game args
     const userUuid = (config.uuid || generateOfflineUUID(config.username || 'Player')).replace(/-/g, '')
 
     if (versionData.minecraftArguments && typeof versionData.minecraftArguments === 'string') {
-      const templateArgs = versionData.minecraftArguments.split(' ')
-      for (const tArg of templateArgs) {
-        let resolved = tArg
-          .replace('${auth_player_name}', config.username || 'Player')
-          .replace('${version_name}', config.version)
-          .replace('${game_directory}', instanceDir)
-          .replace('${assets_root}', assetsDir)
-          .replace('${assets_index_name}', versionData.assetIndex?.id || config.version)
-          .replace('${auth_uuid}', userUuid)
-          .replace('${auth_access_token}', '0')
-          .replace('${user_type}', 'mojang')
-          .replace('${version_type}', 'release')
-        args.push(resolved)
+      for (const tArg of versionData.minecraftArguments.split(' ')) {
+        args.push(
+          tArg
+            .replace('${auth_player_name}', config.username || 'Player')
+            .replace('${version_name}', `${config.version}-${config.loader}`)
+            .replace('${game_directory}', instanceDir)
+            .replace('${assets_root}', assetsDir)
+            .replace('${assets_index_name}', versionData.assetIndex?.id || config.version)
+            .replace('${auth_uuid}', userUuid)
+            .replace('${auth_access_token}', '0')
+            .replace('${user_type}', 'mojang')
+            .replace('${version_type}', config.loader === 'vanilla' ? 'release' : 'release/mod')
+        )
       }
     } else {
-      args.push('--username', config.username || 'Player')
-      args.push('--version', config.version)
-      args.push('--gameDir', instanceDir)
-      args.push('--assetsDir', assetsDir)
-      args.push('--assetIndex', versionData.assetIndex?.id || config.version)
-      args.push('--uuid', userUuid)
-      args.push('--accessToken', '0')
-      args.push('--userType', 'mojang')
-      args.push('--versionType', 'release')
+      args.push(
+        '--username', config.username || 'Player',
+        '--version', `${config.version}-${config.loader}`,
+        '--gameDir', instanceDir,
+        '--assetsDir', assetsDir,
+        '--assetIndex', versionData.assetIndex?.id || config.version,
+        '--uuid', userUuid,
+        '--accessToken', '0',
+        '--userType', 'mojang',
+        '--versionType', 'release'
+      )
     }
 
-    // Always launch in fullscreen
-    if (!args.includes('--fullscreen')) {
-      args.push('--fullscreen')
-    }
+    if (config.fullscreen && !args.includes('--fullscreen')) args.push('--fullscreen')
 
     if (config.customGameArgs) {
       args.push(...config.customGameArgs.split(' ').filter(Boolean))
     }
 
-    onLog({
-      timestamp: Date.now(),
-      type: 'info',
-      message: `Команда запуска: "${javaBin}" ${args.join(' ')}`
-    })
+    onLog({ timestamp: Date.now(), type: 'info', message: `Запуск: "${javaBin}" ${args.slice(0, 8).join(' ')} ... [обрезано]` })
 
     const child: any = spawn(javaBin || 'javaw', args, {
       cwd: instanceDir,
-      detached: true
+      detached: !config.hideLauncher
     })
 
     activeProcesses.set(config.instanceId, child)
 
     child.stdout.on('data', (data: any) => {
-      onLog({ timestamp: Date.now(), type: 'info', message: data.toString() })
+      for (const line of data.toString().split('\n')) {
+        if (line.trim()) onLog({ timestamp: Date.now(), type: 'info', message: line })
+      }
     })
 
     child.stderr.on('data', (data: any) => {
-      onLog({ timestamp: Date.now(), type: 'warn', message: data.toString() })
+      for (const line of data.toString().split('\n')) {
+        if (line.trim()) onLog({ timestamp: Date.now(), type: 'warn', message: line })
+      }
     })
 
     child.on('error', (err: any) => {
@@ -770,7 +764,7 @@ export async function launchMinecraft(
       onProgress({
         instanceId: config.instanceId,
         stage: 'error',
-        statusText: `Ошибка процесса: ${err.message}`,
+        statusText: `Ошибка запуска: ${err.message}`,
         progress: 0,
         error: err.message
       })
@@ -779,21 +773,22 @@ export async function launchMinecraft(
 
     child.on('exit', (code: any) => {
       activeProcesses.delete(config.instanceId)
-      onProgress({
-        instanceId: config.instanceId,
-        stage: 'idle',
-        statusText: `Игра завершена (код ${code})`,
-        progress: 0
-      })
-      onLog({ timestamp: Date.now(), type: 'info', message: `Minecraft завершился с кодом ${code}` })
+      if (code === 0) {
+        onProgress({ instanceId: config.instanceId, stage: 'idle', statusText: '', progress: 0 })
+        onLog({ timestamp: Date.now(), type: 'info', message: 'Minecraft завершён.' })
+      } else {
+        onProgress({
+          instanceId: config.instanceId,
+          stage: 'error',
+          statusText: `Игра завершилась с ошибкой (код ${code}). Смотрите логи.`,
+          progress: 0,
+          error: `exit ${code}`
+        })
+        onLog({ timestamp: Date.now(), type: 'error', message: `Minecraft завершился с кодом ${code}` })
+      }
     })
 
-    onProgress({
-      instanceId: config.instanceId,
-      stage: 'running',
-      statusText: 'Игра запущена!',
-      progress: 100
-    })
+    onProgress({ instanceId: config.instanceId, stage: 'running', statusText: 'Игра запущена!', progress: 100 })
 
   } catch (error: any) {
     onProgress({
@@ -810,7 +805,11 @@ export async function launchMinecraft(
 export function stopInstance(instanceId: string): boolean {
   const proc = activeProcesses.get(instanceId)
   if (proc) {
-    proc.kill()
+    try {
+      process.kill(-proc.pid, 'SIGTERM')
+    } catch {
+      proc.kill()
+    }
     activeProcesses.delete(instanceId)
     return true
   }

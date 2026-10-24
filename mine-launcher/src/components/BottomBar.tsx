@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { Instance, LaunchProgress } from '../types'
 
 interface BottomBarProps {
@@ -6,88 +6,112 @@ interface BottomBarProps {
   selectedInstance: Instance | null
   onSelectInstance: (instance: Instance) => void
   onLaunch: () => void
+  onStop: () => void
   launchProgress: LaunchProgress | null
 }
+
+const IconStop = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+    <rect x="6" y="6" width="12" height="12" rx="2" />
+  </svg>
+)
 
 export const BottomBar: React.FC<BottomBarProps> = ({
   instances,
   selectedInstance,
   onSelectInstance,
   onLaunch,
+  onStop,
   launchProgress
 }) => {
   const [dropdownOpen, setDropdownOpen] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
 
-  const isLaunching = launchProgress && (launchProgress.stage === 'downloading' || launchProgress.stage === 'checking' || launchProgress.stage === 'launching')
-  const isRunning = launchProgress?.stage === 'running'
+  useEffect(() => {
+    const onDocClick = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setDropdownOpen(false)
+      }
+    }
+    if (dropdownOpen) {
+      document.addEventListener('mousedown', onDocClick)
+      return () => document.removeEventListener('mousedown', onDocClick)
+    }
+  }, [dropdownOpen])
+
+  const isActiveProgress = (p: LaunchProgress | null) =>
+    p && (p.stage === 'downloading' || p.stage === 'checking' || p.stage === 'launching' || p.stage === 'extracting')
+
+  const isActiveForSelected = isActiveProgress(launchProgress) && launchProgress!.instanceId === selectedInstance?.id
+  const isRunning = launchProgress?.stage === 'running' && launchProgress.instanceId === selectedInstance?.id
 
   const getButtonText = () => {
-    if (isRunning) return 'В игре'
-    if (launchProgress?.stage === 'downloading') {
-      return `Скачивание ${Math.round(launchProgress.progress)}%`
+    if (isActiveForSelected) {
+      return `${launchProgress!.statusText || 'Загрузка...'} ${Math.round(launchProgress!.progress)}%`
     }
-    if (launchProgress?.stage === 'launching') return 'Запуск...'
-    if (launchProgress?.stage === 'checking') return 'Проверка...'
+    if (launchProgress?.stage === 'error' && launchProgress.instanceId === selectedInstance?.id) {
+      return 'Ошибка (см. логи)'
+    }
+    if (isRunning) return 'Игра запущена'
     return 'Играть'
   }
 
   return (
     <div className="bottom-bar">
-      <div className="controls-column">
-        {/* Version Selector Dropdown Pill */}
-        <div
-          className="version-selector-pill"
+      {/* Instance selector */}
+      <div className="launch-instance-selector" ref={menuRef}>
+        <button
+          className={`selector-trigger ${isActiveForSelected ? 'launching' : ''}`}
           onClick={() => setDropdownOpen(!dropdownOpen)}
         >
-          <div className="version-info">
-            {/* Minecraft Grass Block SVG Icon */}
-            <svg className="grass-icon" viewBox="0 0 32 32">
-              <rect x="0" y="0" width="32" height="32" fill="#8B5A2B" rx="4" />
-              <path d="M0 0 H32 V12 H0 Z" fill="#53921b" />
-              <path d="M4 12 V16 H8 V12 Z M12 12 V18 H16 V12 Z M20 12 V15 H24 V12 Z M26 12 V17 H30 V12 Z" fill="#437715" />
-            </svg>
-
-            <span className="version-text">
-              {selectedInstance ? selectedInstance.name : 'Версия'}
-            </span>
+          <div>
+            <div className="selector-title">{selectedInstance?.name || 'Нет сборки'}</div>
+            <div className="selector-sub">
+              {selectedInstance ? `Minecraft ${selectedInstance.version} · ${selectedInstance.loader}` : 'Создайте сборку'}
+            </div>
           </div>
-
-          <span className={`dropdown-arrow ${dropdownOpen ? 'open' : ''}`}>▼</span>
+          <span className={`selector-arrow ${dropdownOpen ? 'open' : ''}`}>▼</span>
 
           {dropdownOpen && (
-            <div className="version-menu-popup" onClick={(e) => e.stopPropagation()}>
+            <div className="selector-menu" onClick={(e) => e.stopPropagation()}>
               {instances.map((inst) => (
                 <div
                   key={inst.id}
-                  className={`version-menu-item ${selectedInstance?.id === inst.id ? 'active' : ''}`}
+                  className={`selector-item ${selectedInstance?.id === inst.id ? 'active' : ''}`}
                   onClick={() => {
                     onSelectInstance(inst)
                     setDropdownOpen(false)
                   }}
                 >
-                  <span>{inst.name}</span>
-                  <small style={{ color: '#999' }}>{inst.version} ({inst.loader})</small>
+                  <span className="selector-item-name">{inst.name}</span>
+                  <span className="selector-item-meta">{inst.version}</span>
                 </div>
               ))}
             </div>
           )}
-        </div>
-
-        {/* Green "Играть" Button matching Group.svg */}
-        <button
-          className={`play-button ${isLaunching ? 'launching' : ''}`}
-          onClick={onLaunch}
-          disabled={isLaunching || isRunning}
-        >
-          {isLaunching && (
-            <div
-              className="launch-progress-fill"
-              style={{ width: `${launchProgress.progress || 0}%` }}
-            />
-          )}
-          <span className="play-button-text">{getButtonText()}</span>
         </button>
       </div>
+
+      {/* Launch button */}
+      <button
+        className={`play-button ${isActiveForSelected ? 'launching' : ''}`}
+        onClick={onLaunch}
+        disabled={isActiveForSelected || isRunning || !selectedInstance}
+        title={isRunning ? 'Игра уже запущена' : isActiveForSelected ? 'Загрузка' : 'Запустить Minecraft'}
+      >
+        {isActiveForSelected && <div className="play-progress-fill" style={{ width: `${launchProgress!.progress || 0}%` }} />}
+        <span className="play-button-text">{getButtonText()}</span>
+      </button>
+
+      {/* Stop button */}
+      <button
+        className="btn btn-danger"
+        onClick={onStop}
+        disabled={!isRunning && !isActiveForSelected}
+        title="Принудительно остановить игру"
+      >
+        <IconStop /> Остановить
+      </button>
     </div>
   )
 }

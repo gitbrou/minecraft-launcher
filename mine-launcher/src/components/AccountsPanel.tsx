@@ -1,16 +1,16 @@
-import React, { useState, useRef } from 'react'
+import React, { useState } from 'react'
 import { Account } from '../types'
 
 interface AccountsPanelProps {
   accounts: Account[]
   onSelectAccount: (id: string) => void
-  onAddAccount: (username: string) => void
+  onAddAccount: (username: string) => Promise<void>
   onDeleteAccount: (id: string) => void
 }
 
-const IconDeletePixel = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-    <path d="M6 7h2v2H6zm14 0h2v10h-2zM8 5h12v2H8zM4 9h2v2H4zm-2 2h2v2H2zm2 2h2v2H4zm2 2h2v2H6zm2 2h12v2H8zm6-6h2v2h-2zm2 2h2v2h-2zm0-4h2v2h-2zm-4 4h2v2h-2zm0-4h2v2h-2z" />
+const IconTrash = () => (
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M4 6h16M6 6v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V6M9 3h6v3H9z" />
   </svg>
 )
 
@@ -20,51 +20,34 @@ export const AccountsPanel: React.FC<AccountsPanelProps> = ({
   onAddAccount,
   onDeleteAccount
 }) => {
-  const [isAddingInline, setIsAddingInline] = useState(false)
-  const [inlineInputText, setInlineInputText] = useState('')
-  const inputRef = useRef<HTMLInputElement>(null)
+  const [isAdding, setIsAdding] = useState(false)
+  const [input, setInput] = useState('')
+  const [inputError, setInputError] = useState('')
 
-  // Minecraft Username Auto-Formatting: Capitalize 1st letter + Alphanumeric_
   const formatNickname = (val: string): string => {
     const cleaned = val.replace(/[^a-zA-Z0-9_]/g, '')
-    if (!cleaned) return ''
-    return cleaned.charAt(0).toUpperCase() + cleaned.slice(1)
+    return cleaned ? cleaned.charAt(0).toUpperCase() + cleaned.slice(1) : ''
   }
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setInlineInputText(formatNickname(e.target.value))
-  }
-
-  const commitInlineAccount = async () => {
-    const trimmed = inlineInputText.trim()
-    if (trimmed.length >= 2) {
-      const existing = accounts.find(a => a.username.toLowerCase() === trimmed.toLowerCase())
-      if (existing) {
-        onSelectAccount(existing.id)
-      } else {
-        try {
-          await onAddAccount(trimmed)
-        } catch {
-          // ignore duplicate catch
-        }
-      }
+  const commit = async () => {
+    const trimmed = input.trim()
+    if (trimmed.length < 3) {
+      setInputError('Минимум 3 символа')
+      return
     }
-    setInlineInputText('')
-    setIsAddingInline(false)
-  }
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      commitInlineAccount()
-    } else if (e.key === 'Escape') {
-      setInlineInputText('')
-      setIsAddingInline(false)
+    setInputError('')
+    try {
+      await onAddAccount(trimmed)
+      setInput('')
+      setIsAdding(false)
+    } catch (err: any) {
+      setInputError(err?.message || 'Ошибка')
     }
   }
 
   return (
-    <aside className="accounts-panel">
-      <h2 className="accounts-header">Аккаунты</h2>
+    <aside className="sidebar">
+      <div className="sidebar-header">Аккаунты</div>
 
       <div className="accounts-list">
         {accounts.map((acc) => (
@@ -73,66 +56,56 @@ export const AccountsPanel: React.FC<AccountsPanelProps> = ({
             className={`account-item ${acc.isActive ? 'active' : ''}`}
             onClick={() => onSelectAccount(acc.id)}
           >
-            <div className="radio-circle">
-              <div className="radio-circle-inner" />
-            </div>
+            <img
+              className="account-avatar"
+              src={`https://mc-heads.net/avatar/${acc.username}/32`}
+              alt={acc.username}
+              onError={(e) => { (e.target as HTMLImageElement).style.visibility = 'hidden' }}
+            />
             <span className="account-name">{acc.username}</span>
-
-            {accounts.length > 1 && (
-              <button
-                className="account-delete-btn"
-                title="Удалить ник"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onDeleteAccount(acc.id)
-                }}
-              >
-                <IconDeletePixel />
-              </button>
-            )}
+            <button
+              className="account-delete"
+              title="Удалить аккаунт"
+              onClick={(e) => {
+                e.stopPropagation()
+                onDeleteAccount(acc.id)
+              }}
+            >
+              <IconTrash />
+            </button>
           </div>
         ))}
 
-        {/* Inline input for adding nickname directly without popup modal */}
-        {isAddingInline && (
-          <div className="account-item active" style={{ padding: '6px 10px' }}>
-            <div className="radio-circle">
-              <div className="radio-circle-inner" />
-            </div>
+        {isAdding && (
+          <div style={{ padding: '6px' }}>
             <input
-              ref={inputRef}
-              type="text"
+              className="account-input"
               autoFocus
               placeholder="Никнейм..."
-              value={inlineInputText}
-              onChange={handleInputChange}
-              onKeyDown={handleKeyDown}
-              onBlur={commitInlineAccount}
-              style={{
-                background: 'transparent',
-                border: 'none',
-                outline: 'none',
-                color: '#ffffff',
-                fontSize: '18px',
-                fontFamily: 'inherit',
-                width: '100%'
+              value={input}
+              maxLength={16}
+              onChange={(e) => setInput(formatNickname(e.target.value))}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') commit()
+                if (e.key === 'Escape') { setIsAdding(false); setInput('') }
               }}
             />
+            {inputError && <div className="form-error" style={{ marginTop: '4px' }}>{inputError}</div>}
           </div>
         )}
       </div>
 
-      {!isAddingInline && (
-        <button
-          className="add-account-btn"
-          onClick={() => {
-            setIsAddingInline(true)
-            setInlineInputText('')
-          }}
-        >
-          <span>+ Добавить ник</span>
-        </button>
-      )}
+      <div className="sidebar-footer">
+        {isAdding ? (
+          <button className="btn" style={{ width: '100%' }} onClick={commit}>
+            Добавить
+          </button>
+        ) : (
+          <button className="btn-add-account" onClick={() => setIsAdding(true)}>
+            + Добавить аккаунт
+          </button>
+        )}
+      </div>
     </aside>
   )
 }

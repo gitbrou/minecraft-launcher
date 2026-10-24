@@ -2,34 +2,30 @@ export interface Account {
   id: string;
   username: string;
   uuid: string;
-  type: 'offline' | 'microsoft';
+  type: 'offline';
   isActive: boolean;
-  skinUrl?: string;
   createdAt: number;
 }
 
-export type LoaderType = 'vanilla' | 'fabric' | 'forge' | 'quilt';
+export type LoaderType = 'vanilla' | 'fabric' | 'quilt';
 
 export interface Instance {
   id: string;
   name: string;
   version: string;
   loader: LoaderType;
-  loaderVersion?: string;
   icon?: string;
   created: number;
   lastPlayed?: number;
-  memoryMin?: number; // in MB
-  memoryMax?: number; // in MB
+  lastPlayedSeconds?: number;
+  memoryMin?: number; // MB
+  memoryMax?: number; // MB
   javaPath?: string;
-  jvmArgs?: string;
 }
 
 export interface MinecraftVersion {
   id: string;
   type: 'release' | 'snapshot' | 'old_beta' | 'old_alpha';
-  url: string;
-  time: string;
   releaseTime: string;
 }
 
@@ -39,7 +35,6 @@ export interface ModItem {
   name: string;
   enabled: boolean;
   size: number;
-  iconUrl?: string;
 }
 
 export interface LauncherSettings {
@@ -48,23 +43,18 @@ export interface LauncherSettings {
   memoryMax: number;
   customJvmArgs: string;
   closeLauncherOnGameStart: boolean;
-  gameDir: string;
-  useProxy?: boolean;
-  proxyType?: 'http' | 'socks5';
-  proxyHost?: string;
-  proxyPort?: number;
-  launcherFont?: string;
+  fullscreen: boolean;
+  hideLauncher: boolean;
   selectedInstanceId?: string;
-  customGameArgs?: string;
 }
 
 export interface LaunchProgress {
   instanceId: string;
   stage: 'idle' | 'checking' | 'downloading' | 'extracting' | 'launching' | 'running' | 'error';
   statusText: string;
-  progress: number; // 0 to 100
-  downloadedFiles?: number;
-  totalFiles?: number;
+  progress: number; // 0-100
+  downloadedMb?: string;
+  totalMb?: string;
   speed?: string;
   error?: string;
 }
@@ -73,4 +63,21 @@ export interface GameLog {
   timestamp: number;
   type: 'info' | 'warn' | 'error';
   message: string;
+}
+
+export interface ProfileWorld {
+  instanceId: string;
+  instanceName: string;
+  worldName: string;
+  lastPlayed: number;
+}
+
+export interface ProfileStats {
+  username: string;
+  uuid: string;
+  worldsCount: number;
+  worlds: ProfileWorld[];
+  instancesCount: number;
+  modsCount: number;
+  lastPlayedFormatted: string;
 }

@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react'
 import { Account, Instance, LaunchProgress, GameLog, LauncherSettings } from './types'
 import { TitleBar } from './components/TitleBar'
 import { AccountsPanel } from './components/AccountsPanel'
-import { BottomBar } from './components/BottomBar'
 import { InstanceManager } from './components/InstanceManager'
+import { BottomBar } from './components/BottomBar'
 import { SettingsModal } from './components/SettingsModal'
 import { ModDownloaderModal } from './components/ModDownloaderModal'
 
@@ -15,38 +15,33 @@ export function App() {
   const [logs, setLogs] = useState<GameLog[]>([])
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const [isModDownloaderOpen, setIsModDownloaderOpen] = useState(false)
+  const [isBooted, setIsBooted] = useState(false)
 
-  // Load initial data from Main Process via IPC
   useEffect(() => {
-    if (window.electronAPI) {
-      window.electronAPI.getAccounts().then((accs) => {
-        setAccounts(accs)
-      })
+    if (!window.electronAPI) return
 
-      Promise.all([
-        window.electronAPI.getInstances(),
-        window.electronAPI.getSettings()
-      ]).then(([insts, stg]) => {
-        setInstances(insts)
-        if (insts.length > 0) {
-          const savedInst = stg?.selectedInstanceId ? insts.find((i: Instance) => i.id === stg.selectedInstanceId) : null
-          setSelectedInstance(savedInst || insts[0])
-        }
-      })
-
-      // Subscribe to real-time progress & logs from main process
-      const unsubscribeProgress = window.electronAPI.onLaunchProgress((data) => {
-        setLaunchProgress(data)
-      })
-
-      const unsubscribeLogs = window.electronAPI.onGameLog((data) => {
-        setLogs((prev) => [...prev.slice(-200), data])
-      })
-
-      return () => {
-        unsubscribeProgress()
-        unsubscribeLogs()
+    Promise.all([
+      window.electronAPI.getAccounts(),
+      window.electronAPI.getInstances(),
+      window.electronAPI.getSettings()
+    ]).then(([accs, insts, stg]) => {
+      setAccounts(accs)
+      setInstances(insts)
+      if (insts.length > 0) {
+        const saved = stg?.selectedInstanceId ? insts.find((i: Instance) => i.id === stg.selectedInstanceId) : null
+        setSelectedInstance(saved || insts[0])
       }
+      setIsBooted(true)
+    }).catch(() => setIsBooted(true))
+
+    const unsubscribeProgress = window.electronAPI.onLaunchProgress((data: LaunchProgress) => setLaunchProgress(data))
+    const unsubscribeLogs = window.electronAPI.onGameLog((data: GameLog) => {
+      setLogs((prev) => [...prev.slice(-300), data])
+    })
+
+    return () => {
+      unsubscribeProgress()
+      unsubscribeLogs()
     }
   }, [])
 
@@ -57,7 +52,7 @@ export function App() {
     }
   }
 
-  // Accounts Handlers
+  // Accounts
   const handleSelectAccount = (id: string) => {
     if (window.electronAPI) {
       window.electronAPI.setActiveAccount(id).then(setAccounts)
@@ -66,8 +61,11 @@ export function App() {
 
   const handleAddAccount = (username: string) => {
     if (window.electronAPI) {
-      window.electronAPI.addAccount(username).then(setAccounts)
+      return window.electronAPI.addAccount(username).then((next: Account[]) => {
+        setAccounts(next)
+      })
     }
+    return Promise.reject(new Error('electronAPI недоступен'))
   }
 
   const handleDeleteAccount = (id: string) => {
@@ -76,20 +74,30 @@ export function App() {
     }
   }
 
-  // Instance Handlers
-  const handleCreateInstance = (data: { name: string; version: string; loader: 'vanilla' | 'fabric' | 'forge' | 'quilt' }) => {
+  // Instances
+  const handleCreateInstance = (data: { name: string; version: string; loader: 'vanilla' | 'fabric' | 'quilt' }) => {
     if (window.electronAPI) {
-      window.electronAPI.createInstance(data).then((newInstances) => {
-        setInstances(newInstances)
-        const newlyCreated = newInstances.find((i: Instance) => i.name === data.name) || newInstances[newInstances.length - 1]
-        if (newlyCreated) setSelectedInstance(newlyCreated)
+      return window.electronAPI.createInstance(data).then((next: Instance[]) => {
+        setInstances(next)
+        const created = next.find((i) => i.name === data.name)
+        if (created) handleSelectInstance(created)
+      })
+    }
+    return Promise.reject(new Error('electronAPI недоступен'))
+  }
+
+  const handleRenameInstance = (id: string, name: string) => {
+    if (window.electronAPI) {
+      window.electronAPI.renameInstance({ id, name }).then((next: Instance[]) => {
+        setInstances(next)
+        setSelectedInstance(prev => prev && prev.id === id ? { ...prev, name } : prev)
       })
     }
   }
 
   const handleDeleteInstance = (id: string) => {
     if (window.electronAPI) {
-      window.electronAPI.deleteInstance(id).then((updated) => {
+      window.electronAPI.deleteInstance(id).then((updated: Instance[]) => {
         setInstances(updated)
         if (selectedInstance?.id === id) {
           setSelectedInstance(updated[0] || null)
@@ -98,18 +106,12 @@ export function App() {
     }
   }
 
-  // Launch Handler
+  // Launch
   const handleLaunch = () => {
     if (!selectedInstance) return
     if (window.electronAPI) {
       setLogs([])
-      setLaunchProgress({
-        instanceId: selectedInstance.id,
-        stage: 'checking',
-        statusText: 'Инициализация запуска...',
-        progress: 5
-      })
-      window.electronAPI.launchInstance(selectedInstance.id).catch((err) => {
+      window.electronAPI.launchInstance(selectedInstance.id).catch((err: Error) => {
         setLaunchProgress({
           instanceId: selectedInstance.id,
           stage: 'error',
@@ -121,19 +123,35 @@ export function App() {
     }
   }
 
+  const handleStopGame = () => {
+    if (selectedInstance && window.electronAPI) {
+      window.electronAPI.stopInstance(selectedInstance.id)
+    }
+  }
+
   const handleSaveSettings = (newSettings: Partial<LauncherSettings>) => {
     if (window.electronAPI) {
       window.electronAPI.saveSettings(newSettings)
     }
   }
 
+  if (!isBooted) {
+    return (
+      <>
+        <TitleBar />
+        <div className="boot-splash">
+          <div className="spinner" />
+          <div>Загрузка...</div>
+        </div>
+      </>
+    )
+  }
+
   return (
     <>
-      {/* Clean Custom TitleBar */}
       <TitleBar />
 
-      <div className="app-container">
-        {/* Left Sidebar: Accounts Panel matching Group.svg */}
+      <div className="app-shell">
         <AccountsPanel
           accounts={accounts}
           onSelectAccount={handleSelectAccount}
@@ -141,49 +159,54 @@ export function App() {
           onDeleteAccount={handleDeleteAccount}
         />
 
-        {/* Main Center Area: Instance Manager & Bottom Launch Bar */}
         <main className="main-content">
-          <InstanceManager
-            instances={instances}
-            selectedInstance={selectedInstance}
-            activeUsername={accounts.find((a) => a.isActive)?.username || 'Steve'}
-            onSelectInstance={handleSelectInstance}
-            onCreateInstance={handleCreateInstance}
-            onDeleteInstance={handleDeleteInstance}
-            onOpenSettings={() => setIsSettingsOpen(true)}
-            onOpenModDownloader={() => setIsModDownloaderOpen(true)}
-            logs={logs}
-          />
+          <div className="content-area">
+            <InstanceManager
+              instances={instances}
+              selectedInstance={selectedInstance}
+              activeUsername={accounts.find((a) => a.isActive)?.username || ''}
+              launchProgress={launchProgress}
+              onSelectInstance={handleSelectInstance}
+              onCreateInstance={handleCreateInstance}
+              onRenameInstance={handleRenameInstance}
+              onDeleteInstance={handleDeleteInstance}
+              onOpenSettings={() => setIsSettingsOpen(true)}
+              onOpenModDownloader={() => setIsModDownloaderOpen(true)}
+              logs={logs}
+            />
+          </div>
 
-          {/* Bottom Control Bar: Version Dropdown & Green Play Button */}
           <BottomBar
             instances={instances}
             selectedInstance={selectedInstance}
             onSelectInstance={handleSelectInstance}
             onLaunch={handleLaunch}
+            onStop={handleStopGame}
             launchProgress={launchProgress}
           />
         </main>
+      </div>
 
-        {/* Settings Modal */}
+      {selectedInstance && (
         <SettingsModal
           isOpen={isSettingsOpen}
           onClose={() => setIsSettingsOpen(false)}
           onSave={handleSaveSettings}
         />
+      )}
 
-        {/* Mod Downloader Modal */}
-        {selectedInstance && (
-          <ModDownloaderModal
-            isOpen={isModDownloaderOpen}
-            instanceId={selectedInstance.id}
-            gameVersion={selectedInstance.version}
-            loader={selectedInstance.loader}
-            onClose={() => setIsModDownloaderOpen(false)}
-            onModInstalled={() => {}}
-          />
-        )}
-      </div>
+      {selectedInstance && (
+        <ModDownloaderModal
+          isOpen={isModDownloaderOpen}
+          instanceId={selectedInstance.id}
+          gameVersion={selectedInstance.version}
+          loader={selectedInstance.loader}
+          onClose={() => setIsModDownloaderOpen(false)}
+          onModInstalled={async () => {
+            // refresh mods list is handled inside InstanceManager via tabs; nothing needed here
+          }}
+        />
+      )}
     </>
   )
 }

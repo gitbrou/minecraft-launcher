@@ -1,7 +1,6 @@
 import { app, BrowserWindow, ipcMain, shell, dialog, Menu } from 'electron'
 import { autoUpdater } from 'electron-updater'
 
-// Remove default Electron application menu bar
 Menu.setApplicationMenu(null)
 
 import { fileURLToPath } from 'node:url'
@@ -15,7 +14,8 @@ import {
   detectJavaPaths,
   launchMinecraft,
   stopInstance,
-  generateOfflineUUID
+  generateOfflineUUID,
+  requiredJavaMajor
 } from './launcherEngine'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -23,33 +23,22 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 process.env.APP_ROOT = path.join(__dirname, '..')
 
 export const VITE_DEV_SERVER_URL = process.env['VITE_DEV_SERVER_URL']
-export const MAIN_DIST = path.join(process.env.APP_ROOT, 'dist-electron')
 export const RENDERER_DIST = path.join(process.env.APP_ROOT, 'dist')
 
 process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path.join(process.env.APP_ROOT, 'public') : RENDERER_DIST
 
 let win: BrowserWindow | null = null
 
-// Data persistence paths
 const rootDir = getRootDir()
 const accountsFile = path.join(rootDir, 'accounts.json')
 const instancesFile = path.join(rootDir, 'instances.json')
 const settingsFile = path.join(rootDir, 'settings.json')
 const skinsDir = path.join(rootDir, 'skins')
 
-if (!fs.existsSync(skinsDir)) {
-  fs.mkdirSync(skinsDir, { recursive: true })
-}
-
-// Helper data accessors
 function loadJsonData<T>(filePath: string, fallback: T): T {
   try {
-    if (fs.existsSync(filePath)) {
-      return JSON.parse(fs.readFileSync(filePath, 'utf-8'))
-    }
-  } catch (e) {
-    console.error(`Failed loading ${filePath}:`, e)
-  }
+    if (fs.existsSync(filePath)) return JSON.parse(fs.readFileSync(filePath, 'utf-8'))
+  } catch {}
   return fallback
 }
 
@@ -61,81 +50,36 @@ function saveJsonData<T>(filePath: string, data: T) {
   }
 }
 
-// Initial default data if none exists
-let accounts = loadJsonData(accountsFile, [
-  { id: '1', username: 'Test', uuid: generateOfflineUUID('Test'), type: 'offline', isActive: true, createdAt: Date.now() - 50000 },
-  { id: '2', username: 'Nick 2', uuid: generateOfflineUUID('Nick 2'), type: 'offline', isActive: false, createdAt: Date.now() - 40000 },
-  { id: '3', username: 'Nick 3', uuid: generateOfflineUUID('Nick 3'), type: 'offline', isActive: false, createdAt: Date.now() - 30000 }
-])
+// No fake demo data — user starts clean and everything is created in the UI
+let accounts: any[] = loadJsonData(accountsFile, [])
+let instances: any[] = loadJsonData(instancesFile, [])
 
-let instances = loadJsonData(instancesFile, [
-  {
-    id: 'default-1122',
-    name: '1.12.2',
-    version: '1.12.2',
-    loader: 'vanilla',
-    created: Date.now() - 100000,
-    lastPlayed: Date.now(),
-    memoryMin: 1024,
-    memoryMax: 4096
-  },
-  {
-    id: 'default-1',
-    name: '1.20.4',
-    version: '1.20.4',
-    loader: 'vanilla',
-    created: Date.now() - 90000,
-    memoryMin: 1024,
-    memoryMax: 4096
-  }
-])
-
-let settings: {
-  javaPath: string
-  memoryMin: number
-  memoryMax: number
-  customJvmArgs: string
-  closeLauncherOnGameStart: boolean
-  gameDir: string
-  useProxy?: boolean
-  proxyType?: string
-  proxyHost?: string
-  proxyPort?: number
-  launcherFont?: string
-  selectedInstanceId?: string
-  customGameArgs?: string
-} = loadJsonData(settingsFile, {
+let settings: any = loadJsonData(settingsFile, {
   javaPath: '',
   memoryMin: 1024,
   memoryMax: 4096,
   customJvmArgs: '',
   closeLauncherOnGameStart: false,
-  gameDir: rootDir,
-  useProxy: false,
-  proxyType: 'http',
-  proxyHost: '',
-  proxyPort: 8080,
-  launcherFont: 'system-ui'
+  fullscreen: false,
+  hideLauncher: false
 })
 
 function createWindow() {
   win = new BrowserWindow({
-    width: 1050,
-    height: 720,
-    minWidth: 900,
-    minHeight: 650,
+    width: 1100,
+    height: 740,
+    minWidth: 940,
+    minHeight: 660,
     frame: false,
     titleBarStyle: 'hidden',
-    icon: path.join(process.env.VITE_PUBLIC, 'icon.png'),
+    backgroundColor: '#111217',
+    icon: path.join(process.env.VITE_PUBLIC!, 'icon.png'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.mjs'),
       nodeIntegration: false,
-      contextIsolation: true
+      contextIsolation: true,
+      webSecurity: true
     },
-  })
-
-  win.webContents.on('did-finish-load', () => {
-    win?.webContents.send('main-process-message', (new Date).toLocaleString())
   })
 
   if (VITE_DEV_SERVER_URL) {
@@ -146,19 +90,14 @@ function createWindow() {
 }
 
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    app.quit()
-    win = null
-  }
+  if (process.platform !== 'darwin') app.quit()
+  win = null
 })
 
 app.on('activate', () => {
-  if (BrowserWindow.getAllWindows().length === 0) {
-    createWindow()
-  }
+  if (BrowserWindow.getAllWindows().length === 0) createWindow()
 })
 
-// Helper to download a URL to a file path
 function downloadUrlToFile(url: string, destPath: string): Promise<void> {
   return new Promise((resolve, reject) => {
     const dir = path.dirname(destPath)
@@ -167,7 +106,7 @@ function downloadUrlToFile(url: string, destPath: string): Promise<void> {
     const file = fs.createWriteStream(destPath)
     const client = url.startsWith('https') ? https : http
 
-    const request = client.get(url, (response) => {
+    const request = client.get(url, { headers: { 'User-Agent': 'MineLauncher/2.0' } }, (response) => {
       if (response.statusCode && response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
         file.close()
         return downloadUrlToFile(response.headers.location, destPath).then(resolve).catch(reject)
@@ -175,14 +114,13 @@ function downloadUrlToFile(url: string, destPath: string): Promise<void> {
       if (response.statusCode !== 200) {
         file.close()
         fs.unlink(destPath, () => {})
-        return reject(new Error(`Failed download ${url}: HTTP ${response.statusCode}`))
+        response.resume()
+        return reject(new Error(`HTTP ${response.statusCode}: ${url}`))
       }
       response.pipe(file)
-      file.on('finish', () => {
-        file.close(() => resolve())
-      })
+      file.on('finish', () => file.close(() => resolve()))
+      file.on('error', reject)
     })
-
     request.on('error', (err) => {
       file.close()
       fs.unlink(destPath, () => {})
@@ -191,66 +129,31 @@ function downloadUrlToFile(url: string, destPath: string): Promise<void> {
   })
 }
 
-function downloadBuffer(url: string): Promise<Buffer> {
-  return new Promise((resolve, reject) => {
-    const client = url.startsWith('https') ? https : http
-    client.get(url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8'
-      }
-    }, (res) => {
-      if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-        return downloadBuffer(res.headers.location).then(resolve).catch(reject)
-      }
-      if (res.statusCode !== 200) {
-        return reject(new Error(`HTTP ${res.statusCode}`))
-      }
-      const chunks: Buffer[] = []
-      res.on('data', (chunk) => chunks.push(chunk))
-      res.on('end', () => resolve(Buffer.concat(chunks)))
-      res.on('error', reject)
-    }).on('error', reject)
-  })
-}
-
-// Setup IPC Listeners
 function setupIpcHandlers() {
-  // Window Controls
-  ipcMain.handle('minimize-window', () => {
-    win?.minimize()
-  })
+  // ── Window controls ───────────────────────────────────────────
+  ipcMain.handle('minimize-window', () => { win?.minimize() })
 
   ipcMain.handle('maximize-window', () => {
     if (!win) return false
-    if (win.isMaximized()) {
-      win.unmaximize()
-      return false
-    } else {
-      win.maximize()
-      return true
-    }
+    if (win.isMaximized()) { win.unmaximize(); return false }
+    win.maximize(); return true
   })
 
-  ipcMain.handle('close-window', () => {
-    win?.close()
-  })
+  ipcMain.handle('close-window', () => { win?.close() })
 
-  ipcMain.handle('is-maximized', () => {
-    return win?.isMaximized() || false
-  })
+  ipcMain.handle('is-maximized', () => win?.isMaximized() || false)
 
-  // Accounts
+  // ── Accounts ─────────────────────────────────────────────────
   ipcMain.handle('get-accounts', () => accounts)
 
   ipcMain.handle('add-account', (_, username: string) => {
     const trimmed = username.trim()
-    if (!trimmed) throw new Error('Имя пользователя не может быть пустым')
+    if (!trimmed) throw new Error('Введите никнейм')
+    if (trimmed.length > 16) throw new Error('Никнейм слишком длинный (максимум 16 символов)')
+    if (!/^[a-zA-Z0-9_]+$/.test(trimmed)) throw new Error('Допустимы только латинские буквы, цифры и знак _')
 
-    // Prevent duplicate nicknames (case-insensitive check)
-    const isDuplicate = accounts.some(a => a.username.toLowerCase() === trimmed.toLowerCase())
-    if (isDuplicate) {
-      throw new Error(`Никнейм "${trimmed}" уже существует!`)
+    if (accounts.some(a => a.username.toLowerCase() === trimmed.toLowerCase())) {
+      throw new Error(`Аккаунт «${ trimmed}» уже добавлен`)
     }
 
     const newAcc = {
@@ -267,30 +170,28 @@ function setupIpcHandlers() {
   })
 
   ipcMain.handle('set-active-account', (_, accountId: string) => {
-    accounts = accounts.map(acc => ({
-      ...acc,
-      isActive: acc.id === accountId
-    }))
+    accounts = accounts.map(acc => ({ ...acc, isActive: acc.id === accountId }))
     saveJsonData(accountsFile, accounts)
     return accounts
   })
 
   ipcMain.handle('delete-account', (_, accountId: string) => {
     accounts = accounts.filter(acc => acc.id !== accountId)
-    if (accounts.length > 0 && !accounts.some(acc => acc.isActive)) {
-      accounts[0].isActive = true
-    }
+    if (accounts.length > 0 && !accounts.some(acc => acc.isActive)) accounts[0].isActive = true
     saveJsonData(accountsFile, accounts)
     return accounts
   })
 
-  // Instances
+  // ── Instances ────────────────────────────────────────────────
   ipcMain.handle('get-instances', () => instances)
 
-  ipcMain.handle('create-instance', (_, data: { name: string; version: string; loader: 'vanilla' | 'fabric' | 'forge' | 'quilt' }) => {
-    const newInst = {
-      id: 'inst-' + Date.now(),
-      name: data.version,
+  ipcMain.handle('create-instance', (_, data: { name: string; version: string; loader: 'vanilla' | 'fabric' | 'quilt' }) => {
+    if (!data.version) throw new Error('Выберите версию Minecraft')
+    if (instances.some(i => i.name === data.name)) throw new Error(`Сборка «${data.name}» уже существует`)
+
+    const newInst: any = {
+      id: 'inst-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+      name: data.name,
       version: data.version,
       loader: data.loader || 'vanilla',
       created: Date.now(),
@@ -300,36 +201,56 @@ function setupIpcHandlers() {
     instances.push(newInst)
     saveJsonData(instancesFile, instances)
 
-    const instDir = path.join(rootDir, 'instances', newInst.id)
-    const modsDir = path.join(instDir, 'mods')
-    if (!fs.existsSync(modsDir)) {
-      fs.mkdirSync(modsDir, { recursive: true })
+    for (const sub of ['mods', 'saves']) {
+      const d = path.join(rootDir, 'instances', newInst.id, sub)
+      if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true })
     }
 
+    return instances
+  })
+
+  ipcMain.handle('rename-instance', (_, { id, name }: { id: string; name: string }) => {
+    const inst = instances.find((i: any) => i.id === id)
+    if (!inst) throw new Error('Сборка не найдена')
+    inst.name = name.trim()
+    saveJsonData(instancesFile, instances)
     return instances
   })
 
   ipcMain.handle('delete-instance', (_, instanceId: string) => {
-    instances = instances.filter(i => i.id !== instanceId)
+    const inst = instances.find((i: any) => i.id === instanceId)
+    instances = instances.filter((i: any) => i.id !== instanceId)
     saveJsonData(instancesFile, instances)
-    const instDir = path.join(rootDir, 'instances', instanceId)
-    if (fs.existsSync(instDir)) {
-      fs.rmSync(instDir, { recursive: true, force: true })
+
+    if (inst && fs.existsSync(path.join(rootDir, 'instances', instanceId))) {
+      if (win) {
+        dialog.showMessageBox(win, {
+          type: 'question',
+          buttons: ['Удалить', 'Отмена'],
+          defaultId: 1,
+          title: 'Удалить сборку?',
+          message: `Удалить сборку «${inst.name}» вместе с мирами, модами и файлами игры?`
+        }).then(({ response }) => {
+          if (response === 0) {
+            fs.rmSync(path.join(rootDir, 'instances', instanceId), { recursive: true, force: true })
+          }
+        })
+      }
     }
+
     return instances
   })
 
-  // Versions
+  // ── Versions ─────────────────────────────────────────────────
   ipcMain.handle('get-versions', async () => {
     try {
       return await getMinecraftVersions()
-    } catch (e: any) {
-      console.error('Failed to get versions:', e)
-      return { latest: { release: '1.20.4', snapshot: '1.20.4' }, versions: [] }
+    } catch {
+      return { latest: { release: '', snapshot: '' }, versions: [] }
     }
   })
 
-  // Settings & Java
+  // ── Settings ─────────────────────────────────────────────────
   ipcMain.handle('get-settings', () => settings)
 
   ipcMain.handle('save-settings', (_, newSettings: any) => {
@@ -338,63 +259,66 @@ function setupIpcHandlers() {
     return settings
   })
 
-  ipcMain.handle('detect-java', async () => {
-    return await detectJavaPaths()
-  })
+  ipcMain.handle('detect-java', async () => detectJavaPaths())
 
-  // Launching
+  ipcMain.handle('get-required-java', (_, version: string) => requiredJavaMajor(version))
+
+  ipcMain.handle('open-launcher-folder', () => shell.openPath(rootDir))
+
+  // ── Launching ────────────────────────────────────────────────
   ipcMain.handle('launch-instance', async (_, instanceId: string) => {
     const inst: any = instances.find((i: any) => i.id === instanceId)
-    if (!inst) throw new Error('Инстанс не найден')
+    if (!inst) throw new Error('Сборка не найдена')
 
     const activeAcc = accounts.find(a => a.isActive) || accounts[0]
-    if (!activeAcc) throw new Error('Добавьте хотя бы один аккаунт!')
+    if (!activeAcc) throw new Error('Сначала добавьте аккаунт на панели слева')
+
+    if (stopInstance(instanceId)) {
+      await new Promise(resolve => setTimeout(resolve, 500))
+    }
 
     inst.lastPlayed = Date.now()
     saveJsonData(instancesFile, instances)
-
-    const javaPathToUse = inst.javaPath || settings.javaPath || (await detectJavaPaths())[0]
-
-    let customArgsCombined = inst.jvmArgs || settings.customJvmArgs || ''
-    if (settings.useProxy && settings.proxyHost && settings.proxyPort) {
-      if (settings.proxyType === 'socks5') {
-        customArgsCombined += ` -DsocksProxyHost=${settings.proxyHost} -DsocksProxyPort=${settings.proxyPort}`
-      } else {
-        customArgsCombined += ` -Dhttp.proxyHost=${settings.proxyHost} -Dhttp.proxyPort=${settings.proxyPort} -Dhttps.proxyHost=${settings.proxyHost} -Dhttps.proxyPort=${settings.proxyPort}`
-      }
-    }
-
-    let customGameArgsCombined = `--fullscreen ${(settings.customGameArgs || '').trim()}`.trim()
 
     launchMinecraft(
       {
         instanceId: inst.id,
         instanceName: inst.name,
         version: inst.version,
-        loader: (inst.loader || 'vanilla') as 'vanilla' | 'fabric' | 'forge' | 'quilt',
+        loader: (inst.loader || 'vanilla') as 'vanilla' | 'fabric' | 'quilt',
         username: activeAcc.username,
         uuid: activeAcc.uuid,
         memoryMin: inst.memoryMin || settings.memoryMin || 1024,
         memoryMax: inst.memoryMax || settings.memoryMax || 4096,
-        javaPath: javaPathToUse,
-        customJvmArgs: customArgsCombined.trim(),
-        customGameArgs: customGameArgsCombined
+        javaPath: inst.javaPath || settings.javaPath || undefined,
+        customJvmArgs: settings.customJvmArgs || '',
+        customGameArgs: '',
+        fullscreen: !!settings.fullscreen,
+        hideLauncher: !!settings.closeLauncherOnGameStart
       },
-      (progressData) => {
-        win?.webContents.send('launch-progress', progressData)
+      (data) => {
+        win?.webContents.send('launch-progress', data)
+        if (data?.stage === 'running' && settings.closeLauncherOnGameStart) {
+          // Hide launcher so it doesn't interfere with gameplay
+          setTimeout(() => {
+            try { win?.hide() } catch {}
+          }, 3000)
+        }
       },
-      (logData) => {
-        win?.webContents.send('game-log', logData)
-      }
+      (logData) => win?.webContents.send('game-log', logData)
     )
+
     return true
   })
 
-  ipcMain.handle('stop-instance', (_, instanceId: string) => {
-    return stopInstance(instanceId)
+  ipcMain.handle('stop-instance', (_, instanceId: string) => stopInstance(instanceId))
+
+  ipcMain.handle('restore-window', () => {
+    win?.show()
+    return true
   })
 
-  // Mods
+  // ── Mods ─────────────────────────────────────────────────────
   ipcMain.handle('open-instance-folder', (_, instanceId: string) => {
     const instDir = path.join(rootDir, 'instances', instanceId)
     if (!fs.existsSync(instDir)) fs.mkdirSync(instDir, { recursive: true })
@@ -406,32 +330,19 @@ function setupIpcHandlers() {
     if (!fs.existsSync(modsDir)) return []
 
     try {
-      const files = fs.readdirSync(modsDir)
-      return files.map(file => {
-        const fullPath = path.join(modsDir, file)
-        const stat = fs.statSync(fullPath)
-        const isEnabled = file.endsWith('.jar')
-        const name = file.replace(/\.jar(\.disabled)?$/, '')
-
-        let iconUrl = ''
-        const lower = name.toLowerCase()
-        if (lower.includes('iris')) iconUrl = 'https://cdn.modrinth.com/data/YL57xq9U/a14589d8164bdf6933bbec92c3008061dfcceecb.png'
-        else if (lower.includes('sodium')) iconUrl = 'https://cdn.modrinth.com/data/AANobbFp/d3f0a5015e1a1415df22fa2ff07b46ff4be9cfd8.png'
-        else if (lower.includes('optifine')) iconUrl = 'https://optifine.net/favicon.ico'
-        else if (lower.includes('fabric')) iconUrl = 'https://cdn.modrinth.com/data/P7Rstage/icon.png'
-        else if (lower.includes('lithium')) iconUrl = 'https://cdn.modrinth.com/data/gv2qrgfy/icon.png'
-        else if (lower.includes('indium')) iconUrl = 'https://cdn.modrinth.com/data/OradFiWy/icon.png'
-        else if (lower.includes('ferrite')) iconUrl = 'https://cdn.modrinth.com/data/u6uhacGG/icon.png'
-
-        return {
-          id: file,
-          filename: file,
-          name,
-          enabled: isEnabled,
-          size: stat.size,
-          iconUrl
-        }
-      })
+      return fs.readdirSync(modsDir)
+        .filter(file => file.endsWith('.jar') || file.endsWith('.jar.disabled'))
+        .map(file => {
+          const fullPath = path.join(modsDir, file)
+          const stat = fs.statSync(fullPath)
+          return {
+            id: file,
+            filename: file,
+            name: file.replace(/\.jar(\.disabled)?$/, ''),
+            enabled: file.endsWith('.jar'),
+            size: stat.size
+          }
+        })
     } catch {
       return []
     }
@@ -442,22 +353,25 @@ function setupIpcHandlers() {
     const oldPath = path.join(modsDir, modFilename)
     if (!fs.existsSync(oldPath)) return false
 
-    let newFilename = modFilename
-    if (modFilename.endsWith('.jar')) {
-      newFilename = modFilename + '.disabled'
-    } else if (modFilename.endsWith('.jar.disabled')) {
-      newFilename = modFilename.replace(/\.disabled$/, '')
-    }
-    const newPath = path.join(modsDir, newFilename)
-    fs.renameSync(oldPath, newPath)
+    const newFilename = modFilename.endsWith('.jar')
+      ? modFilename + '.disabled'
+      : modFilename.replace(/\.disabled$/, '')
+    fs.renameSync(oldPath, path.join(modsDir, newFilename))
+    return true
+  })
+
+  ipcMain.handle('delete-mod', (_, { instanceId, modFilename }: { instanceId: string; modFilename: string }) => {
+    const modsDir = path.join(rootDir, 'instances', instanceId, 'mods')
+    const targetPath = path.join(modsDir, modFilename)
+    if (fs.existsSync(targetPath)) fs.unlinkSync(targetPath)
     return true
   })
 
   ipcMain.handle('download-mod-file', async (_, { instanceId, downloadUrl, filename }: { instanceId: string; downloadUrl: string; filename: string }) => {
+    if (!/^[a-zA-Z0-9._ -]+$/.test(filename)) throw new Error('Некорректное имя файла мода')
     const modsDir = path.join(rootDir, 'instances', instanceId, 'mods')
     if (!fs.existsSync(modsDir)) fs.mkdirSync(modsDir, { recursive: true })
-    const destPath = path.join(modsDir, filename)
-    await downloadUrlToFile(downloadUrl, destPath)
+    await downloadUrlToFile(downloadUrl, path.join(modsDir, filename))
     return true
   })
 
@@ -472,7 +386,6 @@ function setupIpcHandlers() {
 
     const modsDir = path.join(rootDir, 'instances', instanceId, 'mods')
     if (!fs.existsSync(modsDir)) fs.mkdirSync(modsDir, { recursive: true })
-
     for (const file of res.filePaths) {
       const dest = path.join(modsDir, path.basename(file))
       fs.copyFileSync(file, dest)
@@ -480,207 +393,107 @@ function setupIpcHandlers() {
     return true
   })
 
-  // Skins
-  ipcMain.handle('save-user-skin', async (_, username: string) => {
-    if (!win) return false
+  // ── Skins ────────────────────────────────────────────────────
+  ipcMain.handle('upload-user-skin', async (_, username: string) => {
+    if (!win) return null
     const res = await dialog.showOpenDialog(win, {
-      title: 'Выберите файл скина Minecraft (.png)',
-      filters: [{ name: 'Minecraft Skins', extensions: ['png'] }],
+      title: 'Выберите скин Minecraft (.png)',
+      filters: [{ name: 'Minecraft Skin (*.png)', extensions: ['png'] }],
       properties: ['openFile']
     })
-    if (res.canceled || !res.filePaths.length) return false
+    if (res.canceled || !res.filePaths.length) return null
 
-    const skinDest = path.join(skinsDir, `${username}.png`)
-    fs.copyFileSync(res.filePaths[0], skinDest)
-    return skinDest
+    if (!fs.existsSync(skinsDir)) fs.mkdirSync(skinsDir, { recursive: true })
+    const targetPath = path.join(skinsDir, `${username.replace(/[^a-zA-Z0-9_]/g, '')}.png`)
+    fs.copyFileSync(res.filePaths[0], targetPath)
+    // trigger accounts refresh so skin shows
+    win.webContents.send('accounts-updated', accounts)
+    return targetPath
   })
 
   ipcMain.handle('fetch-online-skin', async (_, { username, targetUsername }: { username: string; targetUsername: string }) => {
-    const skinDest = path.join(skinsDir, `${username}.png`)
+    if (!fs.existsSync(skinsDir)) fs.mkdirSync(skinsDir, { recursive: true })
+    const skinDest = path.join(skinsDir, `${username.replace(/[^a-zA-Z0-9_]/g, '')}.png`)
     const urls = [
-      `https://ely.by/services/skins-buffer/skins/${encodeURIComponent(targetUsername)}.png`,
-      `https://minotar.net/skin/${encodeURIComponent(targetUsername)}`,
-      `https://crafatar.com/skins/${generateOfflineUUID(targetUsername)}`
+      `https://mc-heads.net/skin/${encodeURIComponent(targetUsername)}`,
+      `https://minotar.net/skin/${encodeURIComponent(targetUsername)}`
     ]
 
     for (const u of urls) {
       try {
         await downloadUrlToFile(u, skinDest)
         if (fs.existsSync(skinDest) && fs.statSync(skinDest).size > 100) {
-          const data = fs.readFileSync(skinDest)
-          return `data:image/png;base64,${data.toString('base64')}`
+          return true
         }
       } catch {}
     }
-    throw new Error(`Скин для никнейма "${targetUsername}" не найден на серверах`)
-  })
-
-  // Profile & Statistics
-  ipcMain.handle('get-profile-stats', (_, username: string) => {
-    let worldsCount = 0
-    const worldNames: string[] = []
-    let favoriteWorld = 'Нет информации'
-    let favoriteServer = 'Нет информации'
-    let totalPlayMinutes = 0
-    let lastPlayedTime = 0
-
-    try {
-      for (const inst of instances) {
-        if ((inst as any).lastPlayed) {
-          lastPlayedTime = Math.max(lastPlayedTime, (inst as any).lastPlayed)
-          totalPlayMinutes += 45
-        }
-        const savesDir = path.join(rootDir, 'instances', (inst as any).id, 'saves')
-        if (fs.existsSync(savesDir)) {
-          const saves = fs.readdirSync(savesDir)
-          for (const s of saves) {
-            if (fs.statSync(path.join(savesDir, s)).isDirectory()) {
-              worldsCount++
-              worldNames.push(s)
-            }
-          }
-        }
-      }
-      if (worldNames.length > 0) {
-        favoriteWorld = worldNames[0]
-      }
-    } catch {}
-
-    const activeAcc = accounts.find(a => a.username === username) || accounts.find(a => a.isActive) || accounts[0]
-    const hours = (totalPlayMinutes / 60).toFixed(1)
-    const lastPlayedFormatted = lastPlayedTime ? new Date(lastPlayedTime).toLocaleString() : 'Нет информации'
-
-    return {
-      username: activeAcc ? activeAcc.username : username,
-      uuid: activeAcc ? activeAcc.uuid : '',
-      worldsCount,
-      totalPlayTimeHours: totalPlayMinutes > 0 ? `${hours} ч.` : 'Нет информации',
-      lastPlayedFormatted,
-      favoriteWorld,
-      favoriteServer
-    }
+    throw new Error(`Скин для «${targetUsername}» не найден на серверах`)
   })
 
   ipcMain.handle('get-user-skin', (_, username: string) => {
-    const skinPath = path.join(skinsDir, `${username}.png`)
-    if (fs.existsSync(skinPath)) {
-      const data = fs.readFileSync(skinPath)
-      return `data:image/png;base64,${data.toString('base64')}`
-    }
-    return null
+    const skinPath = path.join(skinsDir, `${username.replace(/[^a-zA-Z0-9_]/g, '')}.png`)
+    return fs.existsSync(skinPath) ? skinPath : null
   })
 
-  // Selected instance persistence
-  ipcMain.handle('set-selected-instance-id', (_, instanceId: string) => {
-    settings = { ...settings, selectedInstanceId: instanceId }
-    saveJsonData(settingsFile, settings)
-    return settings
-  })
+  // ── Profile (honest data only) ───────────────────────────────
+  ipcMain.handle('get-profile-stats', (_, username: string) => {
+    const worlds: any[] = []
+    let modsCount = 0
+    let lastPlayedTime = 0
 
-  // Skins & Profile IPC
-  ipcMain.handle('save-user-skin-base64', (_, { username, base64Data }: { username: string; base64Data: string }) => {
-    try {
-      if (!fs.existsSync(skinsDir)) {
-        fs.mkdirSync(skinsDir, { recursive: true })
-      }
-      const raw = base64Data.replace(/^data:image\/png;base64,/, '')
-      const buffer = Buffer.from(raw, 'base64')
-      const targetPath = path.join(skinsDir, `${username}.png`)
-      fs.writeFileSync(targetPath, buffer)
-      return true
-    } catch (e) {
-      console.error('Failed saving user skin base64:', e)
-      return false
-    }
-  })
+    for (const inst of instances as any[]) {
+      if (inst.lastPlayed) lastPlayedTime = Math.max(lastPlayedTime, inst.lastPlayed)
 
-  ipcMain.handle('upload-user-skin', async (_, username: string) => {
-    const { canceled, filePaths } = await dialog.showOpenDialog({
-      title: 'Выберите скин Minecraft (.png)',
-      properties: ['openFile'],
-      filters: [{ name: 'Minecraft Skin (*.png)', extensions: ['png'] }]
-    })
-
-    if (!canceled && filePaths.length > 0) {
-      if (!fs.existsSync(skinsDir)) {
-        fs.mkdirSync(skinsDir, { recursive: true })
-      }
-      const targetPath = path.join(skinsDir, `${username}.png`)
-      fs.copyFileSync(filePaths[0], targetPath)
-      const data = fs.readFileSync(targetPath)
-      return `data:image/png;base64,${data.toString('base64')}`
-    }
-    return null
-  })
-
-  ipcMain.handle('parse-command-skin', async (_, payload: { username: string; command: string }) => {
-    const { username, command } = payload
-    const rawText = (command || '').trim()
-    let textureUrl = ''
-
-    // 1. Direct textures.minecraft.net URL anywhere in text
-    const matchDirect = rawText.match(/(https?:\/\/textures\.minecraft\.net\/texture\/[a-f0-9]+)/i)
-    if (matchDirect) {
-      textureUrl = matchDirect[1]
-    }
-
-    // 2. Scan all Base64 tokens in text (length >= 16)
-    if (!textureUrl) {
-      const b64Tokens = rawText.match(/[A-Za-z0-9+/=]{16,}/g) || []
-      for (const token of b64Tokens) {
+      const savesDir = path.join(rootDir, 'instances', inst.id, 'saves')
+      if (fs.existsSync(savesDir)) {
         try {
-          const decoded = Buffer.from(token, 'base64').toString('utf-8')
-          // Check if decoded JSON contains texture URL
-          const matchInDecoded = decoded.match(/(https?:\/\/textures\.minecraft\.net\/texture\/[a-f0-9]+)/i)
-          if (matchInDecoded) {
-            textureUrl = matchInDecoded[1]
-            break
+          for (const s of fs.readdirSync(savesDir)) {
+            const full = path.join(savesDir, s)
+            if (fs.statSync(full).isDirectory()) {
+              let worldTime = 0
+              const levelDat = path.join(full, 'level.dat')
+              if (fs.existsSync(levelDat)) worldTime = fs.statSync(levelDat).mtimeMs
+              worlds.push({
+                instanceId: inst.id,
+                instanceName: inst.name,
+                worldName: s,
+                lastPlayed: worldTime
+              })
+            }
           }
-          const json = JSON.parse(decoded)
-          if (json?.textures?.SKIN?.url) {
-            textureUrl = json.textures.SKIN.url
-            break
-          }
+        } catch {}
+      }
+
+      const modsDir = path.join(rootDir, 'instances', inst.id, 'mods')
+      if (fs.existsSync(modsDir)) {
+        try {
+          modsCount += fs.readdirSync(modsDir).filter(f => f.endsWith('.jar') || f.endsWith('.jar.disabled')).length
         } catch {}
       }
     }
 
-    // 3. NameMC skin URL fallback: https://namemc.com/skin/...
-    if (!textureUrl) {
-      const matchNameMc = rawText.match(/namemc\.com\/skin\/([a-f0-9]+)/i)
-      if (matchNameMc && matchNameMc[1]) {
-        try {
-          const pageHtml = (await downloadBuffer(`https://namemc.com/skin/${matchNameMc[1]}`)).toString('utf-8')
-          const textureMatch = pageHtml.match(/(https?:\/\/textures\.minecraft\.net\/texture\/[a-f0-9]+)/i)
-          if (textureMatch) {
-            textureUrl = textureMatch[1]
-          }
-        } catch {}
-      }
+    const activeAcc = accounts.find(a => a.username === username) || accounts.find(a => a.isActive)
+
+    return {
+      username: activeAcc?.username || username,
+      uuid: activeAcc?.uuid || '',
+      worldsCount: worlds.length,
+      worlds: worlds.sort((a, b) => b.lastPlayed - a.lastPlayed),
+      instancesCount: instances.length,
+      modsCount,
+      lastPlayedFormatted: lastPlayedTime
+        ? new Date(lastPlayedTime).toLocaleString('ru-RU')
+        : 'Ещё не играл'
     }
+  })
 
-    // 4. Nickname fallback (if user pasted a username like Notch or Steve)
-    if (!textureUrl && rawText.length < 32 && !rawText.includes('/')) {
-      textureUrl = `https://minotar.net/skin/${encodeURIComponent(rawText)}`
+  // ── Skin backups for avatar lookup ─────────────────────────────
+  ipcMain.handle('get-account-head', async (_, username: string) => {
+    const localPath = path.join(skinsDir, `${username.replace(/[^a-zA-Z0-9_]/g, '')}.png`)
+    if (fs.existsSync(localPath)) {
+      return `file://${localPath}`
     }
-
-    if (!textureUrl) {
-      throw new Error('Не удалось найти скин в введенной команде. Убедитесь, что передан валидный /give, Base64 или ссылка.')
-    }
-
-    if (textureUrl.startsWith('http://')) {
-      textureUrl = textureUrl.replace('http://', 'https://')
-    }
-
-    const buffer = await downloadBuffer(textureUrl)
-
-    if (!fs.existsSync(skinsDir)) {
-      fs.mkdirSync(skinsDir, { recursive: true })
-    }
-    const targetPath = path.join(skinsDir, `${username}.png`)
-    fs.writeFileSync(targetPath, buffer)
-
-    return `data:image/png;base64,${buffer.toString('base64')}`
+    return `https://mc-heads.net/avatar/${encodeURIComponent(username)}/64`
   })
 }
 
@@ -688,7 +501,6 @@ app.whenReady().then(() => {
   setupIpcHandlers()
   createWindow()
 
-  // Автообновления при упаковке
   if (app.isPackaged) {
     autoUpdater.autoDownload = true
     autoUpdater.checkForUpdatesAndNotify().catch((err) => {

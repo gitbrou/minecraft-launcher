@@ -1,1 +1,57 @@
-"use strict";const n=require("electron"),c={minimizeWindow:()=>n.ipcRenderer.invoke("minimize-window"),maximizeWindow:()=>n.ipcRenderer.invoke("maximize-window"),closeWindow:()=>n.ipcRenderer.invoke("close-window"),isMaximized:()=>n.ipcRenderer.invoke("is-maximized"),getAccounts:()=>n.ipcRenderer.invoke("get-accounts"),addAccount:e=>n.ipcRenderer.invoke("add-account",e),setActiveAccount:e=>n.ipcRenderer.invoke("set-active-account",e),deleteAccount:e=>n.ipcRenderer.invoke("delete-account",e),getInstances:()=>n.ipcRenderer.invoke("get-instances"),createInstance:e=>n.ipcRenderer.invoke("create-instance",e),deleteInstance:e=>n.ipcRenderer.invoke("delete-instance",e),openInstanceFolder:e=>n.ipcRenderer.invoke("open-instance-folder",e),getVersions:()=>n.ipcRenderer.invoke("get-versions"),getSettings:()=>n.ipcRenderer.invoke("get-settings"),saveSettings:e=>n.ipcRenderer.invoke("save-settings",e),setSelectedInstanceId:e=>n.ipcRenderer.invoke("set-selected-instance-id",e),detectJava:()=>n.ipcRenderer.invoke("detect-java"),launchInstance:e=>n.ipcRenderer.invoke("launch-instance",e),stopInstance:e=>n.ipcRenderer.invoke("stop-instance",e),getInstanceMods:e=>n.ipcRenderer.invoke("get-instance-mods",e),toggleMod:e=>n.ipcRenderer.invoke("toggle-mod",e),downloadModFile:e=>n.ipcRenderer.invoke("download-mod-file",e),addModFile:e=>n.ipcRenderer.invoke("add-mod-file",e),saveUserSkin:e=>n.ipcRenderer.invoke("upload-user-skin",e),uploadUserSkin:e=>n.ipcRenderer.invoke("upload-user-skin",e),saveUserSkinBase64:e=>n.ipcRenderer.invoke("save-user-skin-base64",e),parseCommandSkin:e=>n.ipcRenderer.invoke("parse-command-skin",e),fetchOnlineSkin:e=>n.ipcRenderer.invoke("fetch-online-skin",e),getUserSkin:e=>n.ipcRenderer.invoke("get-user-skin",e),getProfileStats:e=>n.ipcRenderer.invoke("get-profile-stats",e),onLaunchProgress:e=>{const i=(o,r)=>e(r);return n.ipcRenderer.on("launch-progress",i),()=>n.ipcRenderer.removeListener("launch-progress",i)},onGameLog:e=>{const i=(o,r)=>e(r);return n.ipcRenderer.on("game-log",i),()=>n.ipcRenderer.removeListener("game-log",i)}};n.contextBridge.exposeInMainWorld("electronAPI",c);
+"use strict";
+const electron = require("electron");
+const electronAPI = {
+  // Window controls
+  minimizeWindow: () => electron.ipcRenderer.invoke("minimize-window"),
+  maximizeWindow: () => electron.ipcRenderer.invoke("maximize-window"),
+  closeWindow: () => electron.ipcRenderer.invoke("close-window"),
+  isMaximized: () => electron.ipcRenderer.invoke("is-maximized"),
+  // Accounts
+  getAccounts: () => electron.ipcRenderer.invoke("get-accounts"),
+  addAccount: (username) => electron.ipcRenderer.invoke("add-account", username),
+  setActiveAccount: (id) => electron.ipcRenderer.invoke("set-active-account", id),
+  deleteAccount: (id) => electron.ipcRenderer.invoke("delete-account", id),
+  // Instances
+  getInstances: () => electron.ipcRenderer.invoke("get-instances"),
+  createInstance: (data) => electron.ipcRenderer.invoke("create-instance", data),
+  renameInstance: (payload) => electron.ipcRenderer.invoke("rename-instance", payload),
+  deleteInstance: (id) => electron.ipcRenderer.invoke("delete-instance", id),
+  openInstanceFolder: (id) => electron.ipcRenderer.invoke("open-instance-folder", id),
+  // Versions
+  getVersions: () => electron.ipcRenderer.invoke("get-versions"),
+  // Settings & Java
+  getSettings: () => electron.ipcRenderer.invoke("get-settings"),
+  saveSettings: (settings) => electron.ipcRenderer.invoke("save-settings", settings),
+  setSelectedInstanceId: (instanceId) => electron.ipcRenderer.invoke("set-selected-instance-id", instanceId),
+  detectJava: () => electron.ipcRenderer.invoke("detect-java"),
+  getRequiredJava: (version) => electron.ipcRenderer.invoke("get-required-java", version),
+  openLauncherFolder: () => electron.ipcRenderer.invoke("open-launcher-folder"),
+  // Launching
+  launchInstance: (id) => electron.ipcRenderer.invoke("launch-instance", id),
+  stopInstance: (id) => electron.ipcRenderer.invoke("stop-instance", id),
+  restoreWindow: () => electron.ipcRenderer.invoke("restore-window"),
+  // Mods
+  getInstanceMods: (id) => electron.ipcRenderer.invoke("get-instance-mods", id),
+  toggleMod: (payload) => electron.ipcRenderer.invoke("toggle-mod", payload),
+  deleteMod: (payload) => electron.ipcRenderer.invoke("delete-mod", payload),
+  downloadModFile: (payload) => electron.ipcRenderer.invoke("download-mod-file", payload),
+  addModFile: (instanceId) => electron.ipcRenderer.invoke("add-mod-file", instanceId),
+  // Skins & Profile
+  uploadUserSkin: (username) => electron.ipcRenderer.invoke("upload-user-skin", username),
+  fetchOnlineSkin: (payload) => electron.ipcRenderer.invoke("fetch-online-skin", payload),
+  getUserSkin: (username) => electron.ipcRenderer.invoke("get-user-skin", username),
+  getAccountHead: (username) => electron.ipcRenderer.invoke("get-account-head", username),
+  getProfileStats: (username) => electron.ipcRenderer.invoke("get-profile-stats", username),
+  // Subscriptions
+  onLaunchProgress: (callback) => {
+    const handler = (_, data) => callback(data);
+    electron.ipcRenderer.on("launch-progress", handler);
+    return () => electron.ipcRenderer.removeListener("launch-progress", handler);
+  },
+  onGameLog: (callback) => {
+    const handler = (_, data) => callback(data);
+    electron.ipcRenderer.on("game-log", handler);
+    return () => electron.ipcRenderer.removeListener("game-log", handler);
+  }
+};
+electron.contextBridge.exposeInMainWorld("electronAPI", electronAPI);

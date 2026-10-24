@@ -19,11 +19,18 @@ interface ModDownloaderModalProps {
   onModInstalled: () => void
 }
 
-const IconSearchPixel = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-    <path d="M22 20v-1h-1v-1h-1v-1h-1v-1h-2v-1h1v-2h1V7h-1V5h-1V4h-1V3h-1V2h-2V1H7v1H5v1H4v1H3v1H2v2H1v6h1v2h1v1h1v1h1v1h2v1h6v-1h2v-1h1v2h1v1h1v1h1v1h1v1h2v-1h1v-2zm-10-5v1H8v-1H6v-1H5v-2H4V8h1V6h1V5h2V4h4v1h2v1h1v2h1v4h-1v2h-1v1z" />
+const IconSearch = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="11" cy="11" r="7" />
+    <path d="m20 20l-3-3" />
   </svg>
 )
+
+const formatDownloads = (n: number): string => {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`
+  return String(n)
+}
 
 export const ModDownloaderModal: React.FC<ModDownloaderModalProps> = ({
   isOpen,
@@ -37,45 +44,43 @@ export const ModDownloaderModal: React.FC<ModDownloaderModalProps> = ({
   const [searchResults, setSearchResults] = useState<ModrinthProject[]>([])
   const [loading, setLoading] = useState(false)
   const [installingId, setInstallingId] = useState<string | null>(null)
-  const [statusMsg, setStatusMsg] = useState('')
+  const [status, setStatus] = useState<{ kind: 'ok' | 'err' | 'info'; text: string } | null>(null)
+  const [installedIds, setInstalledIds] = useState<Set<string>>(new Set())
 
-  // Live debounced search
   useEffect(() => {
     if (!isOpen) return
-    const timer = setTimeout(() => {
-      fetchMods(searchQuery)
-    }, 250)
+    const timer = setTimeout(() => fetchMods(searchQuery), 300)
     return () => clearTimeout(timer)
-  }, [searchQuery, isOpen])
+  }, [searchQuery, isOpen, loader])
 
   const fetchMods = async (query: string) => {
     setLoading(true)
-    setStatusMsg('')
+    setStatus(null)
     try {
-      const loaderCategory = (loader && loader !== 'vanilla') ? loader : 'fabric'
-      const facets = JSON.stringify([
-        [`categories:${loaderCategory}`],
-        ['project_type:mod']
-      ])
+      const facets: any = [['project_type:mod']]
+      // For vanilla instances, show Fabric-compatible mods too (most work on vanilla loader not needed).
+      // If instance is fabric/quilt, filter to that loader for compatibility.
+      if (loader === 'fabric' || loader === 'quilt') {
+        facets.push([`categories:${loader}`])
+      }
+      facets.push([`versions:${gameVersion}`])
       const res = await fetch(
-        `https://api.modrinth.com/v2/search?query=${encodeURIComponent(query)}&facets=${encodeURIComponent(facets)}&limit=30`
+        `https://api.modrinth.com/v2/search?query=${encodeURIComponent(query)}&facets=${encodeURIComponent(JSON.stringify(facets))}&limit=40`
       )
       const data = await res.json()
-      if (data.hits) {
-        setSearchResults(
-          data.hits.map((hit: any) => ({
-            project_id: hit.project_id,
-            slug: hit.slug,
-            title: hit.title,
-            description: hit.description,
-            icon_url: hit.icon_url,
-            downloads: hit.downloads,
-            author: hit.author
-          }))
-        )
-      }
+      setSearchResults(
+        (data.hits || []).map((hit: any) => ({
+          project_id: hit.project_id,
+          slug: hit.slug,
+          title: hit.title,
+          description: hit.description,
+          icon_url: hit.icon_url,
+          downloads: hit.downloads,
+          author: hit.author
+        }))
+      )
     } catch (err: any) {
-      setStatusMsg(`Ошибка поиска: ${err.message}`)
+      setStatus({ kind: 'err', text: `Ошибка поиска: ${err.message}` })
     } finally {
       setLoading(false)
     }
@@ -83,169 +88,102 @@ export const ModDownloaderModal: React.FC<ModDownloaderModalProps> = ({
 
   if (!isOpen) return null
 
-  const handleInstallMod = async (project: ModrinthProject) => {
+  const handleInstall = async (project: ModrinthProject) => {
     setInstallingId(project.project_id)
-    setStatusMsg(`Загрузка информации о моде ${project.title}...`)
+    setStatus({ kind: 'info', text: `Получаю версии мода ${project.title}...` })
     try {
-      const res = await fetch(`https://api.modrinth.com/v2/project/${project.project_id}/version`)
+      const res = await fetch(`https://api.modrinth.com/v2/project/${project.project_id}/version?game_versions=["${gameVersion}"]`)
       const versions = await res.json()
+      const compatible = Array.isArray(versions) && versions.length > 0 ? versions[0] : null
 
-      const compatible = versions.find((v: any) =>
-        v.game_versions.includes(gameVersion) || v.game_versions.includes(gameVersion.slice(0, 4))
-      ) || versions[0]
-
-      if (!compatible || !compatible.files || !compatible.files.length) {
-        throw new Error('Подходящий .jar файл не найден')
-      }
+      if (!compatible?.files?.length) throw new Error('Нет .jar совместимого с этой версией')
 
       const file = compatible.files.find((f: any) => f.primary) || compatible.files[0]
-      const downloadUrl = file.url
-      const filename = file.filename
 
-      setStatusMsg(`Установка ${filename}...`)
+      setStatus({ kind: 'info', text: `Скачиваю ${file.filename}...` })
       if (window.electronAPI) {
         await window.electronAPI.downloadModFile({
           instanceId,
-          downloadUrl,
-          filename
+          downloadUrl: file.url,
+          filename: file.filename
         })
       }
-      setStatusMsg(`Мод ${project.title} успешно установлен!`)
+      setStatus({ kind: 'ok', text: `Мод ${project.title} установлен!` })
+      setInstalledIds(prev => new Set([...prev, project.project_id]))
       onModInstalled()
-      setTimeout(() => setStatusMsg(''), 3000)
+      setTimeout(() => setStatus(null), 3000)
     } catch (err: any) {
-      setStatusMsg(`Ошибка установки: ${err.message}`)
+      setStatus({ kind: 'err', text: `Ошибка установки: ${err.message}` })
     } finally {
       setInstallingId(null)
     }
   }
 
   return (
-    <div className="modal-overlay" onClick={onClose} style={{ background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(4px)' }}>
-      <div
-        className="modal-card"
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          width: '780px',
-          height: '560px',
-          background: '#1a1c23',
-          border: '1px solid rgba(255,255,255,0.12)',
-          borderRadius: '16px',
-          display: 'flex',
-          flexDirection: 'column',
-          overflow: 'hidden',
-          padding: 0
-        }}
-      >
-        {/* Header */}
-        <div
-          style={{
-            height: '42px',
-            background: '#12141a',
-            borderBottom: '1px solid rgba(255,255,255,0.08)',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            padding: '0 16px'
-          }}
-        >
-          <span style={{ fontWeight: '600', color: '#fff', fontSize: '14px' }}>
-            Поиск и установка модов (Версия: {gameVersion}, Загрузчик: {loader || 'Vanilla/Fabric'})
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" style={{ width: '700px', height: '600px' }} onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header">
+          <span className="modal-title">
+            Моды из Modrinth — {gameVersion}
+            {loader !== 'vanilla' && ` (${loader})`}
           </span>
-          <button
-            onClick={onClose}
-            style={{ background: 'none', border: 'none', color: '#aaa', cursor: 'pointer', fontSize: '16px' }}
-          >
-            ✕
+          <button className="modal-close" onClick={onClose}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m6 6l12 12M18 6L6 18" /></svg>
           </button>
         </div>
 
-        {/* Search input */}
-        <div style={{ padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', gap: '10px' }}>
-          <div style={{ position: 'relative', flex: 1 }}>
+        <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--border)' }}>
+          <div className="search-bar" style={{ width: '100%' }}>
+            <IconSearch />
             <input
-              type="text"
-              placeholder="Поиск модов на Modrinth (Sodium, Iris, JEI, JourneyMap...)"
+              placeholder="Поиск модов (Sodium, Iris, JEI, Create...)"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '10px 14px 10px 40px',
-                background: '#12141a',
-                border: '1px solid rgba(255,255,255,0.15)',
-                color: '#fff',
-                borderRadius: '8px',
-                outline: 'none',
-                fontSize: '13px'
-              }}
+              autoFocus
             />
-            <span style={{ position: 'absolute', left: '12px', top: '10px', color: '#777', display: 'flex' }}>
-              <IconSearchPixel />
-            </span>
           </div>
         </div>
 
-        {/* Status notice */}
-        {statusMsg && (
-          <div style={{ padding: '8px 20px', background: 'rgba(83, 146, 27, 0.2)', color: '#53921b', fontSize: '13px', fontWeight: '500' }}>
-            {statusMsg}
+        {status && (
+          <div className={`status-banner ${status.kind}`}>
+            {status.text}
           </div>
         )}
 
-        {/* Results List */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+        <div style={{ flex: 1, overflowY: 'auto', padding: '14px 20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
           {loading ? (
-            <div style={{ color: '#aaa', textAlign: 'center', marginTop: '40px' }}>Загрузка модов с Modrinth...</div>
+            <div className="empty-state"><div className="spinner" /></div>
           ) : searchResults.length === 0 ? (
-            <div style={{ color: '#888', textAlign: 'center', marginTop: '40px' }}>Моды не найдены</div>
+            <div className="empty-state">
+              <div className="empty-state-title">Ничего не найдено</div>
+              <div className="empty-state-text">Попробуйте изменить запрос — модов для этой версии может не быть.</div>
+            </div>
           ) : (
             searchResults.map((proj) => (
-              <div
-                key={proj.project_id}
-                style={{
-                  background: 'rgba(255, 255, 255, 0.03)',
-                  border: '1px solid rgba(255, 255, 255, 0.08)',
-                  borderRadius: '10px',
-                  padding: '12px 16px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '14px'
-                }}
-              >
+              <div key={proj.project_id} className="mod-dl-card">
                 {proj.icon_url ? (
-                  <img src={proj.icon_url} alt={proj.title} style={{ width: '42px', height: '42px', borderRadius: '8px', objectFit: 'cover' }} />
+                  <img className="mod-dl-icon" src={proj.icon_url} alt={proj.title} />
                 ) : (
-                  <div style={{ width: '42px', height: '42px', borderRadius: '8px', background: '#374151', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 'bold' }}>
+                  <div style={{ width: '42px', height: '42px', borderRadius: '8px', background: 'var(--bg-input)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-faint)', fontWeight: 700 }}>
                     {proj.title[0]}
                   </div>
                 )}
 
-                <div style={{ flex: 1, overflow: 'hidden' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <h4 style={{ margin: 0, fontSize: '15px', color: '#fff', fontWeight: '600' }}>{proj.title}</h4>
-                    <span style={{ fontSize: '11px', color: '#888' }}>от {proj.author}</span>
+                <div className="mod-dl-info">
+                  <div className="mod-dl-title">{proj.title}</div>
+                  <div className="mod-dl-desc">{proj.description}</div>
+                  <div className="mod-dl-dl-count">
+                    ⬇ {formatDownloads(proj.downloads)} · {proj.author}
                   </div>
-                  <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#aaa', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {proj.description}
-                  </p>
                 </div>
 
                 <button
-                  onClick={() => handleInstallMod(proj)}
-                  disabled={installingId === proj.project_id}
-                  style={{
-                    padding: '8px 16px',
-                    background: '#53921b',
-                    border: 'none',
-                    borderRadius: '8px',
-                    color: '#fff',
-                    fontWeight: '600',
-                    fontSize: '12px',
-                    cursor: 'pointer',
-                    whiteSpace: 'nowrap'
-                  }}
+                  className="btn btn-primary"
+                  disabled={installingId === proj.project_id || installedIds.has(proj.project_id)}
+                  onClick={() => handleInstall(proj)}
+                  style={{ flexShrink: 0 }}
                 >
-                  {installingId === proj.project_id ? 'Установка...' : 'Установить'}
+                  {installingId === proj.project_id ? 'Установка...' : installedIds.has(proj.project_id) ? 'Установлен' : 'Установить'}
                 </button>
               </div>
             ))
