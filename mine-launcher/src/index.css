@@ -1024,6 +1024,27 @@ body {
   justify-content: center;
 }
 
+.skin-nick-form {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 2px;
+}
+.skin-nick-row {
+  display: flex;
+  gap: 6px;
+}
+.skin-nick-row .form-input {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 8px;
+  font-size: 12.5px;
+}
+.skin-nick-row .btn {
+  flex-shrink: 0;
+}
+
 /* ───────────────────────── Mod downloader ───────────────────── */
 .mod-dl-card {
   display: flex;

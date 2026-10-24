@@ -63,12 +63,17 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ activeUsername }) => {
   const [skinPath, setSkinPath] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [notice, setNotice] = useState('')
+  const [skinNick, setSkinNick] = useState(activeUsername)
+  const [nickError, setNickError] = useState('')
+  // Пересоздаём 3D-вьюер после смены скина: путь к файлу тот же, без этого модель не обновится
+  const [skinVersion, setSkinVersion] = useState(0)
 
   useEffect(() => {
     if (window.electronAPI) {
       window.electronAPI.getProfileStats(activeUsername).then(setStats)
       window.electronAPI.getUserSkin(activeUsername).then(setSkinPath)
     }
+    setSkinNick(activeUsername)
   }, [activeUsername])
 
   const handleUploadSkin = async () => {
@@ -77,21 +82,32 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ activeUsername }) => {
       const result = await window.electronAPI.uploadUserSkin(activeUsername)
       if (result) {
         setSkinPath(result)
-        // trigger an accounts refresh event if main was asked
+        setSkinVersion((v) => v + 1)
+        setNotice('Скин загружен')
+      } else {
+        setNotice('Загрузка отменена')
       }
-    } catch {
-      // cancel or error
+    } catch (err) {
+      setNotice(errorMessage(err, 'Не удалось загрузить скин'))
     }
     setBusy(false)
   }
 
-  const handleFetchSkin = async () => {
+  const handleFetchSkin = async (e: React.FormEvent) => {
+    e.preventDefault()
+    const nick = skinNick.trim()
+    if (!/^[A-Za-z0-9_]{3,16}$/.test(nick)) {
+      setNickError('Ник: 3–16 символов, латиница, цифры и _')
+      return
+    }
+    setNickError('')
     setBusy(true)
     setNotice('')
     try {
-      await window.electronAPI.fetchOnlineSkin({ username: activeUsername, targetUsername: activeUsername })
+      await window.electronAPI.fetchOnlineSkin({ username: activeUsername, targetUsername: nick })
       setSkinPath(await window.electronAPI.getUserSkin(activeUsername))
-      setNotice('Скин загружен')
+      setSkinVersion((v) => v + 1)
+      setNotice(`Скин «${nick}» применён`)
     } catch (err) {
       setNotice(errorMessage(err, 'Не удалось загрузить скин'))
     }
@@ -107,7 +123,7 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ activeUsername }) => {
     <div className="profile-layout">
       {/* Left card: skin */}
       <div className="profile-card">
-        <SkinViewerCanvas username={activeUsername} skinPath={skinPath} />
+        <SkinViewerCanvas key={`${skinPath || 'default'}-${skinVersion}`} username={activeUsername} skinPath={skinPath} />
 
         <div className="profile-name">{activeUsername}</div>
         {stats?.uuid && <div className="profile-uuid">{stats.uuid}</div>}
@@ -116,10 +132,30 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ activeUsername }) => {
           <button className="btn" onClick={handleUploadSkin} disabled={busy}>
             Загрузить скин
           </button>
-          <button className="btn btn-ghost" onClick={handleFetchSkin} disabled={busy} title="Загрузить скин по нику с публичного сервера">
-            Скачать по нику
-          </button>
         </div>
+
+        <form className="skin-nick-form" onSubmit={handleFetchSkin}>
+          <span className="form-label">Скин по нику</span>
+          <div className="skin-nick-row">
+            <input
+              className="form-input"
+              placeholder="Ник в Minecraft"
+              value={skinNick}
+              maxLength={16}
+              disabled={busy}
+              aria-label="Ник игрока, чей скин скачать"
+              aria-invalid={!!nickError}
+              onChange={(e) => {
+                setSkinNick(e.target.value.replace(/[^A-Za-z0-9_]/g, ''))
+                if (nickError) setNickError('')
+              }}
+            />
+            <button className="btn" type="submit" disabled={busy || !skinNick.trim()}>
+              Скачать
+            </button>
+          </div>
+          {nickError && <div className="form-error">{nickError}</div>}
+        </form>
 
         {notice && <div className="profile-notice">{notice}</div>}
         {busy && <div className="spinner" />}
