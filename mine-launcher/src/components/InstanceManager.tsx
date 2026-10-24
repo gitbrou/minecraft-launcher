@@ -73,6 +73,14 @@ const IconShare = () => (
   </svg>
 )
 
+const IconDots = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
+    <circle cx="5" cy="12" r="1.6" />
+    <circle cx="12" cy="12" r="1.6" />
+    <circle cx="19" cy="12" r="1.6" />
+  </svg>
+)
+
 const IconImport = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M12 4v12m0 0l-4-4m4 4l4-4M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3" />
@@ -116,6 +124,21 @@ export const InstanceManager: React.FC<InstanceManagerProps> = ({
   const [renamingId, setRenamingId] = useState<string | null>(null)
   const [renameText, setRenameText] = useState('')
   const [copyNotice, setCopyNotice] = useState('')
+  const [rowMenuId, setRowMenuId] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!rowMenuId) return
+    const onDown = (e: MouseEvent) => {
+      if (!(e.target as HTMLElement).closest('.row-menu-wrap')) setRowMenuId(null)
+    }
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setRowMenuId(null) }
+    document.addEventListener('mousedown', onDown)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onDown)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [rowMenuId])
 
   const selectedInstanceId = selectedInstance?.id
 
@@ -301,15 +324,31 @@ export const InstanceManager: React.FC<InstanceManagerProps> = ({
                   >
                     <IconPlay />
                   </button>
-                  <button className="icon-btn" title="Экспортировать сборку (zip)" aria-label={`Экспортировать сборку ${inst.name}`} onClick={() => onExportInstance(inst)}>
-                    <IconShare />
-                  </button>
-                  <button className="icon-btn" title="Переименовать" aria-label={`Переименовать сборку ${inst.name}`} onClick={() => { setRenamingId(inst.id); setRenameText(inst.name) }}>
-                    <IconPen />
-                  </button>
-                  <button className="icon-btn danger" title="Удалить сборку" aria-label={`Удалить сборку ${inst.name}`} onClick={() => onDeleteInstance(inst.id)}>
-                    <IconTrash />
-                  </button>
+                  <div className="row-menu-wrap">
+                    <button
+                      className="icon-btn"
+                      title="Действия"
+                      aria-label={`Действия со сборкой ${inst.name}`}
+                      aria-haspopup="menu"
+                      aria-expanded={rowMenuId === inst.id}
+                      onClick={() => setRowMenuId(rowMenuId === inst.id ? null : inst.id)}
+                    >
+                      <IconDots />
+                    </button>
+                    {rowMenuId === inst.id && (
+                      <div className="row-menu" role="menu">
+                        <button role="menuitem" onClick={() => { onExportInstance(inst); setRowMenuId(null) }}>
+                          <IconShare /> Экспорт в zip
+                        </button>
+                        <button role="menuitem" onClick={() => { setRenamingId(inst.id); setRenameText(inst.name); setRowMenuId(null) }}>
+                          <IconPen /> Переименовать
+                        </button>
+                        <button role="menuitem" className="danger" onClick={() => { onDeleteInstance(inst.id); setRowMenuId(null) }}>
+                          <IconTrash /> Удалить
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             )

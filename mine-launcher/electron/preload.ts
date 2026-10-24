@@ -12,6 +12,7 @@ import type {
 } from '../src/types'
 
 const electronAPI = {
+  platform: process.platform,
   // Window controls
   minimizeWindow: () => ipcRenderer.invoke('minimize-window'),
   maximizeWindow: () => ipcRenderer.invoke('maximize-window'),

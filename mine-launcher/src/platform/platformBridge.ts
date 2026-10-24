@@ -46,6 +46,7 @@ export function ensurePlatformBridge() {
   }
 
   w.electronAPI = {
+    platform: typeof navigator !== 'undefined' && /Win/i.test(navigator.platform) ? 'win32' : 'linux',
     minimizeWindow: async () => {},
     maximizeWindow: async () => false,
     closeWindow: async () => {},

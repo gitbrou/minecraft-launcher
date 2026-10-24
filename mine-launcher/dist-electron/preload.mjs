@@ -1,6 +1,7 @@
 "use strict";
 const electron = require("electron");
 const electronAPI = {
+  platform: process.platform,
   // Window controls
   minimizeWindow: () => electron.ipcRenderer.invoke("minimize-window"),
   maximizeWindow: () => electron.ipcRenderer.invoke("maximize-window"),
