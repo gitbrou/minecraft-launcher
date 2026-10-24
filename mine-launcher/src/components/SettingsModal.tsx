@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { LauncherSettings } from '../types'
+import { useFocusTrap } from '../hooks/useFocusTrap'
 
 interface SettingsModalProps {
   isOpen: boolean
@@ -31,6 +32,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
   })
   const [detectedJavas, setDetectedJavas] = useState<string[]>([])
   const [systemInfo, setSystemInfo] = useState<{ totalRamMb: number; defaultMaxMemory: number } | null>(null)
+  const modalRef = useRef<HTMLDivElement>(null)
+  useFocusTrap(modalRef, isOpen)
 
   useEffect(() => {
     if (isOpen && window.electronAPI) {
@@ -75,9 +78,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" style={{ width: '540px' }} onClick={(e) => e.stopPropagation()}>
+      <div
+        className="modal"
+        ref={modalRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="settings-modal-title"
+        style={{ width: '540px' }}
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="modal-header">
-          <span className="modal-title">Настройки лаунчера</span>
+          <span className="modal-title" id="settings-modal-title">Настройки лаунчера</span>
           <button className="modal-close" onClick={onClose} aria-label="Закрыть настройки">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m6 6l12 12M18 6L6 18" /></svg>
           </button>

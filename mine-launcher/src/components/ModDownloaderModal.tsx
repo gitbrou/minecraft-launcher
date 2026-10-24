@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
+import { useFocusTrap } from '../hooks/useFocusTrap'
 
 interface ModrinthProject {
   project_id: string
@@ -46,6 +47,8 @@ export const ModDownloaderModal: React.FC<ModDownloaderModalProps> = ({
   const [installingId, setInstallingId] = useState<string | null>(null)
   const [status, setStatus] = useState<{ kind: 'ok' | 'err' | 'info'; text: string } | null>(null)
   const [installedIds, setInstalledIds] = useState<Set<string>>(new Set())
+  const modalRef = useRef<HTMLDivElement>(null)
+  useFocusTrap(modalRef, isOpen)
 
   useEffect(() => {
     if (!isOpen) return
@@ -128,13 +131,21 @@ export const ModDownloaderModal: React.FC<ModDownloaderModalProps> = ({
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" style={{ width: '700px', height: '600px' }} onClick={(e) => e.stopPropagation()}>
+      <div
+        className="modal"
+        ref={modalRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="mods-modal-title"
+        style={{ width: '700px', height: '600px' }}
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="modal-header">
-          <span className="modal-title">
+          <span className="modal-title" id="mods-modal-title">
             Моды из Modrinth — {gameVersion}
             {loader !== 'vanilla' && ` (${loader})`}
           </span>
-          <button className="modal-close" onClick={onClose}>
+          <button className="modal-close" onClick={onClose} aria-label="Закрыть каталог модов">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m6 6l12 12M18 6L6 18" /></svg>
           </button>
         </div>

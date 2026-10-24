@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Instance, ModItem, LaunchProgress, GameLog, MinecraftVersion } from '../types'
 import { NavSection } from './Sidebar'
 import { ProfileTab } from './ProfileTab'
+import { useFocusTrap } from '../hooks/useFocusTrap'
 
 interface InstanceManagerProps {
   section: NavSection
@@ -435,6 +436,8 @@ const CreateInstanceModal: React.FC<{
   const [loadingVersions, setLoadingVersions] = useState(true)
   const [searchText, setSearchText] = useState('')
   const [error, setError] = useState('')
+  const modalRef = useRef<HTMLDivElement>(null)
+  useFocusTrap(modalRef, true)
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
@@ -474,10 +477,18 @@ const CreateInstanceModal: React.FC<{
   }
 
   return (
-    <div className="modal-overlay" onClick={onClose} role="dialog" aria-modal="true" aria-label="Новая сборка">
-      <div className="modal" style={{ width: '460px' }} onClick={(e) => e.stopPropagation()}>
+    <div className="modal-overlay" onClick={onClose}>
+      <div
+        className="modal"
+        ref={modalRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="create-modal-title"
+        style={{ width: '460px' }}
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="modal-header">
-          <span className="modal-title">Новая сборка</span>
+          <span className="modal-title" id="create-modal-title">Новая сборка</span>
           <button className="modal-close" onClick={onClose} aria-label="Закрыть">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m6 6l12 12M18 6L6 18" /></svg>
           </button>

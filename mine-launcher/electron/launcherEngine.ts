@@ -5,7 +5,7 @@ import https from 'node:https'
 import http from 'node:http'
 import { spawn, execSync } from 'node:child_process'
 import { app } from 'electron'
-import extract from 'extract-zip'
+import AdmZip from 'adm-zip'
 
 // Java major по версии Minecraft
 export function requiredJavaMajor(mcVersion: string): number {
@@ -172,26 +172,61 @@ export function isSafeRelPath(rel: string): boolean {
   return !rel.includes('..') && !path.isAbsolute(rel)
 }
 
+/**
+ * Безопасная распаковка zip: никаких symlink-записей, никаких путей за пределами destDir.
+ * extract-zip удалён из зависимостей: у него открыт symlink path traversal без фикса.
+ */
+export function extractZipSafe(zipPath: string, destDir: string, filter?: (name: string) => boolean): number {
+  const zip = new AdmZip(zipPath)
+  const destRoot = path.resolve(destDir)
+  let written = 0
+
+  for (const entry of zip.getEntries()) {
+    if (entry.isDirectory) continue
+    const raw = entry.entryName.replace(/\\/g, '/')
+
+    // Unix-биты режима в zip лежат в старших 16 битах external attributes.
+    // 0o120000 — symlink: такие записи опасны, отказываем целиком.
+    const attr = Number((entry.header as any)?.attr ?? 0)
+    const unixMode = (attr >>> 16) & 0o170000
+    if (unixMode === 0o120000 || (attr & 0o170000) === 0o120000) {
+      throw new Error(`Архив содержит symlink: ${raw}`)
+    }
+
+    if (path.isAbsolute(raw) || /^[A-Za-z]:/.test(raw) || raw.split('/').some((s) => s === '' || s === '.' || s === '..')) {
+      throw new Error(`Небезопасный путь в архиве: ${raw}`)
+    }
+    if (filter && !filter(raw)) continue
+
+    const target = path.resolve(destRoot, ...raw.split('/'))
+    const rel = path.relative(destRoot, target)
+    if (rel === '' || rel.startsWith('..') || path.isAbsolute(rel)) {
+      throw new Error(`Путь вне каталога распаковки: ${raw}`)
+    }
+
+    fs.mkdirSync(path.dirname(target), { recursive: true })
+    fs.writeFileSync(target, entry.getData())
+    written++
+  }
+
+  return written
+}
+
 async function extractNativeDlls(jarPath: string, destDir: string) {
   if (!fs.existsSync(jarPath)) return
   try {
-    const tmpDir = path.join(destDir, '.extract-' + Date.now())
-    fs.mkdirSync(tmpDir, { recursive: true })
-    await extract(jarPath, { dir: tmpDir })
     const wanted = process.platform === 'win32' ? '.dll'
                  : process.platform === 'darwin' ? '.dylib'
                  : '.so'
-    const walk = (d: string) => {
-      for (const item of fs.readdirSync(d)) {
-        const full = path.join(d, item)
-        if (fs.statSync(full).isDirectory()) walk(full)
-        else if (item.toLowerCase().endsWith(wanted)) {
-          fs.copyFileSync(full, path.join(destDir, item))
-        }
-      }
+    const zip = new AdmZip(jarPath)
+    for (const entry of zip.getEntries()) {
+      if (entry.isDirectory) continue
+      // Берём только имя файла: структура путей jar нас не интересует, traversal невозможен
+      const name = path.basename(entry.entryName.replace(/\\/g, '/'))
+      if (!name.toLowerCase().endsWith(wanted)) continue
+      if (!/^[A-Za-z0-9._ -]{1,200}$/.test(name)) continue
+      fs.writeFileSync(path.join(destDir, name), entry.getData())
     }
-    walk(tmpDir)
-    fs.rmSync(tmpDir, { recursive: true, force: true })
   } catch {}
 }
 
@@ -423,7 +458,7 @@ export async function downloadJavaRuntime(
   if (!fs.existsSync(javaDir)) fs.mkdirSync(javaDir, { recursive: true })
 
   if (isWin) {
-    await extract(zipPath, { dir: javaDir })
+    extractZipSafe(zipPath, javaDir)
   } else {
     execSync(`tar -xzf "${zipPath}" -C "${javaDir}"`)
   }
