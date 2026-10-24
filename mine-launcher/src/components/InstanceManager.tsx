@@ -3,6 +3,7 @@ import { Instance, ModItem, LaunchProgress, GameLog, MinecraftVersion } from '..
 import { NavSection } from './Sidebar'
 import { ProfileTab } from './ProfileTab'
 import { useFocusTrap } from '../hooks/useFocusTrap'
+import appIcon from '../assets/icon.png'
 
 interface InstanceManagerProps {
   section: NavSection
@@ -201,13 +202,16 @@ export const InstanceManager: React.FC<InstanceManagerProps> = ({
     return (
       <>
         <div className="content-toolbar">
-          <h1 className="section-title">{SectionTitles.builds}</h1>
+          <div className="title-group">
+            <h1 className="section-title">{SectionTitles.builds}</h1>
+            <span className="section-count">{filteredInstances.length}</span>
+          </div>
           <div className="toolbar-actions">
             <div className="search-bar">
               <IconSearch />
               <input
                 type="text"
-                placeholder="Поиск..."
+                placeholder="Поиск по названию или версии"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
@@ -221,15 +225,22 @@ export const InstanceManager: React.FC<InstanceManagerProps> = ({
           </div>
         </div>
 
-        <div className="card-grid">
+        <div className="instance-list">
+          <div className="instance-list-head" aria-hidden="true">
+            <span>Сборка</span>
+            <span>Загрузчик</span>
+            <span>Последний запуск</span>
+            <span />
+          </div>
+
           {filteredInstances.map((inst, idx) => {
             const busyForThis = isBusy(launchProgress) && launchProgress!.instanceId === inst.id
             const runningForThis = isGameRunning && launchProgress!.instanceId === inst.id
             return (
               <div
                 key={inst.id}
-                className={`instance-card ${selectedInstance?.id === inst.id ? 'selected' : ''}`}
-                style={{ animationDelay: `${Math.min(idx, 8) * 30}ms` }}
+                className={`instance-row ${selectedInstance?.id === inst.id ? 'is-selected' : ''}`}
+                style={{ animationDelay: `${Math.min(idx, 8) * 20}ms` }}
                 role="button"
                 tabIndex={0}
                 aria-pressed={selectedInstance?.id === inst.id}
@@ -238,20 +249,9 @@ export const InstanceManager: React.FC<InstanceManagerProps> = ({
                   if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelectInstance(inst) }
                 }}
               >
-                <div className={`instance-cover cover-${inst.loader}`} aria-hidden="true">
-                  <span className="instance-cover-letter">{(inst.name || '?').slice(0, 1).toUpperCase()}</span>
-                  <button
-                    className="card-play"
-                    title={runningForThis ? 'Игра запущена' : 'Играть в эту сборку'}
-                    aria-label={`Играть в сборку ${inst.name}`}
-                    disabled={!!busyForThis || !!runningForThis}
-                    onClick={(e) => { e.stopPropagation(); onQuickPlay(inst) }}
-                  >
-                    <IconPlay />
-                  </button>
-                </div>
+                <img className="instance-icon" src={appIcon} alt="" width={22} height={22} aria-hidden="true" />
 
-                <div className="instance-card-top">
+                <div className="instance-row-main">
                   {renamingId === inst.id ? (
                     <input
                       className="form-input rename-input"
@@ -266,8 +266,8 @@ export const InstanceManager: React.FC<InstanceManagerProps> = ({
                       onClick={(e) => e.stopPropagation()}
                     />
                   ) : (
-                    <div
-                      className="instance-name"
+                    <span
+                      className="instance-row-name"
                       onDoubleClick={(e) => {
                         e.stopPropagation()
                         setRenamingId(inst.id)
@@ -276,27 +276,40 @@ export const InstanceManager: React.FC<InstanceManagerProps> = ({
                       title="Двойной клик — переименовать"
                     >
                       {inst.name}
-                    </div>
+                    </span>
                   )}
-                  <span className={`loader-badge ${inst.loader}`}>{inst.loader}</span>
+                  <span className="instance-row-sub">Minecraft {inst.version}</span>
                 </div>
 
-                <div className="instance-card-meta">
-                  <span className="version-pill">MC {inst.version}</span>
-                  <span>
-                    {runningForThis ? 'запущена' : inst.lastPlayed ? new Date(inst.lastPlayed).toLocaleDateString() : 'Не запускалась'}
-                  </span>
-                  <div className="instance-card-actions" onClick={(e) => e.stopPropagation()}>
-                    <button className="icon-btn" title="Экспортировать сборку (zip)" aria-label={`Экспортировать сборку ${inst.name}`} onClick={() => onExportInstance(inst)}>
-                      <IconShare />
-                    </button>
-                    <button className="icon-btn" title="Переименовать" onClick={() => { setRenamingId(inst.id); setRenameText(inst.name) }}>
-                      <IconPen />
-                    </button>
-                    <button className="icon-btn danger" title="Удалить сборку" onClick={() => onDeleteInstance(inst.id)}>
-                      <IconTrash />
-                    </button>
-                  </div>
+                <span className="instance-col instance-col-loader">{inst.loader}</span>
+
+                <span className={`instance-col instance-col-date ${runningForThis ? 'is-live' : ''}`}>
+                  {runningForThis
+                    ? 'запущена'
+                    : inst.lastPlayed
+                      ? new Date(inst.lastPlayed).toLocaleDateString('ru-RU')
+                      : '—'}
+                </span>
+
+                <div className="instance-row-actions" onClick={(e) => e.stopPropagation()}>
+                  <button
+                    className="icon-btn row-play"
+                    title={runningForThis ? 'Игра запущена' : 'Играть в эту сборку'}
+                    aria-label={`Играть в сборку ${inst.name}`}
+                    disabled={!!busyForThis || !!runningForThis}
+                    onClick={() => onQuickPlay(inst)}
+                  >
+                    <IconPlay />
+                  </button>
+                  <button className="icon-btn" title="Экспортировать сборку (zip)" aria-label={`Экспортировать сборку ${inst.name}`} onClick={() => onExportInstance(inst)}>
+                    <IconShare />
+                  </button>
+                  <button className="icon-btn" title="Переименовать" aria-label={`Переименовать сборку ${inst.name}`} onClick={() => { setRenamingId(inst.id); setRenameText(inst.name) }}>
+                    <IconPen />
+                  </button>
+                  <button className="icon-btn danger" title="Удалить сборку" aria-label={`Удалить сборку ${inst.name}`} onClick={() => onDeleteInstance(inst.id)}>
+                    <IconTrash />
+                  </button>
                 </div>
               </div>
             )

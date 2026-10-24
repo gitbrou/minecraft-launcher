@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { Instance, LaunchProgress } from '../types'
+import appIcon from '../assets/icon.png'
 
 interface BottomBarProps {
   instances: Instance[]
@@ -65,6 +66,8 @@ export const BottomBar: React.FC<BottomBarProps> = ({
     return 'Играть'
   }
 
+  const shortReason = !selectedInstance ? 'Нет сборки' : !hasAccount ? 'Нет аккаунта' : null
+
   return (
     <>
       {errorText && (
@@ -73,55 +76,63 @@ export const BottomBar: React.FC<BottomBarProps> = ({
         </div>
       )}
       <div className="bottom-bar">
-      <div className="bottom-bar-inner">
-      <div className="launch-instance-selector" ref={menuRef}>
-        <button className="selector-trigger" onClick={() => setDropdownOpen(!dropdownOpen)}>
-          <div>
-            <div className="selector-title">{selectedInstance?.name || 'Нет сборки'}</div>
-            <div className="selector-sub">
-              {selectedInstance ? `Minecraft ${selectedInstance.version} · ${selectedInstance.loader}` : 'Создайте сборку'}
-            </div>
+        <div className="bottom-bar-inner">
+          <div className="launch-instance-selector" ref={menuRef}>
+            <button
+              className="launch-target"
+              onClick={() => setDropdownOpen(!dropdownOpen)}
+              aria-haspopup="listbox"
+              aria-expanded={dropdownOpen}
+              aria-label="Выбрать сборку для запуска"
+            >
+              <img className="instance-icon" src={appIcon} alt="" width={20} height={20} aria-hidden="true" />
+              <span className="launch-target-main">
+                <span className="launch-target-name">{selectedInstance?.name || 'Нет сборки'}</span>
+                <span className="launch-target-sub">
+                  {selectedInstance ? `${selectedInstance.version} · ${selectedInstance.loader}` : 'Создайте сборку'}
+                </span>
+              </span>
+              <span className={`selector-arrow ${dropdownOpen ? 'open' : ''}`} aria-hidden="true">▾</span>
+            </button>
+
+            {dropdownOpen && (
+              <div className="selector-menu" role="listbox" aria-label="Сборки" onClick={(e) => e.stopPropagation()}>
+                {instances.map((inst) => (
+                  <div
+                    key={inst.id}
+                    role="option"
+                    aria-selected={selectedInstance?.id === inst.id}
+                    className={`selector-item ${selectedInstance?.id === inst.id ? 'active' : ''}`}
+                    onClick={() => { onSelectInstance(inst); setDropdownOpen(false) }}
+                  >
+                    <span className="selector-item-name">{inst.name}</span>
+                    <span className="selector-item-meta">{inst.version}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
-          <span className={`selector-arrow ${dropdownOpen ? 'open' : ''}`}>▼</span>
 
-          {dropdownOpen && (
-            <div className="selector-menu" onClick={(e) => e.stopPropagation()}>
-              {instances.map((inst) => (
-                <div
-                  key={inst.id}
-                  className={`selector-item ${selectedInstance?.id === inst.id ? 'active' : ''}`}
-                  onClick={() => { onSelectInstance(inst); setDropdownOpen(false) }}
-                >
-                  <span className="selector-item-name">{inst.name}</span>
-                  <span className="selector-item-meta">{inst.version}</span>
-                </div>
-              ))}
-            </div>
+          <div className="bottom-bar-fill" />
+
+          {(isRunning || isActiveForSelected) && (
+            <button className="btn stop-button" onClick={onStop} title="Принудительно остановить игру">
+              <IconStop /> Остановить
+            </button>
           )}
-        </button>
-      </div>
 
-      <button
-        className={`play-button ${isActiveForSelected ? 'launching' : ''}`}
-        onClick={() => onLaunch()}
-        disabled={disabled}
-        title={disabledReason || 'Запустить Minecraft'}
-      >
-        {isActiveForSelected && <div className="play-progress-fill" style={{ width: `${launchProgress!.progress || 0}%` }} />}
-        <span className="play-button-text">
-          {disabledReason && !isActiveForSelected && !isRunning ? disabledReason : getButtonText()}
-        </span>
-      </button>
-
-      <button
-        className="btn btn-danger"
-        onClick={onStop}
-        disabled={!isRunning && !isActiveForSelected}
-        title="Принудительно остановить игру"
-      >
-        <IconStop /> Остановить
-      </button>
-      </div>
+          <button
+            className={`play-button ${isActiveForSelected ? 'launching' : ''}`}
+            onClick={() => onLaunch()}
+            disabled={disabled}
+            title={disabledReason || 'Запустить Minecraft'}
+          >
+            {isActiveForSelected && <div className="play-progress-fill" style={{ width: `${launchProgress!.progress || 0}%` }} />}
+            <span className="play-button-text">
+              {shortReason && !isActiveForSelected && !isRunning ? shortReason : getButtonText()}
+            </span>
+          </button>
+        </div>
       </div>
     </>
   )

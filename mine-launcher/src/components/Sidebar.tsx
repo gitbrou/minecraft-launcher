@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { Account } from '../types'
 import { errorMessage } from '../utils/errors'
+import appIcon from '../assets/icon.png'
 
 export type NavSection = 'builds' | 'mods' | 'profile' | 'logs'
 
@@ -99,9 +100,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     <aside className="sidebar">
       <div className="side-brand">
         <div className="side-brand-mark" aria-hidden="true">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M4 21V5.5C4 4.7 4.7 4 5.5 4h13c.8 0 1.5.7 1.5 1.5V21l-3-2.4-2.5 2-2.5-2-2.5 2L7 18.6 4 21z" />
-          </svg>
+          <img src={appIcon} alt="" width={20} height={20} />
         </div>
         <div>
           <div className="side-brand-name">Mine Launcher</div>

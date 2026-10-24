@@ -18,6 +18,27 @@ export function ensurePlatformBridge() {
     settings: {}
   }
 
+  // Только для локального превью дизайна в браузере: /?demo=1
+  // В production-сборке условие ложно, данные не подставляются.
+  const isDemo = import.meta.env.DEV && typeof location !== 'undefined' && location.search.includes('demo=1')
+  if (isDemo) {
+    const now = Date.now()
+    stubState.accounts.push({
+      id: 'demo-account',
+      username: 'Steve',
+      uuid: '',
+      type: 'offline',
+      isActive: true,
+      createdAt: now
+    })
+    stubState.instances.push(
+      { id: 'demo-1', name: 'Create: Above and Beyond', version: '1.20.1', loader: 'fabric', created: now, lastPlayed: now - 2 * 3600_000 },
+      { id: 'demo-2', name: 'Выживание с друзьями', version: '1.21.1', loader: 'fabric', created: now, lastPlayed: now - 26 * 3600_000 },
+      { id: 'demo-3', name: 'Vanilla 1.20.4', version: '1.20.4', loader: 'vanilla', created: now },
+      { id: 'demo-4', name: 'Quilt-сборка', version: '1.19.2', loader: 'quilt', created: now, lastPlayed: now - 9 * 24 * 3600_000 }
+    )
+  }
+
   w.electronAPI = {
     minimizeWindow: async () => {},
     maximizeWindow: async () => false,
