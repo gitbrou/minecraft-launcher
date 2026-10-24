@@ -1,13 +1,21 @@
+import type { Account, Instance } from '../types'
+
+type BridgeWindow = { electronAPI?: Window['electronAPI'] }
+
 export function ensurePlatformBridge() {
-  const w = window as any
+  const w = window as unknown as BridgeWindow
   if (w.electronAPI) return
 
-  // Мобильная заглушка (Android/ Boca): main-process недоступен, для запуска
+  // Мобильная заглушка (Android): main-process недоступен, для запуска
   // используется PojavLauncher-мост через Capacitor.
-  const stubState = {
-    accounts: [] as any[],
-    instances: [] as any[],
-    settings: {} as any
+  const stubState: {
+    accounts: Account[]
+    instances: Instance[]
+    settings: Record<string, unknown>
+  } = {
+    accounts: [],
+    instances: [],
+    settings: {}
   }
 
   w.electronAPI = {
@@ -38,23 +46,23 @@ export function ensurePlatformBridge() {
     },
 
     getInstances: async () => stubState.instances,
-    createInstance: async (data: any) => {
-      const inst = {
+    createInstance: async (data: { name: string; version: string; loader: string }) => {
+      const inst: Instance = {
         id: 'inst-' + Date.now().toString(36),
         name: data.name || data.version,
         version: data.version,
-        loader: data.loader,
+        loader: (data.loader === 'fabric' || data.loader === 'quilt' ? data.loader : 'vanilla'),
         created: Date.now()
       }
       stubState.instances.push(inst)
       return stubState.instances
     },
-    renameInstance: async ({ id, name }: any) => {
-      stubState.instances = stubState.instances.map((i: any) => i.id === id ? { ...i, name } : i)
+    renameInstance: async ({ id, name }: { id: string; name: string }) => {
+      stubState.instances = stubState.instances.map((i) => i.id === id ? { ...i, name } : i)
       return stubState.instances
     },
     deleteInstance: async (id: string) => {
-      stubState.instances = stubState.instances.filter((i: any) => i.id !== id)
+      stubState.instances = stubState.instances.filter((i) => i.id !== id)
       return stubState.instances
     },
     openInstanceFolder: async () => {},
@@ -64,7 +72,7 @@ export function ensurePlatformBridge() {
     getVersions: async () => ({ latest: { release: '', snapshot: '' }, versions: [] }),
 
     getSettings: async () => ({ javaPath: '', memoryMin: 1024, memoryMax: 4096, customJvmArgs: '', closeLauncherOnGameStart: false, fullscreen: false, hideLauncher: false, ...stubState.settings }),
-    saveSettings: async (s: any) => {
+    saveSettings: async (s: Record<string, unknown>) => {
       stubState.settings = { ...stubState.settings, ...s }
       return stubState.settings
     },
@@ -79,8 +87,8 @@ export function ensurePlatformBridge() {
     onUpdateState: () => () => {},
 
     launchInstance: async (id: string) => {
-      const inst = stubState.instances.find((i: any) => i.id === id) || stubState.instances[0]
-      const username = stubState.accounts.find((a: any) => a.isActive)?.username
+      const inst = stubState.instances.find((i) => i.id === id) || stubState.instances[0]
+      const username = stubState.accounts.find((a) => a.isActive)?.username
 
       try {
         const { Capacitor, registerPlugin } = await import('@capacitor/core')

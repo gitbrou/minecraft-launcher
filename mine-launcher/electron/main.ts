@@ -21,6 +21,8 @@ import {
 } from './launcherEngine'
 import { buildInstanceMeta, validateArchiveEntries, parseExportedMeta, uniqueInstanceName, MAX_MOD_BYTES_EXPORTED } from './instancePack'
 import { parseImportDeepLink, findDeepLink } from './deepLink'
+import type { Account, Instance, LauncherSettings, ProfileWorld, UpdateState } from '../src/types'
+import { errorMessage } from '../src/utils/errors'
 
 // Запрещаем второй экземпляр лаунчера
 if (!app.requestSingleInstanceLock()) {
@@ -74,14 +76,14 @@ function saveJsonData<T>(filePath: string, data: T) {
 }
 
 // No fake demo data — user starts clean and everything is created in the UI
-let accounts: any[] = loadJsonData(accountsFile, [])
-let instances: any[] = loadJsonData(instancesFile, [])
+let accounts: Account[] = loadJsonData(accountsFile, [])
+let instances: Instance[] = loadJsonData(instancesFile, [])
 
 // Фолбэк памяти зависит от реального объёма ОЗУ машины
 const totalRamMb = Math.round(os.totalmem() / 1024 / 1024)
 const defaultMaxMemory = Math.max(2048, Math.min(4096, Math.floor(totalRamMb / 3)))
 
-let settings: any = loadJsonData(settingsFile, {
+let settings: LauncherSettings = loadJsonData<LauncherSettings>(settingsFile, {
   javaPath: '',
   memoryMin: 1024,
   memoryMax: defaultMaxMemory,
@@ -145,7 +147,7 @@ function ensureTray() {
   return tray
 }
 
-function sendUpdateState(state: any) {
+function sendUpdateState(state: UpdateState) {
   try {
     win?.webContents.send('updater:state', state)
   } catch {}
@@ -354,10 +356,10 @@ async function handleDeepLink(link: NonNullable<ReturnType<typeof findDeepLink>>
       instances: result.instances,
       importedId: result.importedId
     })
-  } catch (err: any) {
+  } catch (err) {
     win?.webContents.send('deep-link:result', {
       ok: false,
-      message: err?.message || 'Не удалось импортировать сборку'
+      message: errorMessage(err, 'Не удалось импортировать сборку')
     })
   } finally {
     fs.rm(tempPath, { force: true }, () => {})
@@ -396,7 +398,7 @@ function safeFilename(filename: string): string {
 }
 
 // Общий путь импорта: и для диалога, и для deep link. Валидация целиком до записи на диск.
-function importInstanceFromArchive(archivePath: string): { instances: any[]; importedId: string } {
+function importInstanceFromArchive(archivePath: string): { instances: Instance[]; importedId: string } {
   const stat = fs.statSync(archivePath)
   if (stat.size > 600 * 1024 * 1024) throw new Error('Архив больше 600 МБ — отказ')
 
@@ -412,9 +414,9 @@ function importInstanceFromArchive(archivePath: string): { instances: any[]; imp
   const meta = parseExportedMeta(JSON.parse(metaEntry.getData().toString('utf-8')))
 
   const newId = 'inst-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6)
-  const newInst: any = {
+  const newInst: Instance = {
     id: newId,
-    name: uniqueInstanceName(meta.name, instances.map((i: any) => i.name)),
+    name: uniqueInstanceName(meta.name, instances.map((i) => i.name)),
     version: meta.version,
     loader: meta.loader,
     created: Date.now(),
@@ -518,7 +520,7 @@ function setupIpcHandlers() {
     if (!data.version) throw new Error('Выберите версию Minecraft')
     if (instances.some(i => i.name === data.name)) throw new Error(`Сборка «${data.name}» уже существует`)
 
-    const newInst: any = {
+    const newInst: Instance = {
       id: 'inst-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
       name: data.name,
       version: data.version,
@@ -539,7 +541,7 @@ function setupIpcHandlers() {
   })
 
   ipcMain.handle('rename-instance', (_, { id, name }: { id: string; name: string }) => {
-    const inst = instances.find((i: any) => i.id === id)
+    const inst = instances.find((i) => i.id === id)
     if (!inst) throw new Error('Сборка не найдена')
     inst.name = name.trim()
     saveJsonData(instancesFile, instances)
@@ -548,8 +550,8 @@ function setupIpcHandlers() {
 
   ipcMain.handle('delete-instance', (_, instanceId: string) => {
     safeInstId(instanceId)
-    const inst = instances.find((i: any) => i.id === instanceId)
-    instances = instances.filter((i: any) => i.id !== instanceId)
+    const inst = instances.find((i) => i.id === instanceId)
+    instances = instances.filter((i) => i.id !== instanceId)
     saveJsonData(instancesFile, instances)
 
     if (inst && fs.existsSync(path.join(rootDir, 'instances', instanceId))) {
@@ -574,7 +576,7 @@ function setupIpcHandlers() {
   // ── Instance export / import ─────────────────────────────────
   ipcMain.handle('export-instance', async (_, instanceId: string) => {
     safeInstId(instanceId)
-    const inst = instances.find((i: any) => i.id === instanceId)
+    const inst = instances.find((i) => i.id === instanceId)
     if (!inst) throw new Error('Сборка не найдена')
 
     const modsDir = path.join(rootDir, 'instances', instanceId, 'mods')
@@ -636,7 +638,7 @@ function setupIpcHandlers() {
     return true
   })
 
-  ipcMain.handle('save-settings', (_, newSettings: any) => {
+  ipcMain.handle('save-settings', (_, newSettings: Partial<LauncherSettings>) => {
     settings = { ...settings, ...newSettings }
     saveJsonData(settingsFile, settings)
     return settings
@@ -651,7 +653,7 @@ function setupIpcHandlers() {
   // ── Launching ────────────────────────────────────────────────
   ipcMain.handle('launch-instance', async (_, instanceId: string) => {
     safeInstId(instanceId)
-    const inst: any = instances.find((i: any) => i.id === instanceId)
+    const inst = instances.find((i) => i.id === instanceId)
     if (!inst) throw new Error('Сборка не найдена')
 
     const activeAcc = accounts.find(a => a.isActive) || accounts[0]
@@ -683,7 +685,7 @@ function setupIpcHandlers() {
       (data) => {
         if (data?.stage === 'running') {
           // Дата последнего запуска честно проставляется только когда игра реально стартовала
-          const cur = instances.find((i: any) => i.id === instanceId)
+          const cur = instances.find((i) => i.id === instanceId)
           if (cur) { cur.lastPlayed = Date.now(); saveJsonData(instancesFile, instances) }
           if (settings.closeLauncherOnGameStart) {
             setTimeout(() => { try { hideToTray() } catch {} }, 3000)
@@ -843,11 +845,11 @@ function setupIpcHandlers() {
 
   // ── Profile (honest data only) ───────────────────────────────
   ipcMain.handle('get-profile-stats', (_, username: string) => {
-    const worlds: any[] = []
+    const worlds: ProfileWorld[] = []
     let modsCount = 0
     let lastPlayedTime = 0
 
-    for (const inst of instances as any[]) {
+    for (const inst of instances) {
       if (inst.lastPlayed) lastPlayedTime = Math.max(lastPlayedTime, inst.lastPlayed)
 
       const savesDir = path.join(rootDir, 'instances', inst.id, 'saves')
@@ -908,8 +910,8 @@ function setupIpcHandlers() {
     try {
       await autoUpdater.checkForUpdates()
       return { ok: true }
-    } catch (e: any) {
-      return { ok: false, message: e?.message }
+    } catch (e) {
+      return { ok: false, message: errorMessage(e, 'Не удалось проверить обновления') }
     }
   })
 
@@ -918,8 +920,8 @@ function setupIpcHandlers() {
     try {
       await autoUpdater.downloadUpdate()
       return { ok: true }
-    } catch (e: any) {
-      return { ok: false, message: e?.message }
+    } catch (e) {
+      return { ok: false, message: errorMessage(e, 'Не удалось скачать обновление') }
     }
   })
 

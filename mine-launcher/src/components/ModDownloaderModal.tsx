@@ -1,15 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { useFocusTrap } from '../hooks/useFocusTrap'
-
-interface ModrinthProject {
-  project_id: string
-  slug: string
-  title: string
-  description: string
-  icon_url?: string
-  downloads: number
-  author: string
-}
+import { errorMessage } from '../utils/errors'
+import { ModrinthProject, ModrinthVersion } from '../types'
 
 interface ModDownloaderModalProps {
   isOpen: boolean
@@ -61,7 +53,7 @@ export const ModDownloaderModal: React.FC<ModDownloaderModalProps> = ({
     setLoading(true)
     setStatus(null)
     try {
-      const facets: any = [['project_type:mod']]
+      const facets: string[][] = [['project_type:mod']]
       // For vanilla instances, show Fabric-compatible mods too (most work on vanilla loader not needed).
       // If instance is fabric/quilt, filter to that loader for compatibility.
       if (loader === 'fabric' || loader === 'quilt') {
@@ -71,9 +63,9 @@ export const ModDownloaderModal: React.FC<ModDownloaderModalProps> = ({
       const res = await fetch(
         `https://api.modrinth.com/v2/search?query=${encodeURIComponent(query)}&facets=${encodeURIComponent(JSON.stringify(facets))}&limit=40`
       )
-      const data = await res.json()
+      const data = await res.json() as { hits?: ModrinthProject[] }
       setSearchResults(
-        (data.hits || []).map((hit: any) => ({
+        (data.hits || []).map((hit) => ({
           project_id: hit.project_id,
           slug: hit.slug,
           title: hit.title,
@@ -83,8 +75,8 @@ export const ModDownloaderModal: React.FC<ModDownloaderModalProps> = ({
           author: hit.author
         }))
       )
-    } catch (err: any) {
-      setStatus({ kind: 'err', text: `Ошибка поиска: ${err.message}` })
+    } catch (err) {
+      setStatus({ kind: 'err', text: `Ошибка поиска: ${errorMessage(err, 'сеть недоступна')}` })
     } finally {
       setLoading(false)
     }
@@ -103,12 +95,12 @@ export const ModDownloaderModal: React.FC<ModDownloaderModalProps> = ({
     setStatus({ kind: 'info', text: `Получаю версии мода ${project.title}...` })
     try {
       const res = await fetch(`https://api.modrinth.com/v2/project/${project.project_id}/version?game_versions=["${gameVersion}"]`)
-      const versions = await res.json()
+      const versions = await res.json() as ModrinthVersion[]
       const compatible = Array.isArray(versions) && versions.length > 0 ? versions[0] : null
 
       if (!compatible?.files?.length) throw new Error('Нет .jar совместимого с этой версией')
 
-      const file = compatible.files.find((f: any) => f.primary) || compatible.files[0]
+      const file = compatible.files.find((f) => f.primary) || compatible.files[0]
 
       setStatus({ kind: 'info', text: `Скачиваю ${file.filename}...` })
       if (window.electronAPI) {
@@ -122,8 +114,8 @@ export const ModDownloaderModal: React.FC<ModDownloaderModalProps> = ({
       setInstalledIds(prev => new Set([...prev, project.project_id]))
       onModInstalled()
       setTimeout(() => setStatus(null), 3000)
-    } catch (err: any) {
-      setStatus({ kind: 'err', text: `Ошибка установки: ${err.message}` })
+    } catch (err) {
+      setStatus({ kind: 'err', text: `Ошибка установки: ${errorMessage(err, 'неизвестная ошибка')}` })
     } finally {
       setInstallingId(null)
     }
@@ -132,12 +124,11 @@ export const ModDownloaderModal: React.FC<ModDownloaderModalProps> = ({
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div
-        className="modal"
+        className="modal modal-lg"
         ref={modalRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="mods-modal-title"
-        style={{ width: '700px', height: '600px' }}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="modal-header">
@@ -150,8 +141,8 @@ export const ModDownloaderModal: React.FC<ModDownloaderModalProps> = ({
           </button>
         </div>
 
-        <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--border)' }}>
-          <div className="search-bar" style={{ width: '100%' }}>
+        <div className="mods-search-row">
+          <div className="search-bar wide">
             <IconSearch />
             <input
               placeholder="Поиск модов (Sodium, Iris, JEI, Create...)"
@@ -168,7 +159,7 @@ export const ModDownloaderModal: React.FC<ModDownloaderModalProps> = ({
           </div>
         )}
 
-        <div style={{ flex: 1, overflowY: 'auto', padding: '14px 20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <div className="mods-list">
           {loading ? (
             <div className="empty-state"><div className="spinner" /></div>
           ) : searchResults.length === 0 ? (
@@ -182,7 +173,7 @@ export const ModDownloaderModal: React.FC<ModDownloaderModalProps> = ({
                 {proj.icon_url ? (
                   <img className="mod-dl-icon" src={proj.icon_url} alt={proj.title} />
                 ) : (
-                  <div style={{ width: '42px', height: '42px', borderRadius: '8px', background: 'var(--bg-input)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-faint)', fontWeight: 700 }}>
+                  <div className="mod-avatar">
                     {proj.title[0]}
                   </div>
                 )}
@@ -191,15 +182,14 @@ export const ModDownloaderModal: React.FC<ModDownloaderModalProps> = ({
                   <div className="mod-dl-title">{proj.title}</div>
                   <div className="mod-dl-desc">{proj.description}</div>
                   <div className="mod-dl-dl-count">
-                    ⬇ {formatDownloads(proj.downloads)} · {proj.author}
+                    Загрузок: {formatDownloads(proj.downloads)} · {proj.author}
                   </div>
                 </div>
 
                 <button
-                  className="btn btn-primary"
+                  className="btn btn-primary mod-install-btn"
                   disabled={installingId === proj.project_id || installedIds.has(proj.project_id)}
                   onClick={() => handleInstall(proj)}
-                  style={{ flexShrink: 0 }}
                 >
                   {installingId === proj.project_id ? 'Установка...' : installedIds.has(proj.project_id) ? 'Установлен' : 'Установить'}
                 </button>

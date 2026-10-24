@@ -53,6 +53,25 @@ export interface SystemInfo {
   defaultMaxMemory: number;
 }
 
+export type UpdateStatus = 'dev' | 'checking' | 'available' | 'not-available' | 'downloading' | 'downloaded' | 'error';
+
+export interface UpdateState {
+  status: UpdateStatus;
+  percent?: number;
+  transferred?: number;
+  total?: number;
+  bytesPerSecond?: number;
+  message?: string;
+  info?: unknown;
+}
+
+export interface DeepLinkResult {
+  ok: boolean;
+  message?: string;
+  instances?: Instance[];
+  importedId?: string;
+}
+
 export interface LaunchProgress {
   instanceId: string;
   stage: 'idle' | 'checking' | 'downloading' | 'extracting' | 'launching' | 'running' | 'error';
@@ -68,6 +87,26 @@ export interface GameLog {
   timestamp: number;
   type: 'info' | 'warn' | 'error';
   message: string;
+}
+
+export interface ModrinthProject {
+  project_id: string;
+  slug: string;
+  title: string;
+  description: string;
+  icon_url?: string;
+  downloads: number;
+  author: string;
+}
+
+export interface ModrinthFile {
+  url: string;
+  filename: string;
+  primary?: boolean;
+}
+
+export interface ModrinthVersion {
+  files: ModrinthFile[];
 }
 
 export interface ProfileWorld {

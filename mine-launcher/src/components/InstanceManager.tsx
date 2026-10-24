@@ -147,7 +147,7 @@ export const InstanceManager: React.FC<InstanceManagerProps> = ({
 
   const handleAddModFile = () => {
     if (selectedInstance && window.electronAPI) {
-      window.electronAPI.addModFile(selectedInstance.id).then((ok: any) => { if (ok) refreshMods() })
+      window.electronAPI.addModFile(selectedInstance.id).then((ok) => { if (ok) refreshMods() })
     }
   }
 
@@ -254,8 +254,7 @@ export const InstanceManager: React.FC<InstanceManagerProps> = ({
                 <div className="instance-card-top">
                   {renamingId === inst.id ? (
                     <input
-                      className="form-input"
-                      style={{ padding: '4px 8px', fontSize: '14px' }}
+                      className="form-input rename-input"
                       autoFocus
                       value={renameText}
                       onChange={(e) => setRenameText(e.target.value)}
@@ -320,7 +319,7 @@ export const InstanceManager: React.FC<InstanceManagerProps> = ({
   if (section === 'mods') {
     if (!selectedInstance) return null
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+      <div className="page-col">
         <div className="content-toolbar">
           <h1 className="section-title">Моды · {selectedInstance.name}</h1>
           <div className="toolbar-actions">
@@ -337,7 +336,7 @@ export const InstanceManager: React.FC<InstanceManagerProps> = ({
         </div>
 
         {selectedInstance.loader === 'vanilla' && (
-          <div className="status-banner info" style={{ borderRadius: '10px', marginBottom: '10px' }}>
+          <div className="status-banner info compact">
             Это Vanilla-сборка — моды в игре не загрузятся. Для модов создайте Fabric или Quilt.
           </div>
         )}
@@ -358,7 +357,7 @@ export const InstanceManager: React.FC<InstanceManagerProps> = ({
               <div key={mod.id} className="row-item">
                 <div className="row-item-icon"><IconMods /></div>
                 <div className="row-item-main">
-                  <div className="row-item-title" style={{ textDecoration: mod.enabled ? 'none' : 'line-through', color: mod.enabled ? 'var(--text)' : 'var(--text-faint)' }}>
+                  <div className={`row-item-title mod-title ${mod.enabled ? '' : 'disabled'}`}>
                     {mod.name}
                   </div>
                   <div className="row-item-sub">
@@ -388,7 +387,7 @@ export const InstanceManager: React.FC<InstanceManagerProps> = ({
   if (section === 'profile') {
     if (!activeUsername) return null
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+      <div className="page-col">
         <div className="content-toolbar">
           <h1 className="section-title">Профиль</h1>
         </div>
@@ -399,11 +398,11 @@ export const InstanceManager: React.FC<InstanceManagerProps> = ({
 
   // ── Logs section ───────────────────────────────────────────────
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+    <div className="page-col">
       <div className="content-toolbar">
         <h1 className="section-title">Логи</h1>
         <div className="toolbar-actions">
-          {copyNotice && <span style={{ color: 'var(--accent)', fontSize: '12px' }}>{copyNotice}</span>}
+          {copyNotice && <span className="copy-notice">{copyNotice}</span>}
           <button className="btn" onClick={handleCopyLogs} disabled={logs.length === 0}>
             Скопировать логи
           </button>
@@ -411,7 +410,7 @@ export const InstanceManager: React.FC<InstanceManagerProps> = ({
       </div>
       <div className="log-view">
         {logs.length === 0 ? (
-          <span style={{ color: 'var(--text-faint)' }}>Логи пусты. Нажмите «Играть», чтобы запустить Minecraft.</span>
+          <span className="log-empty">Логи пусты. Нажмите «Играть», чтобы запустить Minecraft.</span>
         ) : (
           logs.map((log, idx) => (
             <div key={idx} className={`log-line ${log.type === 'error' ? 'error' : log.type === 'warn' ? 'warn' : ''}`}>
@@ -447,7 +446,7 @@ const CreateInstanceModal: React.FC<{
 
   useEffect(() => {
     if (window.electronAPI) {
-      window.electronAPI.getVersions().then((m: any) => setVersions(m?.versions || [])).finally(() => setLoadingVersions(false))
+      window.electronAPI.getVersions().then((m) => setVersions(m?.versions || [])).finally(() => setLoadingVersions(false))
     } else {
       setLoadingVersions(false)
     }
@@ -479,12 +478,11 @@ const CreateInstanceModal: React.FC<{
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div
-        className="modal"
+        className="modal modal-sm"
         ref={modalRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="create-modal-title"
-        style={{ width: '460px' }}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="modal-header">
@@ -522,7 +520,7 @@ const CreateInstanceModal: React.FC<{
           <div className="form-row">
             <span className="form-label">Версия Minecraft</span>
             {!isOpenSearch && popularChips.length > 0 && (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '8px' }}>
+              <div className="chips-row">
                 {popularChips.map(v => (
                   <button
                     key={v.id}
@@ -534,7 +532,7 @@ const CreateInstanceModal: React.FC<{
                 ))}
               </div>
             )}
-            <div className="search-bar" style={{ width: '100%', marginBottom: '8px' }}>
+            <div className="search-bar block">
               <IconSearch />
               <input
                 placeholder="Поиск версии (например, 1.20, 1.8.9...)"
@@ -544,11 +542,11 @@ const CreateInstanceModal: React.FC<{
             </div>
             <div className="version-picker-list">
               {loadingVersions ? (
-                <div style={{ padding: '20px', textAlign: 'center' }}>
-                  <div className="spinner" style={{ margin: '0 auto' }} />
+                <div className="center-pad">
+                  <div className="spinner" />
                 </div>
               ) : listedVersions.length === 0 ? (
-                <div style={{ padding: '16px', textAlign: 'center', color: 'var(--text-faint)' }}>
+                <div className="list-empty">
                   Ничего не найдено
                 </div>
               ) : (
@@ -591,14 +589,14 @@ const CreateInstanceModal: React.FC<{
 
 // ───────────────── Onboarding empty state ─────────────────
 const EmptyOnboarding: React.FC<{ onCreate: () => void; onImport: () => void }> = ({ onCreate, onImport }) => (
-  <div className="empty-state" style={{ padding: '80px 40px' }}>
+  <div className="empty-state onboarding">
     <div className="empty-state-icon"><IconPackage /></div>
     <div className="empty-state-title">Пока нет сборок</div>
     <div className="empty-state-text">
       Создайте свою первую сборку — выберите версию Minecraft и загрузчик (Fabric или Quilt для модов).
       Лаунчер сам скачает игру, библиотеки и нужную Java при первом запуске.
     </div>
-    <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
+    <div className="empty-actions">
       <button className="btn btn-primary" onClick={onCreate}>
         <IconPlus /> Создать сборку
       </button>

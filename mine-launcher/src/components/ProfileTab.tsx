@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
+import type { SkinViewer } from 'skinview3d'
 import { ProfileStats, ProfileWorld } from '../types'
+import { errorMessage } from '../utils/errors'
 
 interface ProfileTabProps {
   activeUsername: string
@@ -7,21 +9,20 @@ interface ProfileTabProps {
 
 const SkinViewerCanvas: React.FC<{ username: string; skinPath: string | null }> = ({ username, skinPath }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const viewerRef = useRef<any>(null)
+  const viewerRef = useRef<SkinViewer | null>(null)
 
   useEffect(() => {
     let disposed = false
 
     const setupViewer = async () => {
       try {
-        const mod: any = await import('skinview3d')
+        const mod = await import('skinview3d')
         if (disposed || !canvasRef.current) return
 
         const viewer = new mod.SkinViewer({
           canvas: canvasRef.current,
           width: 140,
-          height: 140,
-          renderPaused: false
+          height: 140
         })
         viewerRef.current = viewer
 
@@ -32,28 +33,27 @@ const SkinViewerCanvas: React.FC<{ username: string; skinPath: string | null }> 
         viewer.controls.enableZoom = true
 
         try {
-          if (skinPath) {
-            await mod.loadSkinFromURL(viewer.playerObject, skinPath)
-          } else {
-            await mod.loadSkinFromURL(viewer.playerObject, `https://mc-heads.net/skin/${encodeURIComponent(username)}`)
-          }
+          const source = skinPath || `https://mc-heads.net/skin/${encodeURIComponent(username)}`
+          await viewer.loadSkin(source)
         } catch {
-          // fallback Steve/missing skin is fine
+          // нет интернета/скина — остаётся дефолтная модель, это не ошибка экрана
         }
-      } catch {}
+      } catch {
+        // skinview3d не загрузился (нет WebGL) — карточка просто останется без 3D
+      }
     }
 
     setupViewer()
 
     return () => {
       disposed = true
-      try { viewerRef.current?.dispose?.() } catch {}
+      try { viewerRef.current?.dispose?.() } catch { /* already disposed */ }
     }
   }, [username, skinPath])
 
   return (
     <div className="profile-skin-frame">
-      <canvas ref={canvasRef} style={{ width: '100%', height: '100%' }} />
+      <canvas ref={canvasRef} className="skin-canvas" />
     </div>
   )
 }
@@ -92,8 +92,8 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ activeUsername }) => {
       await window.electronAPI.fetchOnlineSkin({ username: activeUsername, targetUsername: activeUsername })
       setSkinPath(await window.electronAPI.getUserSkin(activeUsername))
       setNotice('Скин загружен')
-    } catch (err: any) {
-      setNotice(err?.message || 'Не удалось загрузить скин')
+    } catch (err) {
+      setNotice(errorMessage(err, 'Не удалось загрузить скин'))
     }
     setBusy(false)
   }
@@ -121,12 +121,12 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ activeUsername }) => {
           </button>
         </div>
 
-        {notice && <div style={{ fontSize: '12px', color: 'var(--text-muted)', textAlign: 'center' }}>{notice}</div>}
+        {notice && <div className="profile-notice">{notice}</div>}
         {busy && <div className="spinner" />}
       </div>
 
       {/* Right: honest stats */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', minWidth: 0 }}>
+      <div className="profile-column">
         <div className="profile-stats-card">
           <span className="profile-stats-title">Статистика</span>
           <div className="stat-list">
@@ -148,13 +148,13 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ activeUsername }) => {
         <div className="profile-stats-card">
           <span className="profile-stats-title">Миры ({stats?.worldsCount ?? 0})</span>
           {(!stats?.worlds || stats.worlds.length === 0) ? (
-            <div style={{ fontSize: '13px', color: 'var(--text-faint)' }}>
+            <div className="profile-hint">
               Миров пока нет — создайте новый в игре и он появится здесь.
             </div>
           ) : (
-            <div className="list-rows" style={{ maxHeight: '320px' }}>
+            <div className="list-rows worlds-list">
               {stats.worlds.map((w: ProfileWorld) => (
-                <div key={`${w.instanceId}-${w.worldName}`} className="row-item" style={{ padding: '9px 12px' }}>
+                <div key={`${w.instanceId}-${w.worldName}`} className="row-item world-row">
                   <div className="row-item-main">
                     <div className="row-item-title">{w.worldName}</div>
                     <div className="row-item-sub">Сборка: {w.instanceName}</div>

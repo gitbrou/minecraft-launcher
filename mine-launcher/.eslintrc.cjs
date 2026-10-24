@@ -14,5 +14,7 @@ module.exports = {
       'warn',
       { allowConstantExport: true },
     ],
+    // Пустой catch — осознанный best-effort (кэш, трей, удаление temp), не забытая ошибка
+    'no-empty': ['error', { allowEmptyCatch: true }],
   },
 }

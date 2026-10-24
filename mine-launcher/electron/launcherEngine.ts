@@ -4,8 +4,10 @@ import crypto from 'node:crypto'
 import https from 'node:https'
 import http from 'node:http'
 import { spawn, execSync } from 'node:child_process'
+import type { ChildProcessWithoutNullStreams } from 'node:child_process'
 import { app } from 'electron'
 import AdmZip from 'adm-zip'
+import { errorMessage } from '../src/utils/errors'
 
 // Java major по версии Minecraft
 export function requiredJavaMajor(mcVersion: string): number {
@@ -86,7 +88,42 @@ export interface LogCallback {
   (log: { timestamp: number; type: 'info' | 'warn' | 'error'; message: string }): void
 }
 
-const activeProcesses = new Map<string, any>()
+interface DownloadArtifact {
+  url: string
+  path: string
+  size?: number
+  sha1?: string
+}
+
+interface MinecraftLibrary {
+  name: string
+  url?: string
+  rules?: Array<{ action: string; os?: { name: string } }>
+  downloads?: {
+    artifact?: DownloadArtifact
+    classifiers?: Record<string, DownloadArtifact>
+  }
+}
+
+interface MinecraftVersionData {
+  id?: string
+  mainClass?: string
+  minecraftArguments?: string
+  assetIndex?: { id: string; url: string }
+  downloads?: { client?: DownloadArtifact }
+  libraries?: MinecraftLibrary[]
+}
+
+interface LoaderVersionRef {
+  loader: { version: string }
+}
+
+interface LoaderProfile {
+  mainClass?: string
+  libraries?: Array<{ name: string; url?: string }>
+}
+
+const activeProcesses = new Map<string, ChildProcessWithoutNullStreams>()
 
 let lastLaunchAt = 0
 let lastLaunchBytes = 0
@@ -187,7 +224,7 @@ export function extractZipSafe(zipPath: string, destDir: string, filter?: (name:
 
     // Unix-биты режима в zip лежат в старших 16 битах external attributes.
     // 0o120000 — symlink: такие записи опасны, отказываем целиком.
-    const attr = Number((entry.header as any)?.attr ?? 0)
+    const attr = Number(entry.header.attr ?? 0)
     const unixMode = (attr >>> 16) & 0o170000
     if (unixMode === 0o120000 || (attr & 0o170000) === 0o120000) {
       throw new Error(`Архив содержит symlink: ${raw}`)
@@ -532,17 +569,19 @@ export async function launchMinecraft(
     if (!verInfo) throw new Error(`Версия ${config.version} не найдена на серверах Mojang`)
 
     const versionJsonPath = path.join(versionsDir, config.version, `${config.version}.json`)
-    let versionData: any
+    let versionData: MinecraftVersionData | null
     if (fs.existsSync(versionJsonPath)) {
       try {
-        versionData = JSON.parse(fs.readFileSync(versionJsonPath, 'utf-8'))
+        versionData = JSON.parse(fs.readFileSync(versionJsonPath, 'utf-8')) as MinecraftVersionData
       } catch {
         versionData = null
       }
+    } else {
+      versionData = null
     }
     if (!versionData) {
       onProgress({ instanceId: config.instanceId, stage: 'downloading', statusText: `Загрузка версии ${config.version}...`, progress: 10 })
-      versionData = await fetchJson<any>(verInfo.url)
+      versionData = await fetchJson<MinecraftVersionData>(verInfo.url)
       if (!fs.existsSync(path.dirname(versionJsonPath))) fs.mkdirSync(path.dirname(versionJsonPath), { recursive: true })
       fs.writeFileSync(versionJsonPath, JSON.stringify(versionData, null, 2))
     }
@@ -556,7 +595,7 @@ export async function launchMinecraft(
       }
 
       try {
-        const index = JSON.parse(fs.readFileSync(assetIndexPath, 'utf-8'))
+        const index = JSON.parse(fs.readFileSync(assetIndexPath, 'utf-8')) as { objects?: Record<string, { hash: string }> }
         const objects = index.objects || {}
         const objectsDir = path.join(assetsDir, 'objects')
 
@@ -604,8 +643,8 @@ export async function launchMinecraft(
             }
           }
         }
-      } catch (e: any) {
-        onLog({ timestamp: Date.now(), type: 'warn', message: `Ресурсы: ${e.message}` })
+      } catch (e) {
+        onLog({ timestamp: Date.now(), type: 'warn', message: `Ресурсы: ${errorMessage(e, 'не удалось загрузить')}` })
       }
     }
 
@@ -723,10 +762,10 @@ export async function launchMinecraft(
     if (config.loader === 'fabric') {
       onProgress({ instanceId: config.instanceId, stage: 'downloading', statusText: 'Установка Fabric...', progress: 72 })
       try {
-        const fabricMeta = await fetchJson<any[]>(`https://meta.fabricmc.net/v2/versions/loader/${config.version}`)
+        const fabricMeta = await fetchJson<LoaderVersionRef[]>(`https://meta.fabricmc.net/v2/versions/loader/${config.version}`)
         if (fabricMeta?.length) {
           const loaderVer = fabricMeta[0].loader.version
-          const fabricProfile = await fetchJson<any>(
+          const fabricProfile = await fetchJson<LoaderProfile>(
             `https://meta.fabricmc.net/v2/versions/loader/${config.version}/${loaderVer}/profile/json`
           )
           if (fabricProfile.mainClass) mainClass = fabricProfile.mainClass
@@ -747,18 +786,18 @@ export async function launchMinecraft(
             }
           }
         }
-      } catch (err: any) {
-        throw new Error(`Ошибка загрузки Fabric: ${err.message}`)
+      } catch (err) {
+        throw new Error(`Ошибка загрузки Fabric: ${errorMessage(err, 'неизвестная ошибка')}`)
       }
     }
 
     if (config.loader === 'quilt') {
       onProgress({ instanceId: config.instanceId, stage: 'downloading', statusText: 'Установка Quilt...', progress: 72 })
       try {
-        const quiltMeta = await fetchJson<any[]>(`https://meta.quiltmc.org/v3/versions/loader/${config.version}`)
+        const quiltMeta = await fetchJson<LoaderVersionRef[]>(`https://meta.quiltmc.org/v3/versions/loader/${config.version}`)
         if (quiltMeta?.length) {
           const loaderVer = quiltMeta[0].loader.version
-          const quiltProfile = await fetchJson<any>(
+          const quiltProfile = await fetchJson<LoaderProfile>(
             `https://meta.quiltmc.org/v3/versions/loader/${config.version}/${loaderVer}/profile/json`
           )
           if (quiltProfile.mainClass) mainClass = quiltProfile.mainClass
@@ -779,8 +818,8 @@ export async function launchMinecraft(
             }
           }
         }
-      } catch (err: any) {
-        throw new Error(`Ошибка загрузки Quilt: ${err.message}`)
+      } catch (err) {
+        throw new Error(`Ошибка загрузки Quilt: ${errorMessage(err, 'неизвестная ошибка')}`)
       }
     }
 
@@ -852,14 +891,14 @@ export async function launchMinecraft(
 
     onLog({ timestamp: Date.now(), type: 'info', message: `Запуск: "${javaBin}" ${args.slice(0, 8).join(' ')} ... [обрезано]` })
 
-    const child: any = spawn(javaBin || 'javaw', args, {
+    const child = spawn(javaBin || 'javaw', args, {
       cwd: instanceDir,
       detached: !config.hideLauncher
     })
 
     activeProcesses.set(config.instanceId, child)
 
-    child.stdout.on('data', (data: any) => {
+    child.stdout.on('data', (data: Buffer) => {
       for (const line of data.toString().split('\n')) {
         if (line.trim()) {
           pushLogLine(line)
@@ -868,7 +907,7 @@ export async function launchMinecraft(
       }
     })
 
-    child.stderr.on('data', (data: any) => {
+    child.stderr.on('data', (data: Buffer) => {
       for (const line of data.toString().split('\n')) {
         if (line.trim()) {
           pushLogLine(line)
@@ -877,19 +916,20 @@ export async function launchMinecraft(
       }
     })
 
-    child.on('error', (err: any) => {
+    child.on('error', (err) => {
       activeProcesses.delete(config.instanceId)
+      const message = errorMessage(err, 'не удалось запустить Java')
       onProgress({
         instanceId: config.instanceId,
         stage: 'error',
-        statusText: `Ошибка запуска: ${err.message}`,
+        statusText: `Ошибка запуска: ${message}`,
         progress: 0,
-        error: err.message
+        error: message
       })
-      onLog({ timestamp: Date.now(), type: 'error', message: `Ошибка запуска: ${err.message}` })
+      onLog({ timestamp: Date.now(), type: 'error', message: `Ошибка запуска: ${message}` })
     })
 
-    child.on('exit', (code: any) => {
+    child.on('exit', (code) => {
       activeProcesses.delete(config.instanceId)
       if (code === 0) {
         logRingBuffer = []
@@ -911,15 +951,16 @@ export async function launchMinecraft(
 
     onProgress({ instanceId: config.instanceId, stage: 'running', statusText: 'Игра запущена!', progress: 100 })
 
-  } catch (error: any) {
+  } catch (error) {
+    const message = errorMessage(error, 'неизвестная ошибка')
     onProgress({
       instanceId: config.instanceId,
       stage: 'error',
-      statusText: `Ошибка: ${error.message}`,
+      statusText: `Ошибка: ${message}`,
       progress: 0,
-      error: error.message
+      error: message
     })
-    onLog({ timestamp: Date.now(), type: 'error', message: `Ошибка запуска: ${error.message}` })
+    onLog({ timestamp: Date.now(), type: 'error', message: `Ошибка запуска: ${message}` })
   }
 }
 
@@ -927,7 +968,9 @@ export function stopInstance(instanceId: string): boolean {
   const proc = activeProcesses.get(instanceId)
   if (proc) {
     try {
-      process.kill(-proc.pid, 'SIGTERM')
+      // На POSIX убиваем всю группу процессов (detached), иначе — сам процесс
+      if (proc.pid) process.kill(-proc.pid, 'SIGTERM')
+      else proc.kill()
     } catch {
       proc.kill()
     }

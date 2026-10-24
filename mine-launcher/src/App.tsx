@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
-import { Account, Instance, LaunchProgress, GameLog, LauncherSettings } from './types'
+import { Account, Instance, LaunchProgress, GameLog, LauncherSettings, UpdateState, DeepLinkResult } from './types'
+import { errorMessage } from './utils/errors'
 import { TitleBar } from './components/TitleBar'
 import { Sidebar, NavSection } from './components/Sidebar'
 import { InstanceManager } from './components/InstanceManager'
@@ -17,7 +18,7 @@ export function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const [isModDownloaderOpen, setIsModDownloaderOpen] = useState(false)
   const [isBooted, setIsBooted] = useState(false)
-  const [updateState, setUpdateState] = useState<any>(null)
+  const [updateState, setUpdateState] = useState<UpdateState | null>(null)
   const [navSection, setNavSection] = useState<NavSection>('builds')
   const [modsRefreshKey, setModsRefreshKey] = useState(0)
   const [toast, setToast] = useState('')
@@ -64,11 +65,12 @@ export function App() {
       logBufferRef.current = []
       setLogs((prev) => [...prev, ...pending].slice(-300))
     }, 250)
-    const unsubscribeUpdate = window.electronAPI.onUpdateState?.((state: any) => setUpdateState(state))
-    const unsubscribeDeepLink = window.electronAPI.onDeepLinkResult?.((result: any) => {
-      if (result?.ok && Array.isArray(result.instances)) {
-        setInstances(result.instances)
-        const imported = result.instances.find((i: Instance) => i.id === result.importedId)
+    const unsubscribeUpdate = window.electronAPI.onUpdateState?.((state: UpdateState) => setUpdateState(state))
+    const unsubscribeDeepLink = window.electronAPI.onDeepLinkResult?.((result: DeepLinkResult) => {
+      const nextInstances = result?.instances
+      if (result?.ok && Array.isArray(nextInstances)) {
+        setInstances(nextInstances)
+        const imported = nextInstances.find((i) => i.id === result.importedId)
         if (imported) {
           setSelectedInstance(imported)
           window.electronAPI.setSelectedInstanceId(imported.id)
@@ -154,21 +156,21 @@ export function App() {
     try {
       const result = await window.electronAPI.exportInstance(instance.id)
       if (result?.ok) setToast(`Сборка «${instance.name}» сохранена в zip`)
-    } catch (err: any) {
-      setToast(err?.message || 'Не удалось экспортировать сборку')
+    } catch (err) {
+      setToast(errorMessage(err, 'Не удалось экспортировать сборку'))
     }
   }
 
   const handleImportInstance = async () => {
     try {
       const result = await window.electronAPI.importInstance()
-      if (!result?.ok) return
+      if (!result?.ok || !Array.isArray(result.instances)) return
       setInstances(result.instances)
-      const imported = result.instances.find((i: Instance) => i.id === result.importedId)
+      const imported = result.instances.find((i) => i.id === result.importedId)
       if (imported) handleSelectInstance(imported)
       setToast(`Импортирована сборка «${imported?.name || 'без названия'}»`)
-    } catch (err: any) {
-      setToast(err?.message || 'Не удалось импортировать сборку')
+    } catch (err) {
+      setToast(errorMessage(err, 'Не удалось импортировать сборку'))
     }
   }
 
@@ -232,11 +234,11 @@ export function App() {
         <div className="app-toast" role="status" aria-live="polite">{toast}</div>
       )}
 
-      {updateBannerText && (
+      {updateBannerText && updateState && (
         <div className="update-banner" role="status" aria-live="polite">
           <div className="update-banner-left">
             {updateState.status !== 'downloaded' && (
-              <div className="spinner" style={{ width: 14, height: 14, borderBottomWidth: 2, borderLeftWidth: 2, borderRightWidth: 2, borderTopWidth: 2 }} />
+              <div className="spinner inline" />
             )}
             <span className="update-banner-text">{updateBannerText}</span>
           </div>
@@ -251,8 +253,7 @@ export function App() {
             )}
             {updateState.status === 'downloaded' && (
               <button
-                className="btn btn-primary"
-                style={{ padding: '5px 12px', fontSize: '12px' }}
+                className="btn btn-primary btn-sm"
                 onClick={() => window.electronAPI.installUpdate?.()}
               >
                 Перезапустить и обновить

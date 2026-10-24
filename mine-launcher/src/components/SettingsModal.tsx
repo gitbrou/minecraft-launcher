@@ -37,7 +37,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
 
   useEffect(() => {
     if (isOpen && window.electronAPI) {
-      window.electronAPI.getSettings().then((s: any) => {
+      window.electronAPI.getSettings().then((s: LauncherSettings) => {
         if (s) {
           setSettings({
             javaPath: s.javaPath || '',
@@ -79,12 +79,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div
-        className="modal"
+        className="modal modal-md"
         ref={modalRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="settings-modal-title"
-        style={{ width: '540px' }}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="modal-header">
@@ -108,7 +107,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
                 value={settings.memoryMin}
                 onChange={(e) => setSettings({ ...settings, memoryMin: Math.max(512, parseInt(e.target.value) || 1024) })}
               />
-              <span style={{ color: 'var(--text-faint)' }}>до</span>
+              <span className="range-sep">до</span>
               <input
                 className="form-input"
                 type="number"
@@ -123,13 +122,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
           {ramWarning && <div className="form-error">{ramWarning}</div>}
           {systemInfo && (
             <button
-              className="btn"
-              style={{
-                alignSelf: 'flex-start',
-                padding: '6px 12px',
-                fontSize: '12px',
-                opacity: ramWarning ? 1 : 0.6
-              }}
+              className={`btn btn-sm align-start ${ramWarning ? '' : 'dimmed'}`}
               onClick={() => setSettings({ ...settings, memoryMax: systemInfo.defaultMaxMemory })}
             >
               Поставить {systemInfo.defaultMaxMemory} МБ (рекомендовано для вашего ПК)
@@ -146,7 +139,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
               value={settings.javaPath}
               onChange={(e) => setSettings({ ...settings, javaPath: e.target.value })}
             />
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div className="field-row">
               <span className="form-hint">
                 {detectedJavas.length > 0
                   ? `Найдено Java: ${detectedJavas.length}`
@@ -154,8 +147,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
               </span>
               {detectedJavas.length > 0 && (
                 <select
-                  className="form-select"
-                  style={{ width: 'auto', padding: '4px 8px', fontSize: '12px' }}
+                  className="form-select inline"
                   value={settings.javaPath}
                   onChange={(e) => setSettings({ ...settings, javaPath: e.target.value })}
                 >
