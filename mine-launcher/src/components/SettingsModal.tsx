@@ -87,111 +87,130 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
         onClick={(e) => e.stopPropagation()}
       >
         <div className="modal-header">
-          <span className="modal-title" id="settings-modal-title">Настройки лаунчера</span>
+          <span className="modal-title" id="settings-modal-title">Настройки</span>
           <button className="modal-close" onClick={onClose} aria-label="Закрыть настройки">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m6 6l12 12M18 6L6 18" /></svg>
           </button>
         </div>
 
-        <div className="modal-body">
-          {/* Memory */}
-          <div className="form-row">
-            <span className="form-label">Память (МБ){systemInfo ? ` · ОЗУ ПК ${Math.round(systemInfo.totalRamMb / 1024)} ГБ` : ''}</span>
-            <div className="form-inline">
-              <input
-                className="form-input"
-                type="number"
-                min={512}
-                max={32768}
-                step={256}
-                value={settings.memoryMin}
-                onChange={(e) => setSettings({ ...settings, memoryMin: Math.max(512, parseInt(e.target.value) || 1024) })}
-              />
-              <span className="range-sep">до</span>
-              <input
-                className="form-input"
-                type="number"
-                min={1024}
-                max={32768}
-                step={512}
-                value={settings.memoryMax}
-                onChange={(e) => setSettings({ ...settings, memoryMax: Math.max(1024, parseInt(e.target.value) || 4096) })}
-              />
-            </div>
-            <span className="form-hint">Для обычной игры хватит 2048 МБ, для модов — 4096–6144 МБ.</span>
-          {ramWarning && <div className="form-error">{ramWarning}</div>}
-          {systemInfo && (
-            <button
-              className={`btn btn-sm align-start ${ramWarning ? '' : 'dimmed'}`}
-              onClick={() => setSettings({ ...settings, memoryMax: systemInfo.defaultMaxMemory })}
-            >
-              Поставить {systemInfo.defaultMaxMemory} МБ (рекомендовано для вашего ПК)
-            </button>
-          )}
-          </div>
-
-          {/* Java */}
-          <div className="form-row">
-            <span className="form-label">Java путь (необязательно)</span>
-            <input
-              className="form-input"
-              placeholder="Авто — лаунчер сам определит и скачает нужную Java"
-              value={settings.javaPath}
-              onChange={(e) => setSettings({ ...settings, javaPath: e.target.value })}
-            />
-            <div className="field-row">
-              <span className="form-hint">
-                {detectedJavas.length > 0
-                  ? `Найдено Java: ${detectedJavas.length}`
-                  : 'Java не найдена на ПК — будет скачана автоматически'}
-              </span>
-              {detectedJavas.length > 0 && (
-                <select
-                  className="form-select inline"
-                  value={settings.javaPath}
-                  onChange={(e) => setSettings({ ...settings, javaPath: e.target.value })}
+        <div className="modal-body settings-body">
+          <section className="settings-section">
+            <h3 className="settings-section-title">Память</h3>
+            <div className="settings-field">
+              <div className="settings-field-head">
+                <span className="settings-field-label">Оперативная память</span>
+                {systemInfo && <span className="settings-meta">ОЗУ ПК {Math.round(systemInfo.totalRamMb / 1024)} ГБ</span>}
+              </div>
+              <div className="settings-memory-row">
+                <input
+                  className="form-input mono"
+                  type="number"
+                  min={512}
+                  max={32768}
+                  step={256}
+                  value={settings.memoryMin}
+                  aria-label="Минимальная память, МБ"
+                  onChange={(e) => setSettings({ ...settings, memoryMin: Math.max(512, parseInt(e.target.value) || 1024) })}
+                />
+                <span className="range-sep">до</span>
+                <input
+                  className="form-input mono"
+                  type="number"
+                  min={1024}
+                  max={32768}
+                  step={512}
+                  value={settings.memoryMax}
+                  aria-label="Максимальная память, МБ"
+                  onChange={(e) => setSettings({ ...settings, memoryMax: Math.max(1024, parseInt(e.target.value) || 4096) })}
+                />
+                <span className="settings-unit">МБ</span>
+              </div>
+              <span className="settings-hint">Для ваниллы хватит 2048 МБ, для модов — 4096–6144 МБ.</span>
+              {ramWarning && <div className="form-error">{ramWarning}</div>}
+              {systemInfo && (
+                <button
+                  className={`btn btn-sm align-start ${ramWarning ? '' : 'dimmed'}`}
+                  onClick={() => setSettings({ ...settings, memoryMax: systemInfo.defaultMaxMemory })}
                 >
-                  <option value="">Авто</option>
-                  {detectedJavas.map((j) => (
-                    <option key={j} value={j}>{j.split(/[/\\]/).slice(-3).join('/')}</option>
-                  ))}
-                </select>
+                  Поставить {systemInfo.defaultMaxMemory} МБ для этого ПК
+                </button>
               )}
             </div>
-          </div>
+          </section>
 
-          {/* JVM args */}
-          <div className="form-row">
-            <span className="form-label">Дополнительные JVM аргументы</span>
-            <input
-              className="form-input"
-              placeholder="например: -Dfml.readTimeout=120"
-              value={settings.customJvmArgs}
-              onChange={(e) => setSettings({ ...settings, customJvmArgs: e.target.value })}
-            />
-          </div>
+          <section className="settings-section">
+            <h3 className="settings-section-title">Java</h3>
+            <div className="settings-field">
+              <div className="settings-field-head">
+                <span className="settings-field-label">Путь к Java</span>
+                <span className="settings-meta">
+                  {detectedJavas.length > 0 ? `найдено: ${detectedJavas.length}` : 'не найдена — скачаем'}
+                </span>
+              </div>
+              <input
+                className="form-input mono"
+                placeholder="Авто — нужная версия скачается сама"
+                value={settings.javaPath}
+                onChange={(e) => setSettings({ ...settings, javaPath: e.target.value })}
+              />
+              {detectedJavas.length > 0 && (
+                <div className="settings-java-row">
+                  <select
+                    className="form-select inline"
+                    value={settings.javaPath}
+                    onChange={(e) => setSettings({ ...settings, javaPath: e.target.value })}
+                    aria-label="Выбрать найденную Java"
+                  >
+                    <option value="">Авто</option>
+                    {detectedJavas.map((j) => (
+                      <option key={j} value={j}>{j.split(/[/\\]/).slice(-3).join('/')}</option>
+                    ))}
+                  </select>
+                  <span className="settings-hint">или укажите путь вручную</span>
+                </div>
+              )}
+              <div className="settings-field-head settings-subhead">
+                <span className="settings-field-label">JVM-аргументы</span>
+              </div>
+              <input
+                className="form-input mono"
+                placeholder="-Dfml.readTimeout=120"
+                value={settings.customJvmArgs}
+                onChange={(e) => setSettings({ ...settings, customJvmArgs: e.target.value })}
+              />
+            </div>
+          </section>
 
-          {/* Toggles */}
-          <div>
-            <div className="switch-row">
+          <section className="settings-section">
+            <h3 className="settings-section-title">Запуск</h3>
+            <div className="settings-switch-row">
               <div>
-                <div className="switch-row-label">Полноэкранный режим</div>
-                <div className="switch-row-hint">Запускать Minecraft в fullscreen</div>
+                <div className="settings-switch-label">Полноэкранный режим</div>
+                <div className="settings-switch-hint">Запускать игру в fullscreen</div>
               </div>
               <Switch checked={settings.fullscreen} onChange={(v) => setSettings({ ...settings, fullscreen: v })} label="Полноэкранный режим" />
             </div>
-
-            <div className="switch-row">
+            <div className="settings-switch-row">
               <div>
-                <div className="switch-row-label">Свёртывать лаунчер</div>
-                <div className="switch-row-hint">Скрывать окно лаунчера когда игра запустилась</div>
+                <div className="settings-switch-label">Свёртывать лаунчер</div>
+                <div className="settings-switch-hint">Скрывать окно после запуска игры</div>
               </div>
               <Switch checked={settings.closeLauncherOnGameStart} onChange={(v) => setSettings({ ...settings, closeLauncherOnGameStart: v })} label="Свёртывать лаунчер при запуске игры" />
             </div>
-          </div>
+          </section>
+
+          <section className="settings-section">
+            <h3 className="settings-section-title">Данные</h3>
+            <div className="settings-field">
+              <span className="settings-hint">Сборки, миры, скины, библиотеки и скачанные версии игры.</span>
+              <button className="btn btn-sm align-start" onClick={() => window.electronAPI.openLauncherFolder()}>
+                Открыть папку лаунчера
+              </button>
+            </div>
+          </section>
         </div>
 
-        <div className="modal-footer">
+        <div className="modal-footer settings-footer">
           <button className="btn" onClick={onClose}>Отмена</button>
           <button className="btn btn-primary" onClick={save}>Сохранить</button>
         </div>

@@ -115,8 +115,8 @@ export const BottomBar: React.FC<BottomBarProps> = ({
 
           <div className="bottom-bar-fill" />
 
-          {(isRunning || isActiveForSelected) && (
-            <button className="btn stop-button" onClick={onStop} title="Принудительно остановить игру">
+          {launchProgress?.stage === 'running' && (
+            <button className="btn stop-button" onClick={onStop} title="Остановить игру">
               <IconStop /> Остановить
             </button>
           )}

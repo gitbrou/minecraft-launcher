@@ -124,6 +124,8 @@ interface LoaderProfile {
 }
 
 const activeProcesses = new Map<string, ChildProcessWithoutNullStreams>()
+// Игрок сам нажал «Остановить» — это не краш, отдельный сценарий выхода
+const intentionalStops = new Set<string>()
 
 let lastLaunchAt = 0
 let lastLaunchBytes = 0
@@ -931,6 +933,12 @@ export async function launchMinecraft(
 
     child.on('exit', (code) => {
       activeProcesses.delete(config.instanceId)
+      if (intentionalStops.delete(config.instanceId)) {
+        logRingBuffer = []
+        onProgress({ instanceId: config.instanceId, stage: 'idle', statusText: '', progress: 0 })
+        onLog({ timestamp: Date.now(), type: 'info', message: 'Игра остановлена пользователем.' })
+        return
+      }
       if (code === 0) {
         logRingBuffer = []
         onProgress({ instanceId: config.instanceId, stage: 'idle', statusText: '', progress: 0 })
@@ -966,16 +974,15 @@ export async function launchMinecraft(
 
 export function stopInstance(instanceId: string): boolean {
   const proc = activeProcesses.get(instanceId)
-  if (proc) {
-    try {
-      // На POSIX убиваем всю группу процессов (detached), иначе — сам процесс
-      if (proc.pid) process.kill(-proc.pid, 'SIGTERM')
-      else proc.kill()
-    } catch {
-      proc.kill()
-    }
-    activeProcesses.delete(instanceId)
-    return true
+  if (!proc) return false
+  intentionalStops.add(instanceId)
+  try {
+    // На POSIX убиваем всю группу процессов (detached), иначе — сам процесс
+    if (proc.pid) process.kill(-proc.pid, 'SIGTERM')
+    else proc.kill()
+  } catch {
+    proc.kill()
   }
-  return false
+  activeProcesses.delete(instanceId)
+  return true
 }

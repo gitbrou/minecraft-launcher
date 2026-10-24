@@ -47,7 +47,7 @@ const electronAPI = {
 
   // Launching
   launchInstance: (id: string) => ipcRenderer.invoke('launch-instance', id),
-  stopInstance: (id: string) => ipcRenderer.invoke('stop-instance', id),
+  stopInstance: (id: string): Promise<boolean> => ipcRenderer.invoke('stop-instance', id),
   restoreWindow: () => ipcRenderer.invoke('restore-window'),
 
   // Mods

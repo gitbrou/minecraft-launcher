@@ -194,9 +194,21 @@ export function App() {
     }
   }
 
-  const handleStopGame = () => {
-    if (selectedInstance && window.electronAPI) {
-      window.electronAPI.stopInstance(selectedInstance.id)
+  const handleStopGame = async () => {
+    if (!window.electronAPI) return
+    // Останавливаем именно запущенный процесс, а не выделенную строку списка
+    const targetId = launchProgress?.stage === 'running'
+      ? launchProgress.instanceId
+      : selectedInstance?.id
+    if (!targetId) return
+
+    const stopped = await window.electronAPI.stopInstance(targetId)
+    if (stopped) {
+      setLaunchProgress((prev) =>
+        prev && prev.instanceId === targetId
+          ? { ...prev, stage: 'idle', statusText: '', progress: 0 }
+          : prev
+      )
     }
   }
 

@@ -22,7 +22,7 @@ const NavItems: Array<{ id: NavSection; label: string; icon: React.FC; needsInst
     id: 'builds',
     label: 'Сборки',
     icon: () => (
-      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round">
         <path d="m7.298 9.999l-2.947 1.558a.5.5 0 0 0 0 .884l7.182 3.796a1 1 0 0 0 .934 0l7.182-3.796a.5.5 0 0 0 0-.884l-2.948-1.558m-9.403 4l-2.947 1.558a.5.5 0 0 0 0 .884l7.182 3.796a1 1 0 0 0 .934 0l7.182-3.796a.5.5 0 0 0 0-.884l-2.948-1.558M4.352 8.44l7.182 3.796a1 1 0 0 0 .934 0L19.65 8.44a.5.5 0 0 0 0-.884L12.467 3.76a1 1 0 0 0-.934 0L4.35 7.557a.5.5 0 0 0 0 .884Z" />
       </svg>
     )
@@ -32,7 +32,7 @@ const NavItems: Array<{ id: NavSection; label: string; icon: React.FC; needsInst
     label: 'Моды',
     needsInstance: true,
     icon: () => (
-      <svg width="17" height="17" viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <svg width="15" height="15" viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
         <path d="m4.83 13.661l17.6 10.161v20.196L4.83 33.857z" />
         <path d="m22.43 3.5l17.599 10.161l-17.6 10.161l-17.6-10.16zm7.517 36.177l-7.518 4.34V23.823h0l17.6-10.16v18.382" />
       </svg>
@@ -43,7 +43,7 @@ const NavItems: Array<{ id: NavSection; label: string; icon: React.FC; needsInst
     label: 'Профиль',
     needsAccount: true,
     icon: () => (
-      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
         <circle cx="12" cy="8" r="4" />
         <path d="M4 21c0-4 3.6-7 8-7s8 3 8 7" strokeLinecap="round" />
       </svg>
@@ -53,7 +53,7 @@ const NavItems: Array<{ id: NavSection; label: string; icon: React.FC; needsInst
     id: 'logs',
     label: 'Логи',
     icon: () => (
-      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
         <path d="M4 12h.01M4 6h.01M4 18h.01M8 18h2m-2-6h2M8 6h2m4 0h6m-6 6h6m-6 6h6" />
       </svg>
     )
@@ -189,11 +189,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
             + Добавить аккаунт
           </button>
         )}
-        <button className="btn side-settings-btn" onClick={onOpenSettings}>
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
-            <path d="m9.25 22l-.4-3.2q-.325-.125-.612-.3t-.563-.375L4.7 19.375l-2.75-4.75l2.575-1.95Q4.5 12.5 4.5 12.338v-.675q0-.163.025-.338L1.95 9.375l2.75-4.75l2.975 1.25q.275-.2.575-.375t.6-.3l.4-3.2h5.5l.4 3.2q.325.125.613.3t.562.375l2.975-1.25l2.75 4.75l-2.575 1.95q.025.175.025.338v.674q0 .163-.05.338l2.575 1.95l-2.75 4.75l-2.95-1.25q-.275.2-.575.375t-.6.3l-.4 3.2zM11 20h1.975l.35-2.65q.775-.2 1.438-.587t1.212-.938l2.475 1.025l.975-1.7l-2.15-1.625q.125-.35.175-.737T17.5 12t-.05-.787t-.175-.738l2.15-1.625l-.975-1.7l-2.475 1.05q-.55-.575-1.212-.962t-1.438-.588L13 4h-1.675l-.35 2.65q-.775.2-1.437.588T8.558 8.2L5.55 7.15l-.975 1.7l2.15 1.6q-.125.375-.175.75t-.05.8q0 .425.05.8t.175.7l-2.15 1.625l.975 1.7l2.975-1.05q.55.575 1.213.963t1.437.587L13 20h-2z" />
+        <button className="side-action" onClick={onOpenSettings}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+            <path d="M4 7h16M4 17h16" />
+            <circle cx="9" cy="7" r="2.2" fill="var(--bg-elevated)" />
+            <circle cx="15" cy="17" r="2.2" fill="var(--bg-elevated)" />
           </svg>
-          Настройки
+          <span>Настройки</span>
         </button>
       </div>
     </aside>
