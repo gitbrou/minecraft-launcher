@@ -366,6 +366,12 @@ function setupIpcHandlers() {
   // ── Settings ─────────────────────────────────────────────────
   ipcMain.handle('get-settings', () => settings)
 
+  ipcMain.handle('set-selected-instance-id', (_, instanceId: string) => {
+    settings.selectedInstanceId = instanceId
+    saveJsonData(settingsFile, settings)
+    return true
+  })
+
   ipcMain.handle('save-settings', (_, newSettings: any) => {
     settings = { ...settings, ...newSettings }
     saveJsonData(settingsFile, settings)
