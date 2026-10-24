@@ -247,13 +247,11 @@ export function App() {
         </main>
       </div>
 
-      {selectedInstance && (
-        <SettingsModal
-          isOpen={isSettingsOpen}
-          onClose={() => setIsSettingsOpen(false)}
-          onSave={handleSaveSettings}
-        />
-      )}
+      <SettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        onSave={handleSaveSettings}
+      />
 
       {selectedInstance && (
         <ModDownloaderModal

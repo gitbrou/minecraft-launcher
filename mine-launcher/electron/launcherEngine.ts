@@ -168,7 +168,7 @@ function downloadFile(url: string, destPath: string, onBytes?: (bytesSinceLast: 
   })
 }
 
-function isSafeRelPath(rel: string): boolean {
+export function isSafeRelPath(rel: string): boolean {
   return !rel.includes('..') && !path.isAbsolute(rel)
 }
 
@@ -202,8 +202,8 @@ function pushLogLine(line: string) {
   if (logRingBuffer.length > 120) logRingBuffer = logRingBuffer.slice(-120)
 }
 
-function buildCrashHint(): string {
-  const joined = logRingBuffer.join('\n')
+export function buildCrashHint(lines: string[]): string {
+  const joined = lines.join('\n')
 
   const mBadJava = joined.match(/Unsupported class file major version (\d+)/)
   if (mBadJava) {
@@ -212,7 +212,7 @@ function buildCrashHint(): string {
   }
 
   if (/java\.lang\.OutOfMemoryError/.test(joined)) {
-    return 'Игра объёмом не хватило памяти. Увеличьте «Максимальную память» в настройках лаунчера (в МБ) и попробуйте снова.'
+    return 'Игре не хватило памяти. Увеличьте «Максимальную память» в настройках лаунчера (в МБ) и попробуйте снова.'
   }
 
   // Windows: 0xC0000135 = DLL not found — почти всегда отсутствует VC++ Redistributable
@@ -260,11 +260,13 @@ function buildCrashHint(): string {
   return 'Смотрите вкладку «Логи» для подробностей.'
 }
 
-function isLibraryAllowed(rules?: Array<{ action: string; os?: { name: string } }>): boolean {
+export function isLibraryAllowed(
+  rules?: Array<{ action: string; os?: { name: string } }>,
+  wantedOs: string = process.platform === 'win32' ? 'windows'
+                : process.platform === 'darwin' ? 'osx'
+                : 'linux'
+): boolean {
   if (!rules || rules.length === 0) return true
-  const wantedOs = process.platform === 'win32' ? 'windows'
-                 : process.platform === 'darwin' ? 'osx'
-                 : 'linux'
   let allowed = false
   for (const r of rules) {
     if (!r.os || r.os.name === wantedOs) {
@@ -859,7 +861,7 @@ export async function launchMinecraft(
         onProgress({ instanceId: config.instanceId, stage: 'idle', statusText: '', progress: 0 })
         onLog({ timestamp: Date.now(), type: 'info', message: 'Minecraft завершён.' })
       } else {
-        const hint = buildCrashHint()
+        const hint = buildCrashHint(logRingBuffer)
         logRingBuffer = []
         onProgress({
           instanceId: config.instanceId,
