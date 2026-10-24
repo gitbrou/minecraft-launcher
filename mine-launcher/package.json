@@ -52,6 +52,14 @@
   "build": {
     "appId": "com.minelauncher.app",
     "productName": "Mine Launcher",
+    "protocols": [
+      {
+        "name": "Mine Launcher Import",
+        "schemes": [
+          "minelauncher"
+        ]
+      }
+    ],
     "directories": {
       "output": "dist-build"
     },

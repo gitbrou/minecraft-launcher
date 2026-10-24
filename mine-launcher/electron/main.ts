@@ -20,6 +20,7 @@ import {
   requiredJavaMajor
 } from './launcherEngine'
 import { buildInstanceMeta, validateArchiveEntries, parseExportedMeta, uniqueInstanceName, MAX_MOD_BYTES_EXPORTED } from './instancePack'
+import { parseImportDeepLink, findDeepLink } from './deepLink'
 
 // Запрещаем второй экземпляр лаунчера
 if (!app.requestSingleInstanceLock()) {
@@ -38,6 +39,15 @@ process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path.join(process.env.APP_ROOT, 
 // Фиксируем имя приложения до первого getPath('userData'): иначе в упакованной
 // сборке Electron берёт productName («Mine Launcher») и данные уезжают в другой каталог.
 app.setName('mine-launcher')
+
+// Схема minelauncher://import?url=... — ссылки из Discord/Telegram открывают лаунчер
+try {
+  if (VITE_DEV_SERVER_URL) {
+    app.setAsDefaultProtocolClient('minelauncher', process.execPath, [path.resolve(process.argv[1] || '.')])
+  } else {
+    app.setAsDefaultProtocolClient('minelauncher')
+  }
+} catch {}
 
 let win: BrowserWindow | null = null
 let tray: Tray | null = null
@@ -195,8 +205,8 @@ function hideToTray() {
   win?.hide()
 }
 
-// Второе приложение передаёт сюда активацию существующего окна
-app.on('second-instance', () => {
+// Второе приложение передаёт сюда активацию существующего окна (и deep link в argv)
+app.on('second-instance', (_event, argv) => {
   if (win) {
     if (win.isMinimized()) win.restore()
     win.show()
@@ -204,6 +214,15 @@ app.on('second-instance', () => {
   } else {
     createWindow()
   }
+  const link = findDeepLink(argv || [])
+  if (link) queueDeepLink(link)
+})
+
+// macOS: ссылки приходят событием, а не argv
+app.on('open-url', (event, url) => {
+  event.preventDefault()
+  const link = parseImportDeepLink(url)
+  if (link) queueDeepLink(link)
 })
 
 app.on('window-all-closed', () => {
@@ -246,6 +265,120 @@ function downloadUrlToFile(url: string, destPath: string): Promise<void> {
   })
 }
 
+// ── Deep link импорт: minelauncher://import?url=... ─────────────
+const MAX_IMPORT_BYTES = 600 * 1024 * 1024
+let pendingDeepLink: ReturnType<typeof findDeepLink> = findDeepLink(process.argv)
+
+function downloadImportArchive(url: string, destPath: string, redirects = 0): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (redirects > 3) return reject(new Error('Слишком много перенаправлений'))
+    let parsed: URL
+    try {
+      parsed = new URL(url)
+    } catch {
+      return reject(new Error('Некорректная ссылка'))
+    }
+    if (parsed.protocol !== 'https:') return reject(new Error('Разрешены только https-ссылки'))
+
+    let settled = false
+    const fail = (err: Error) => {
+      if (!settled) { settled = true; reject(err) }
+    }
+    const ok = () => {
+      if (!settled) { settled = true; resolve() }
+    }
+
+    const req = https.get(url, { headers: { 'User-Agent': 'MineLauncher/2.0' }, timeout: 20000 }, (res) => {
+      if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+        res.resume()
+        return downloadImportArchive(new URL(res.headers.location, url).toString(), destPath, redirects + 1)
+          .then(ok)
+          .catch(fail)
+      }
+      if (res.statusCode !== 200) {
+        res.resume()
+        return fail(new Error(`HTTP ${res.statusCode}`))
+      }
+      const declared = Number(res.headers['content-length'] || 0)
+      if (declared > MAX_IMPORT_BYTES) {
+        res.resume()
+        return fail(new Error('Архив больше 600 МБ — отказ'))
+      }
+
+      const out = fs.createWriteStream(destPath)
+      let received = 0
+      res.on('data', (chunk: Buffer) => {
+        received += chunk.length
+        if (received > MAX_IMPORT_BYTES) {
+          res.destroy()
+          out.destroy()
+          fs.rm(destPath, { force: true }, () => {})
+          fail(new Error('Архив больше 600 МБ — отказ'))
+        }
+      })
+      res.on('error', fail)
+      out.on('error', fail)
+      res.pipe(out)
+      out.on('finish', () => out.close(ok))
+    })
+
+    req.on('timeout', () => req.destroy(new Error('Таймаут загрузки')))
+    req.on('error', fail)
+  })
+}
+
+async function handleDeepLink(link: NonNullable<ReturnType<typeof findDeepLink>>) {
+  if (!win) createWindow()
+
+  const host = new URL(link.url).hostname
+  const answer = await dialog.showMessageBox(win!, {
+    type: 'question',
+    buttons: ['Импортировать', 'Отмена'],
+    defaultId: 0,
+    cancelId: 1,
+    title: 'Импорт сборки по ссылке',
+    message: `Скачать и импортировать сборку с ${host}?`,
+    detail: link.url
+  })
+  if (answer.response !== 0) return
+
+  const tempPath = path.join(app.getPath('temp'), `mine-launcher-import-${Date.now()}.zip`)
+  try {
+    await downloadImportArchive(link.url, tempPath)
+    const result = importInstanceFromArchive(tempPath)
+    win?.show()
+    win?.focus()
+    win?.webContents.send('deep-link:result', {
+      ok: true,
+      message: 'Сборка импортирована по ссылке',
+      instances: result.instances,
+      importedId: result.importedId
+    })
+  } catch (err: any) {
+    win?.webContents.send('deep-link:result', {
+      ok: false,
+      message: err?.message || 'Не удалось импортировать сборку'
+    })
+  } finally {
+    fs.rm(tempPath, { force: true }, () => {})
+  }
+}
+
+function queueDeepLink(link: NonNullable<ReturnType<typeof findDeepLink>>) {
+  if (!app.isReady() || !win || win.webContents.isLoading()) {
+    pendingDeepLink = link
+    return
+  }
+  handleDeepLink(link).catch(() => {})
+}
+
+function flushPendingDeepLink() {
+  const link = pendingDeepLink
+  if (!link || !win) return
+  pendingDeepLink = null
+  handleDeepLink(link).catch(() => {})
+}
+
 // ── Path-safety helpers: IPC-строки и внешние метаданные не выводят нас за пределы каталога ──
 function isInsideDir(dir: string, target: string): boolean {
   const rel = path.relative(path.resolve(dir), path.resolve(target))
@@ -260,6 +393,69 @@ function safeInstId(instanceId: string): string {
 function safeFilename(filename: string): string {
   if (!/^[A-Za-z0-9._ -]{1,255}$/.test(filename)) throw new Error('Некорректное имя файла')
   return filename
+}
+
+// Общий путь импорта: и для диалога, и для deep link. Валидация целиком до записи на диск.
+function importInstanceFromArchive(archivePath: string): { instances: any[]; importedId: string } {
+  const stat = fs.statSync(archivePath)
+  if (stat.size > 600 * 1024 * 1024) throw new Error('Архив больше 600 МБ — отказ')
+
+  const zip = new AdmZip(archivePath)
+  const fileEntries = zip.getEntries().filter((e) => !e.isDirectory)
+  // Валидация ДО любой записи на диск: zip-slip, абсолютные пути, лимиты
+  const modFiles = validateArchiveEntries(
+    fileEntries.map((e) => ({ entryName: e.entryName, size: e.header.size }))
+  )
+
+  const metaEntry = zip.getEntry('instance.json')
+  if (!metaEntry) throw new Error('В архиве нет instance.json')
+  const meta = parseExportedMeta(JSON.parse(metaEntry.getData().toString('utf-8')))
+
+  const newId = 'inst-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6)
+  const newInst: any = {
+    id: newId,
+    name: uniqueInstanceName(meta.name, instances.map((i: any) => i.name)),
+    version: meta.version,
+    loader: meta.loader,
+    created: Date.now(),
+    memoryMin: settings.memoryMin,
+    memoryMax: settings.memoryMax
+  }
+
+  const instDir = path.join(rootDir, 'instances', newId)
+  const modsDir = path.join(instDir, 'mods')
+  try {
+    fs.mkdirSync(modsDir, { recursive: true })
+
+    // Сопоставляем нормализованные имена с записями архива (обратные слэши тоже бывают)
+    const byBasename = new Map<string, AdmZip.IZipEntry>()
+    for (const entry of fileEntries) {
+      const normalized = entry.entryName.replace(/\\/g, '/').replace(/\/+$/, '')
+      if (normalized.startsWith('mods/')) {
+        byBasename.set(normalized.slice('mods/'.length), entry)
+      }
+    }
+    for (const file of modFiles) {
+      const entry = byBasename.get(file)
+      if (!entry) throw new Error(`Файл мода пропал при чтении: ${file}`)
+      const data = entry.getData()
+      // Заголовок zip может врать о размере — проверяем фактический объём (zip-bomb)
+      if (data.length > MAX_MOD_BYTES_EXPORTED) {
+        throw new Error(`Файл мода распаковался больше лимита: ${file}`)
+      }
+      fs.writeFileSync(path.join(modsDir, file), data)
+    }
+    fs.mkdirSync(path.join(instDir, 'saves'), { recursive: true })
+  } catch (err) {
+    // Откат: не оставляем полураспакованную сборку
+    fs.rmSync(instDir, { recursive: true, force: true })
+    throw err
+  }
+
+  instances.push(newInst)
+  saveJsonData(instancesFile, instances)
+
+  return { instances, importedId: newId }
 }
 
 function setupIpcHandlers() {
@@ -418,66 +614,8 @@ function setupIpcHandlers() {
       : { canceled: true, filePaths: [] as string[] }
     if (pick.canceled || pick.filePaths.length === 0) return { ok: false, canceled: true }
 
-    const archivePath = pick.filePaths[0]
-    const stat = fs.statSync(archivePath)
-    if (stat.size > 600 * 1024 * 1024) throw new Error('Архив больше 600 МБ — отказ')
-
-    const zip = new AdmZip(archivePath)
-    const fileEntries = zip.getEntries().filter((e) => !e.isDirectory)
-    // Валидация ДО любой записи на диск: zip-slip, абсолютные пути, лимиты
-    const modFiles = validateArchiveEntries(
-      fileEntries.map((e) => ({ entryName: e.entryName, size: e.header.size }))
-    )
-
-    const metaEntry = zip.getEntry('instance.json')
-    if (!metaEntry) throw new Error('В архиве нет instance.json')
-    const meta = parseExportedMeta(JSON.parse(metaEntry.getData().toString('utf-8')))
-
-    const newId = 'inst-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6)
-    const newInst: any = {
-      id: newId,
-      name: uniqueInstanceName(meta.name, instances.map((i: any) => i.name)),
-      version: meta.version,
-      loader: meta.loader,
-      created: Date.now(),
-      memoryMin: settings.memoryMin,
-      memoryMax: settings.memoryMax
-    }
-
-    const instDir = path.join(rootDir, 'instances', newId)
-    const modsDir = path.join(instDir, 'mods')
-    try {
-      fs.mkdirSync(modsDir, { recursive: true })
-
-      // Сопоставляем нормализованные имена с записями архива (обратные слэши тоже бывают)
-      const byBasename = new Map<string, AdmZip.IZipEntry>()
-      for (const entry of fileEntries) {
-        const normalized = entry.entryName.replace(/\\/g, '/').replace(/\/+$/, '')
-        if (normalized.startsWith('mods/')) {
-          byBasename.set(normalized.slice('mods/'.length), entry)
-        }
-      }
-      for (const file of modFiles) {
-        const entry = byBasename.get(file)
-        if (!entry) throw new Error(`Файл мода пропал при чтении: ${file}`)
-        const data = entry.getData()
-        // Заголовок zip может врать о размере — проверяем фактический объём (zip-bomb)
-        if (data.length > MAX_MOD_BYTES_EXPORTED) {
-          throw new Error(`Файл мода распаковался больше лимита: ${file}`)
-        }
-        fs.writeFileSync(path.join(modsDir, file), data)
-      }
-      fs.mkdirSync(path.join(instDir, 'saves'), { recursive: true })
-    } catch (err) {
-      // Откат: не оставляем полураспакованную сборку
-      fs.rmSync(instDir, { recursive: true, force: true })
-      throw err
-    }
-
-    instances.push(newInst)
-    saveJsonData(instancesFile, instances)
-
-    return { ok: true, instances, importedId: newId }
+    const result = importInstanceFromArchive(pick.filePaths[0])
+    return { ok: true, ...result }
   })
 
   // ── Versions ─────────────────────────────────────────────────
@@ -802,4 +940,13 @@ app.whenReady().then(() => {
   setupIpcHandlers()
   createWindow()
   initAutoUpdater()
+
+  // Стартовый deep link (ярлык/браузер запустили приложение со ссылкой)
+  if (pendingDeepLink) {
+    if (win?.webContents.isLoading()) {
+      win.webContents.once('did-finish-load', () => setTimeout(flushPendingDeepLink, 600))
+    } else {
+      setTimeout(flushPendingDeepLink, 600)
+    }
+  }
 })

@@ -74,6 +74,11 @@ const electronAPI = {
     ipcRenderer.on('game-log', handler)
     return () => ipcRenderer.removeListener('game-log', handler)
   },
+  onDeepLinkResult: (callback: (data: any) => void) => {
+    const handler = (_: any, data: any) => callback(data)
+    ipcRenderer.on('deep-link:result', handler)
+    return () => ipcRenderer.removeListener('deep-link:result', handler)
+  },
 }
 
 contextBridge.exposeInMainWorld('electronAPI', electronAPI)

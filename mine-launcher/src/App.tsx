@@ -65,11 +65,25 @@ export function App() {
       setLogs((prev) => [...prev, ...pending].slice(-300))
     }, 250)
     const unsubscribeUpdate = window.electronAPI.onUpdateState?.((state: any) => setUpdateState(state))
+    const unsubscribeDeepLink = window.electronAPI.onDeepLinkResult?.((result: any) => {
+      if (result?.ok && Array.isArray(result.instances)) {
+        setInstances(result.instances)
+        const imported = result.instances.find((i: Instance) => i.id === result.importedId)
+        if (imported) {
+          setSelectedInstance(imported)
+          window.electronAPI.setSelectedInstanceId(imported.id)
+        }
+        setToast(result.message || 'Сборка импортирована по ссылке')
+      } else {
+        setToast(result?.message || 'Не удалось импортировать сборку по ссылке')
+      }
+    })
 
     return () => {
       unsubscribeProgress()
       unsubscribeLogs()
       unsubscribeUpdate?.()
+      unsubscribeDeepLink?.()
       clearInterval(logFlushTimer)
     }
   }, [])

@@ -120,5 +120,6 @@ export function ensurePlatformBridge() {
 
     onLaunchProgress: () => () => {},
     onGameLog: () => () => {},
+    onDeepLinkResult: () => () => {},
   }
 }
