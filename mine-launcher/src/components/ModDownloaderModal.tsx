@@ -49,6 +49,13 @@ export const ModDownloaderModal: React.FC<ModDownloaderModalProps> = ({
 
   useEffect(() => {
     if (!isOpen) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [isOpen, onClose])
+
+  useEffect(() => {
+    if (!isOpen) return
     const timer = setTimeout(() => fetchMods(searchQuery), 300)
     return () => clearTimeout(timer)
   }, [searchQuery, isOpen, loader])

@@ -68,15 +68,8 @@ export const BottomBar: React.FC<BottomBarProps> = ({
   return (
     <>
       {errorText && (
-        <div className="error-strip">
+        <div className="error-strip" role="alert">
           <span className="error-strip-text">{errorText}</span>
-          <button
-            className="btn btn-ghost"
-            style={{ fontSize: '11px', padding: '3px 10px' }}
-            title="Перейдите на вкладку «Логи» для полной информации"
-          >
-            Смотрите вкладку «Логи»
-          </button>
         </div>
       )}
       <div className="bottom-bar">

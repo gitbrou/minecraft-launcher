@@ -16,6 +16,7 @@ export function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const [isModDownloaderOpen, setIsModDownloaderOpen] = useState(false)
   const [isBooted, setIsBooted] = useState(false)
+  const [updateState, setUpdateState] = useState<any>(null)
 
   useEffect(() => {
     if (!window.electronAPI) return
@@ -45,10 +46,12 @@ export function App() {
     const unsubscribeLogs = window.electronAPI.onGameLog((data: GameLog) => {
       setLogs((prev) => [...prev.slice(-300), data])
     })
+    const unsubscribeUpdate = window.electronAPI.onUpdateState?.((state: any) => setUpdateState(state))
 
     return () => {
       unsubscribeProgress()
       unsubscribeLogs()
+      unsubscribeUpdate?.()
     }
   }, [])
 
@@ -147,16 +150,54 @@ export function App() {
       <>
         <TitleBar />
         <div className="boot-splash">
-          <div className="spinner" />
-          <div>Загрузка...</div>
+          <div className="spinner large" />
+          <div>Загрузка лаунчера...</div>
         </div>
       </>
     )
   }
 
+  const updateBannerText =
+    updateState?.status === 'checking' ? 'Проверка обновлений...'
+    : updateState?.status === 'available' ? 'Найдено обновление — скачивание...'
+    : updateState?.status === 'downloading' ? `Скачивание обновления… ${Math.round(updateState.percent || 0)}%`
+    : updateState?.status === 'downloaded' ? 'Обновление загружено — установится при выходе'
+    : updateState?.status === 'error' ? `Ошибка обновления: ${updateState.message || ''}`
+    : null
+
   return (
     <>
       <TitleBar />
+
+      {updateBannerText && (
+        <div className="update-banner" role="status" aria-live="polite">
+          <div className="update-banner-left">
+            {updateState.status !== 'downloaded' && (
+              <div className="spinner" style={{ width: 14, height: 14, borderBottomWidth: 2, borderLeftWidth: 2, borderRightWidth: 2, borderTopWidth: 2 }} />
+            )}
+            <span className="update-banner-text">{updateBannerText}</span>
+          </div>
+          <div className="update-banner-actions">
+            {updateState.status === 'downloading' && (
+              <>
+                <div className="update-progress-bar" aria-hidden="true">
+                  <div className="update-progress-fill" style={{ width: `${Math.min(100, Math.max(0, updateState.percent || 0))}%` }} />
+                </div>
+                <span className="update-percent">{Math.round(updateState.percent || 0)}%</span>
+              </>
+            )}
+            {updateState.status === 'downloaded' && (
+              <button
+                className="btn btn-primary"
+                style={{ padding: '5px 12px', fontSize: '12px' }}
+                onClick={() => window.electronAPI.installUpdate?.()}
+              >
+                Перезапустить и обновить
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="app-shell">
         <AccountsPanel

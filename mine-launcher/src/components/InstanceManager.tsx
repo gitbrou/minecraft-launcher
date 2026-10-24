@@ -247,8 +247,14 @@ export const InstanceManager: React.FC<InstanceManagerProps> = ({
           {filteredInstances.map((inst) => (
             <div
               key={inst.id}
+              role="button"
+              tabIndex={0}
+              aria-pressed={selectedInstance?.id === inst.id}
               className={`instance-card ${selectedInstance?.id === inst.id ? 'selected' : ''}`}
               onClick={() => onSelectInstance(inst)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelectInstance(inst) }
+              }}
             >
               <div className="instance-card-top">
                 {renamingId === inst.id ? (
@@ -419,6 +425,12 @@ const CreateInstanceModal: React.FC<{
   const [error, setError] = useState('')
 
   useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
+
+  useEffect(() => {
     if (window.electronAPI) {
       window.electronAPI.getVersions().then((m: any) => setVersions(m?.versions || [])).finally(() => setLoadingVersions(false))
     } else {
@@ -516,7 +528,17 @@ const CreateInstanceModal: React.FC<{
                 </div>
               ) : (
                 listedVersions.map(v => (
-                  <div key={v.id} className={`version-picker-row ${version === v.id ? 'selected' : ''}`} onClick={() => setVersion(v.id)}>
+                  <div
+                    key={v.id}
+                    role="button"
+                    tabIndex={0}
+                    aria-pressed={version === v.id}
+                    className={`version-picker-row ${version === v.id ? 'selected' : ''}`}
+                    onClick={() => setVersion(v.id)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setVersion(v.id) }
+                    }}
+                  >
                     <span className="selector-item-name">{v.id}</span>
                     <span className="selector-item-meta">
                       {v.type === 'release' ? new Date(v.releaseTime).getFullYear() : v.type}

@@ -1114,6 +1114,12 @@ body {
   color: var(--text-muted);
 }
 
+/* ───────────────────────── Focus (keyboard-only users) ───────── */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 /* ───────────────────────── Motion policy ────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

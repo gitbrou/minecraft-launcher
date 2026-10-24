@@ -10622,7 +10622,7 @@ function sa() {
     }
   }), an ? X.loadURL(an) : X.loadFile(H.join(fd, "index.html")), X.on("closed", () => {
     X = null;
-  }), X.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
+  }), X.webContents.setWindowOpenHandler(() => ({ action: "deny" })), X.webContents.on("will-navigate", (e) => e.preventDefault());
 }
 function lx() {
   if (ze) return ze;

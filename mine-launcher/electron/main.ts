@@ -108,6 +108,8 @@ function createWindow() {
   win.on('closed', () => { win = null })
 
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
+  // Отдельный рендер не должен уводить окно на внешние URL
+  win.webContents.on('will-navigate', (e) => e.preventDefault())
 }
 
 // Трей: показывает иконку, когда лаунчер скрыт во время игры
