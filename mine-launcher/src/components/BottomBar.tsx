@@ -80,6 +80,7 @@ export const BottomBar: React.FC<BottomBarProps> = ({
         </div>
       )}
       <div className="bottom-bar">
+      <div className="bottom-bar-inner">
       <div className="launch-instance-selector" ref={menuRef}>
         <button className="selector-trigger" onClick={() => setDropdownOpen(!dropdownOpen)}>
           <div>
@@ -127,6 +128,7 @@ export const BottomBar: React.FC<BottomBarProps> = ({
       >
         <IconStop /> Остановить
       </button>
+      </div>
       </div>
     </>
   )
