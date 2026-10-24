@@ -48,6 +48,11 @@ export interface LauncherSettings {
   selectedInstanceId?: string;
 }
 
+export interface SystemInfo {
+  totalRamMb: number;
+  defaultMaxMemory: number;
+}
+
 export interface LaunchProgress {
   instanceId: string;
   stage: 'idle' | 'checking' | 'downloading' | 'extracting' | 'launching' | 'running' | 'error';

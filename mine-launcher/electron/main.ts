@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, shell, dialog, Menu } from 'electron'
+import { app, BrowserWindow, ipcMain, shell, dialog, Menu, Tray, nativeImage } from 'electron'
 import { autoUpdater } from 'electron-updater'
 
 Menu.setApplicationMenu(null)
@@ -6,6 +6,7 @@ Menu.setApplicationMenu(null)
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import fs from 'node:fs'
+import os from 'node:os'
 import https from 'node:https'
 import http from 'node:http'
 import {
@@ -18,6 +19,11 @@ import {
   requiredJavaMajor
 } from './launcherEngine'
 
+// Запрещаем второй экземпляр лаунчера
+if (!app.requestSingleInstanceLock()) {
+  app.quit()
+}
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 process.env.APP_ROOT = path.join(__dirname, '..')
@@ -28,6 +34,7 @@ export const RENDERER_DIST = path.join(process.env.APP_ROOT, 'dist')
 process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path.join(process.env.APP_ROOT, 'public') : RENDERER_DIST
 
 let win: BrowserWindow | null = null
+let tray: Tray | null = null
 
 const rootDir = getRootDir()
 const accountsFile = path.join(rootDir, 'accounts.json')
@@ -54,15 +61,24 @@ function saveJsonData<T>(filePath: string, data: T) {
 let accounts: any[] = loadJsonData(accountsFile, [])
 let instances: any[] = loadJsonData(instancesFile, [])
 
+// Фолбэк памяти зависит от реального объёма ОЗУ машины
+const totalRamMb = Math.round(os.totalmem() / 1024 / 1024)
+const defaultMaxMemory = Math.max(2048, Math.min(4096, Math.floor(totalRamMb / 3)))
+
 let settings: any = loadJsonData(settingsFile, {
   javaPath: '',
   memoryMin: 1024,
-  memoryMax: 4096,
+  memoryMax: defaultMaxMemory,
   customJvmArgs: '',
   closeLauncherOnGameStart: false,
   fullscreen: false,
   hideLauncher: false
 })
+
+// Если memoryMax больше, чем есть ОЗУ — сбрасываем на разумный дефолт
+if (!settings.memoryMax || settings.memoryMax > totalRamMb * 0.85) {
+  settings.memoryMax = defaultMaxMemory
+}
 
 function createWindow() {
   win = new BrowserWindow({
@@ -87,7 +103,46 @@ function createWindow() {
   } else {
     win.loadFile(path.join(RENDERER_DIST, 'index.html'))
   }
+
+  win.on('closed', () => { win = null })
+
+  win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
 }
+
+// Трей: показывает иконку, когда лаунчер скрыт во время игры
+function ensureTray() {
+  if (tray) return tray
+  const iconPath = path.join(process.env.VITE_PUBLIC!, 'icon.png')
+  let img = nativeImage.createFromPath(iconPath)
+  if (img.isEmpty()) img = nativeImage.createEmpty()
+  tray = new Tray(img)
+  tray.setToolTip('Mine Launcher')
+  tray.on('click', () => { win?.show() })
+  const ctx = Menu.buildFromTemplate([
+    { label: 'Показать лаунчер', click: () => win?.show() },
+    { type: 'separator' },
+    { label: 'Выход', click: () => app.quit() }
+  ])
+  tray.setContextMenu(ctx)
+  return tray
+}
+
+function hideToTray() {
+  ensureTray()
+  tray?.setToolTip('Mine Launcher — игра запущена')
+  win?.hide()
+}
+
+// Второе приложение передаёт сюда активацию существующего окна
+app.on('second-instance', () => {
+  if (win) {
+    if (win.isMinimized()) win.restore()
+    win.show()
+    win.focus()
+  } else {
+    createWindow()
+  }
+})
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit()
@@ -277,8 +332,8 @@ function setupIpcHandlers() {
       await new Promise(resolve => setTimeout(resolve, 500))
     }
 
-    inst.lastPlayed = Date.now()
-    saveJsonData(instancesFile, instances)
+    // Лаунчер мог быть скрыт в трей — показываем при новом запуске
+    win?.show()
 
     launchMinecraft(
       {
@@ -288,8 +343,8 @@ function setupIpcHandlers() {
         loader: (inst.loader || 'vanilla') as 'vanilla' | 'fabric' | 'quilt',
         username: activeAcc.username,
         uuid: activeAcc.uuid,
-        memoryMin: inst.memoryMin || settings.memoryMin || 1024,
-        memoryMax: inst.memoryMax || settings.memoryMax || 4096,
+        memoryMin: settings.memoryMin || 1024,
+        memoryMax: settings.memoryMax || 4096,
         javaPath: inst.javaPath || settings.javaPath || undefined,
         customJvmArgs: settings.customJvmArgs || '',
         customGameArgs: '',
@@ -297,13 +352,18 @@ function setupIpcHandlers() {
         hideLauncher: !!settings.closeLauncherOnGameStart
       },
       (data) => {
-        win?.webContents.send('launch-progress', data)
-        if (data?.stage === 'running' && settings.closeLauncherOnGameStart) {
-          // Hide launcher so it doesn't interfere with gameplay
-          setTimeout(() => {
-            try { win?.hide() } catch {}
-          }, 3000)
+        if (data?.stage === 'running') {
+          // Дата последнего запуска честно проставляется только когда игра реально стартовала
+          const cur = instances.find((i: any) => i.id === instanceId)
+          if (cur) { cur.lastPlayed = Date.now(); saveJsonData(instancesFile, instances) }
+          if (settings.closeLauncherOnGameStart) {
+            setTimeout(() => { try { hideToTray() } catch {} }, 3000)
+          }
         }
+        if (data?.stage === 'idle' || data?.stage === 'error') {
+          tray?.setToolTip('Mine Launcher')
+        }
+        win?.webContents.send('launch-progress', data)
       },
       (logData) => win?.webContents.send('game-log', logData)
     )
@@ -317,6 +377,11 @@ function setupIpcHandlers() {
     win?.show()
     return true
   })
+
+  ipcMain.handle('get-system-info', () => ({
+    totalRamMb: totalRamMb,
+    defaultMaxMemory
+  }))
 
   // ── Mods ─────────────────────────────────────────────────────
   ipcMain.handle('open-instance-folder', (_, instanceId: string) => {

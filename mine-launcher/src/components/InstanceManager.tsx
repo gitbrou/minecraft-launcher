@@ -431,6 +431,11 @@ const CreateInstanceModal: React.FC<{
     if (!version && releases.length > 0) setVersion(releases[0].id)
   }, [versions])
 
+  const popularIds = ['1.21.4', '1.21.1', '1.20.1', '1.19.2', '1.18.2', '1.16.5', '1.12.2', '1.8.9']
+  const popularChips = popularIds
+    .map(id => versions.find(v => v.id === id))
+    .filter(Boolean) as MinecraftVersion[]
+
   const isOpenSearch = searchText.trim() !== ''
   const listedVersions = isOpenSearch
     ? versions.filter(v => v.id.toLowerCase().includes(searchText.toLowerCase())).slice(0, 250)
@@ -481,6 +486,19 @@ const CreateInstanceModal: React.FC<{
 
           <div className="form-row">
             <span className="form-label">Версия Minecraft</span>
+            {!isOpenSearch && popularChips.length > 0 && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '8px' }}>
+                {popularChips.map(v => (
+                  <button
+                    key={v.id}
+                    className={`toggle-chip ${version === v.id ? 'on' : ''}`}
+                    onClick={() => setVersion(v.id)}
+                  >
+                    {v.id}
+                  </button>
+                ))}
+              </div>
+            )}
             <div className="search-bar" style={{ width: '100%', marginBottom: '8px' }}>
               <IconSearch />
               <input

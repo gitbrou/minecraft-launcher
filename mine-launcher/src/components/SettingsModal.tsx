@@ -24,6 +24,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
     hideLauncher: false
   })
   const [detectedJavas, setDetectedJavas] = useState<string[]>([])
+  const [systemInfo, setSystemInfo] = useState<{ totalRamMb: number; defaultMaxMemory: number } | null>(null)
 
   useEffect(() => {
     if (isOpen && window.electronAPI) {
@@ -41,12 +42,20 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
         }
       })
       window.electronAPI.detectJava().then(setDetectedJavas).catch(() => {})
+      window.electronAPI.getSystemInfo?.().then(setSystemInfo).catch(() => {})
     }
   }, [isOpen])
 
   if (!isOpen) return null
 
+  const ramWarning = systemInfo
+    ? settings.memoryMax > systemInfo.totalRamMb * 0.85
+      ? `На ПК всего ${Math.round(systemInfo.totalRamMb / 1024)} ГБ ОЗУ — такое значение памяти Windows может зависнуть/убить игру.`
+      : null
+    : null
+
   const save = () => {
+    // Не блокируем сохранение по памяти жёстко — предупреждаем сообщением и всё равно разрешаем
     onSave(settings)
     onClose()
   }
@@ -64,7 +73,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
         <div className="modal-body">
           {/* Memory */}
           <div className="form-row">
-            <span className="form-label">Память (МБ)</span>
+            <span className="form-label">Память (МБ){systemInfo ? ` · ОЗУ ПК ${Math.round(systemInfo.totalRamMb / 1024)} ГБ` : ''}</span>
             <div className="form-inline">
               <input
                 className="form-input"
@@ -86,7 +95,22 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
                 onChange={(e) => setSettings({ ...settings, memoryMax: Math.max(1024, parseInt(e.target.value) || 4096) })}
               />
             </div>
-            <span className="form-hint">4 ГБ (4096 МБ) достаточно для модов. Больше 8 ГБ без необходимости не ставьте.</span>
+            <span className="form-hint">Для обычной игры хватит 2048 МБ, для модов — 4096–6144 МБ.</span>
+          {ramWarning && <div className="form-error">{ramWarning}</div>}
+          {systemInfo && (
+            <button
+              className="btn"
+              style={{
+                alignSelf: 'flex-start',
+                padding: '6px 12px',
+                fontSize: '12px',
+                opacity: ramWarning ? 1 : 0.6
+              }}
+              onClick={() => setSettings({ ...settings, memoryMax: systemInfo.defaultMaxMemory })}
+            >
+              Поставить {systemInfo.defaultMaxMemory} МБ (рекомендовано для вашего ПК)
+            </button>
+          )}
           </div>
 
           {/* Java */}

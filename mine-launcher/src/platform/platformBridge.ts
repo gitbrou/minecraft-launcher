@@ -69,6 +69,7 @@ export function ensurePlatformBridge() {
     setSelectedInstanceId: async () => {},
     detectJava: async () => [],
     getRequiredJava: async () => 17,
+    getSystemInfo: async () => ({ totalRamMb: 8192, defaultMaxMemory: 4096 }),
     openLauncherFolder: async () => {},
 
     launchInstance: async (id: string) => {

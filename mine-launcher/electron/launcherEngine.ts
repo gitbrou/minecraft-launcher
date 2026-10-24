@@ -191,6 +191,49 @@ async function extractNativeDlls(jarPath: string, destDir: string) {
   } catch {}
 }
 
+// Кольцевой буфер последних строк вывода игры — нужен для разбора причин краша
+let logRingBuffer: string[] = []
+function pushLogLine(line: string) {
+  logRingBuffer.push(line)
+  if (logRingBuffer.length > 120) logRingBuffer = logRingBuffer.slice(-120)
+}
+
+function buildCrashHint(): string {
+  const joined = logRingBuffer.join('\n')
+
+  const mBadJava = joined.match(/Unsupported class file major version (\d+)/)
+  if (mBadJava) {
+    return 'Похоже, у вас неправильно подобрана версия Java — версия игры требует более новую Java. ' +
+           'Откройте «Настройки» и в разделе Java проверьте, что путь ведёт к правильной JDK/JRE.'
+  }
+
+  if (/java\.lang\.OutOfMemoryError/.test(joined)) {
+    return 'Игра объёмом не хватило памяти. Увеличьте «Максимальную память» в настройках лаунчера (в МБ) и попробуйте снова.'
+  }
+
+  if (/Could not create the Java Virtual Machine|Invalid or corrupt jarfile| unrecognized/.test(joined)) {
+    return 'Проверьте аргументы JVM в настройках лаунчера — Java не смогла запуститься с текущими параметрами.'
+  }
+
+  if (/GLFW error|OpenGL|gpu|DirectX/i.test(joined) && /error|fail/i.test(joined)) {
+    return 'Похоже, проблема с видеодрайвером/OpenGL. Обновите драйвер видеокарты.'
+  }
+
+  if (/Incompatible.fml.mod|Fabric loader|Quilt loading/i.test(joined)) {
+    return 'Похоже, один из модов несовместим с этой версией или загрузчиком. Откройте вкладку «Моды» и отключите их по одному.'
+  }
+
+  if (/Mixin apply failed|MixinTransformer/i.test(joined)) {
+    return 'Ошибка в моде (Mixin). Отключите свежеустановленные моды во вкладке «Моды».'
+  }
+
+  if (/The game crashed.*Calling event|Exception in thread "main"/.test(joined)) {
+    return 'Игра упала при старте. Попробуйте без модов или откройте папку сборки и покажите лог на форуме.'
+  }
+
+  return 'Смотрите вкладку «Логи» для подробностей.'
+}
+
 function isLibraryAllowed(rules?: Array<{ action: string; os?: { name: string } }>): boolean {
   if (!rules || rules.length === 0) return true
   const wantedOs = process.platform === 'win32' ? 'windows'
@@ -376,6 +419,7 @@ export async function launchMinecraft(
 ): Promise<void> {
   lastLaunchAt = 0
   lastLaunchBytes = 0
+  logRingBuffer = []
 
   const rootDir = getRootDir()
   const instanceDir = path.join(rootDir, 'instances', config.instanceId)
@@ -749,13 +793,19 @@ export async function launchMinecraft(
 
     child.stdout.on('data', (data: any) => {
       for (const line of data.toString().split('\n')) {
-        if (line.trim()) onLog({ timestamp: Date.now(), type: 'info', message: line })
+        if (line.trim()) {
+          pushLogLine(line)
+          onLog({ timestamp: Date.now(), type: 'info', message: line })
+        }
       }
     })
 
     child.stderr.on('data', (data: any) => {
       for (const line of data.toString().split('\n')) {
-        if (line.trim()) onLog({ timestamp: Date.now(), type: 'warn', message: line })
+        if (line.trim()) {
+          pushLogLine(line)
+          onLog({ timestamp: Date.now(), type: 'warn', message: line })
+        }
       }
     })
 
@@ -774,17 +824,20 @@ export async function launchMinecraft(
     child.on('exit', (code: any) => {
       activeProcesses.delete(config.instanceId)
       if (code === 0) {
+        logRingBuffer = []
         onProgress({ instanceId: config.instanceId, stage: 'idle', statusText: '', progress: 0 })
         onLog({ timestamp: Date.now(), type: 'info', message: 'Minecraft завершён.' })
       } else {
+        const hint = buildCrashHint()
+        logRingBuffer = []
         onProgress({
           instanceId: config.instanceId,
           stage: 'error',
-          statusText: `Игра завершилась с ошибкой (код ${code}). Смотрите логи.`,
+          statusText: `Игра завершилась с ошибкой (код ${code}). ${hint}`,
           progress: 0,
           error: `exit ${code}`
         })
-        onLog({ timestamp: Date.now(), type: 'error', message: `Minecraft завершился с кодом ${code}` })
+        onLog({ timestamp: Date.now(), type: 'error', message: `Minecraft завершился с кодом ${code}. ${hint}` })
       }
     })
 

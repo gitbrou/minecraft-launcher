@@ -34,7 +34,14 @@ export function App() {
       setIsBooted(true)
     }).catch(() => setIsBooted(true))
 
-    const unsubscribeProgress = window.electronAPI.onLaunchProgress((data: LaunchProgress) => setLaunchProgress(data))
+    const unsubscribeProgress = window.electronAPI.onLaunchProgress((data: LaunchProgress) => {
+      setLaunchProgress(data)
+      if (data?.stage === 'running') {
+        setInstances((prev: Instance[]) => prev.map(i =>
+          i.id === data.instanceId ? { ...i, lastPlayed: Date.now() } : i
+        ))
+      }
+    })
     const unsubscribeLogs = window.electronAPI.onGameLog((data: GameLog) => {
       setLogs((prev) => [...prev.slice(-300), data])
     })
@@ -179,6 +186,7 @@ export function App() {
           <BottomBar
             instances={instances}
             selectedInstance={selectedInstance}
+            hasAccount={accounts.length > 0}
             onSelectInstance={handleSelectInstance}
             onLaunch={handleLaunch}
             onStop={handleStopGame}

@@ -4,6 +4,7 @@ import { Instance, LaunchProgress } from '../types'
 interface BottomBarProps {
   instances: Instance[]
   selectedInstance: Instance | null
+  hasAccount: boolean
   onSelectInstance: (instance: Instance) => void
   onLaunch: () => void
   onStop: () => void
@@ -19,6 +20,7 @@ const IconStop = () => (
 export const BottomBar: React.FC<BottomBarProps> = ({
   instances,
   selectedInstance,
+  hasAccount,
   onSelectInstance,
   onLaunch,
   onStop,
@@ -45,12 +47,16 @@ export const BottomBar: React.FC<BottomBarProps> = ({
   const isActiveForSelected = isActiveProgress(launchProgress) && launchProgress!.instanceId === selectedInstance?.id
   const isRunning = launchProgress?.stage === 'running' && launchProgress.instanceId === selectedInstance?.id
 
+  // Почему кнопка недоступна — показываем пользователю текст, а не просто серую кнопку
+  let disabledReason: string | null = null
+  if (!selectedInstance) disabledReason = 'Создайте сборку, чтобы играть'
+  else if (!hasAccount) disabledReason = 'Добавьте аккаунт на панели слева'
+
+  const disabled = !!disabledReason || isActiveForSelected || isRunning
+
   const getButtonText = () => {
     if (isActiveForSelected) {
       return `${launchProgress!.statusText || 'Загрузка...'} ${Math.round(launchProgress!.progress)}%`
-    }
-    if (launchProgress?.stage === 'error' && launchProgress.instanceId === selectedInstance?.id) {
-      return 'Ошибка (см. логи)'
     }
     if (isRunning) return 'Игра запущена'
     return 'Играть'
@@ -58,12 +64,8 @@ export const BottomBar: React.FC<BottomBarProps> = ({
 
   return (
     <div className="bottom-bar">
-      {/* Instance selector */}
       <div className="launch-instance-selector" ref={menuRef}>
-        <button
-          className={`selector-trigger ${isActiveForSelected ? 'launching' : ''}`}
-          onClick={() => setDropdownOpen(!dropdownOpen)}
-        >
+        <button className="selector-trigger" onClick={() => setDropdownOpen(!dropdownOpen)}>
           <div>
             <div className="selector-title">{selectedInstance?.name || 'Нет сборки'}</div>
             <div className="selector-sub">
@@ -78,10 +80,7 @@ export const BottomBar: React.FC<BottomBarProps> = ({
                 <div
                   key={inst.id}
                   className={`selector-item ${selectedInstance?.id === inst.id ? 'active' : ''}`}
-                  onClick={() => {
-                    onSelectInstance(inst)
-                    setDropdownOpen(false)
-                  }}
+                  onClick={() => { onSelectInstance(inst); setDropdownOpen(false) }}
                 >
                   <span className="selector-item-name">{inst.name}</span>
                   <span className="selector-item-meta">{inst.version}</span>
@@ -92,18 +91,18 @@ export const BottomBar: React.FC<BottomBarProps> = ({
         </button>
       </div>
 
-      {/* Launch button */}
       <button
         className={`play-button ${isActiveForSelected ? 'launching' : ''}`}
         onClick={onLaunch}
-        disabled={isActiveForSelected || isRunning || !selectedInstance}
-        title={isRunning ? 'Игра уже запущена' : isActiveForSelected ? 'Загрузка' : 'Запустить Minecraft'}
+        disabled={disabled}
+        title={disabledReason || 'Запустить Minecraft'}
       >
         {isActiveForSelected && <div className="play-progress-fill" style={{ width: `${launchProgress!.progress || 0}%` }} />}
-        <span className="play-button-text">{getButtonText()}</span>
+        <span className="play-button-text">
+          {disabledReason && !isActiveForSelected && !isRunning ? disabledReason : getButtonText()}
+        </span>
       </button>
 
-      {/* Stop button */}
       <button
         className="btn btn-danger"
         onClick={onStop}

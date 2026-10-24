@@ -29,6 +29,7 @@ const electronAPI = {
   setSelectedInstanceId: (instanceId: string) => ipcRenderer.invoke('set-selected-instance-id', instanceId),
   detectJava: () => ipcRenderer.invoke('detect-java'),
   getRequiredJava: (version: string) => ipcRenderer.invoke('get-required-java', version),
+  getSystemInfo: () => ipcRenderer.invoke('get-system-info'),
   openLauncherFolder: () => ipcRenderer.invoke('open-launcher-folder'),
 
   // Launching

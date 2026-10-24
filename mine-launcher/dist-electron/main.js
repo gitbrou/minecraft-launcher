@@ -1,4 +1,4 @@
-import require$$1$3, { app, Menu, BrowserWindow, ipcMain, dialog, shell } from "electron";
+import require$$1$3, { app, Menu, BrowserWindow, ipcMain, dialog, shell, nativeImage, Tray } from "electron";
 import require$$0 from "events";
 import require$$0$2 from "crypto";
 import require$$1 from "tty";
@@ -16,6 +16,7 @@ import require$$4$2 from "http";
 import { fileURLToPath } from "node:url";
 import path$j from "node:path";
 import fs$n from "node:fs";
+import os$1 from "node:os";
 import https from "node:https";
 import http from "node:http";
 import crypto from "node:crypto";
@@ -15941,6 +15942,37 @@ async function extractNativeDlls(jarPath, destDir) {
   } catch {
   }
 }
+let logRingBuffer = [];
+function pushLogLine(line) {
+  logRingBuffer.push(line);
+  if (logRingBuffer.length > 120) logRingBuffer = logRingBuffer.slice(-120);
+}
+function buildCrashHint() {
+  const joined = logRingBuffer.join("\n");
+  const mBadJava = joined.match(/Unsupported class file major version (\d+)/);
+  if (mBadJava) {
+    return "Похоже, у вас неправильно подобрана версия Java — версия игры требует более новую Java. Откройте «Настройки» и в разделе Java проверьте, что путь ведёт к правильной JDK/JRE.";
+  }
+  if (/java\.lang\.OutOfMemoryError/.test(joined)) {
+    return "Игра объёмом не хватило памяти. Увеличьте «Максимальную память» в настройках лаунчера (в МБ) и попробуйте снова.";
+  }
+  if (/Could not create the Java Virtual Machine|Invalid or corrupt jarfile| unrecognized/.test(joined)) {
+    return "Проверьте аргументы JVM в настройках лаунчера — Java не смогла запуститься с текущими параметрами.";
+  }
+  if (/GLFW error|OpenGL|gpu|DirectX/i.test(joined) && /error|fail/i.test(joined)) {
+    return "Похоже, проблема с видеодрайвером/OpenGL. Обновите драйвер видеокарты.";
+  }
+  if (/Incompatible.fml.mod|Fabric loader|Quilt loading/i.test(joined)) {
+    return "Похоже, один из модов несовместим с этой версией или загрузчиком. Откройте вкладку «Моды» и отключите их по одному.";
+  }
+  if (/Mixin apply failed|MixinTransformer/i.test(joined)) {
+    return "Ошибка в моде (Mixin). Отключите свежеустановленные моды во вкладке «Моды».";
+  }
+  if (/The game crashed.*Calling event|Exception in thread "main"/.test(joined)) {
+    return "Игра упала при старте. Попробуйте без модов или откройте папку сборки и покажите лог на форуме.";
+  }
+  return "Смотрите вкладку «Логи» для подробностей.";
+}
 function isLibraryAllowed(rules) {
   if (!rules || rules.length === 0) return true;
   const wantedOs = process.platform === "win32" ? "windows" : process.platform === "darwin" ? "osx" : "linux";
@@ -16102,6 +16134,7 @@ async function launchMinecraft(config, onProgress, onLog) {
   var _a, _b, _c, _d, _e, _f, _g, _h, _i;
   lastLaunchAt = 0;
   lastLaunchBytes = 0;
+  logRingBuffer = [];
   const rootDir2 = getRootDir();
   const instanceDir = path$j.join(rootDir2, "instances", config.instanceId);
   const assetsDir = path$j.join(rootDir2, "assets");
@@ -16442,12 +16475,18 @@ async function launchMinecraft(config, onProgress, onLog) {
     activeProcesses.set(config.instanceId, child);
     child.stdout.on("data", (data) => {
       for (const line of data.toString().split("\n")) {
-        if (line.trim()) onLog({ timestamp: Date.now(), type: "info", message: line });
+        if (line.trim()) {
+          pushLogLine(line);
+          onLog({ timestamp: Date.now(), type: "info", message: line });
+        }
       }
     });
     child.stderr.on("data", (data) => {
       for (const line of data.toString().split("\n")) {
-        if (line.trim()) onLog({ timestamp: Date.now(), type: "warn", message: line });
+        if (line.trim()) {
+          pushLogLine(line);
+          onLog({ timestamp: Date.now(), type: "warn", message: line });
+        }
       }
     });
     child.on("error", (err) => {
@@ -16464,17 +16503,20 @@ async function launchMinecraft(config, onProgress, onLog) {
     child.on("exit", (code) => {
       activeProcesses.delete(config.instanceId);
       if (code === 0) {
+        logRingBuffer = [];
         onProgress({ instanceId: config.instanceId, stage: "idle", statusText: "", progress: 0 });
         onLog({ timestamp: Date.now(), type: "info", message: "Minecraft завершён." });
       } else {
+        const hint = buildCrashHint();
+        logRingBuffer = [];
         onProgress({
           instanceId: config.instanceId,
           stage: "error",
-          statusText: `Игра завершилась с ошибкой (код ${code}). Смотрите логи.`,
+          statusText: `Игра завершилась с ошибкой (код ${code}). ${hint}`,
           progress: 0,
           error: `exit ${code}`
         });
-        onLog({ timestamp: Date.now(), type: "error", message: `Minecraft завершился с кодом ${code}` });
+        onLog({ timestamp: Date.now(), type: "error", message: `Minecraft завершился с кодом ${code}. ${hint}` });
       }
     });
     onProgress({ instanceId: config.instanceId, stage: "running", statusText: "Игра запущена!", progress: 100 });
@@ -16503,12 +16545,16 @@ function stopInstance(instanceId) {
   return false;
 }
 Menu.setApplicationMenu(null);
+if (!app.requestSingleInstanceLock()) {
+  app.quit();
+}
 const __dirname$1 = path$j.dirname(fileURLToPath(import.meta.url));
 process.env.APP_ROOT = path$j.join(__dirname$1, "..");
 const VITE_DEV_SERVER_URL = process.env["VITE_DEV_SERVER_URL"];
 const RENDERER_DIST = path$j.join(process.env.APP_ROOT, "dist");
 process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path$j.join(process.env.APP_ROOT, "public") : RENDERER_DIST;
 let win = null;
+let tray = null;
 const rootDir = getRootDir();
 const accountsFile = path$j.join(rootDir, "accounts.json");
 const instancesFile = path$j.join(rootDir, "instances.json");
@@ -16530,15 +16576,20 @@ function saveJsonData(filePath, data) {
 }
 let accounts = loadJsonData(accountsFile, []);
 let instances = loadJsonData(instancesFile, []);
+const totalRamMb = Math.round(os$1.totalmem() / 1024 / 1024);
+const defaultMaxMemory = Math.max(2048, Math.min(4096, Math.floor(totalRamMb / 3)));
 let settings = loadJsonData(settingsFile, {
   javaPath: "",
   memoryMin: 1024,
-  memoryMax: 4096,
+  memoryMax: defaultMaxMemory,
   customJvmArgs: "",
   closeLauncherOnGameStart: false,
   fullscreen: false,
   hideLauncher: false
 });
+if (!settings.memoryMax || settings.memoryMax > totalRamMb * 0.85) {
+  settings.memoryMax = defaultMaxMemory;
+}
 function createWindow() {
   win = new BrowserWindow({
     width: 1100,
@@ -16561,7 +16612,43 @@ function createWindow() {
   } else {
     win.loadFile(path$j.join(RENDERER_DIST, "index.html"));
   }
+  win.on("closed", () => {
+    win = null;
+  });
+  win.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
 }
+function ensureTray() {
+  if (tray) return tray;
+  const iconPath = path$j.join(process.env.VITE_PUBLIC, "icon.png");
+  let img = nativeImage.createFromPath(iconPath);
+  if (img.isEmpty()) img = nativeImage.createEmpty();
+  tray = new Tray(img);
+  tray.setToolTip("Mine Launcher");
+  tray.on("click", () => {
+    win == null ? void 0 : win.show();
+  });
+  const ctx = Menu.buildFromTemplate([
+    { label: "Показать лаунчер", click: () => win == null ? void 0 : win.show() },
+    { type: "separator" },
+    { label: "Выход", click: () => app.quit() }
+  ]);
+  tray.setContextMenu(ctx);
+  return tray;
+}
+function hideToTray() {
+  ensureTray();
+  tray == null ? void 0 : tray.setToolTip("Mine Launcher — игра запущена");
+  win == null ? void 0 : win.hide();
+}
+app.on("second-instance", () => {
+  if (win) {
+    if (win.isMinimized()) win.restore();
+    win.show();
+    win.focus();
+  } else {
+    createWindow();
+  }
+});
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") app.quit();
   win = null;
@@ -16721,8 +16808,7 @@ function setupIpcHandlers() {
     if (stopInstance(instanceId)) {
       await new Promise((resolve) => setTimeout(resolve, 500));
     }
-    inst.lastPlayed = Date.now();
-    saveJsonData(instancesFile, instances);
+    win == null ? void 0 : win.show();
     launchMinecraft(
       {
         instanceId: inst.id,
@@ -16731,8 +16817,8 @@ function setupIpcHandlers() {
         loader: inst.loader || "vanilla",
         username: activeAcc.username,
         uuid: activeAcc.uuid,
-        memoryMin: inst.memoryMin || settings.memoryMin || 1024,
-        memoryMax: inst.memoryMax || settings.memoryMax || 4096,
+        memoryMin: settings.memoryMin || 1024,
+        memoryMax: settings.memoryMax || 4096,
         javaPath: inst.javaPath || settings.javaPath || void 0,
         customJvmArgs: settings.customJvmArgs || "",
         customGameArgs: "",
@@ -16740,15 +16826,25 @@ function setupIpcHandlers() {
         hideLauncher: !!settings.closeLauncherOnGameStart
       },
       (data) => {
-        win == null ? void 0 : win.webContents.send("launch-progress", data);
-        if ((data == null ? void 0 : data.stage) === "running" && settings.closeLauncherOnGameStart) {
-          setTimeout(() => {
-            try {
-              win == null ? void 0 : win.hide();
-            } catch {
-            }
-          }, 3e3);
+        if ((data == null ? void 0 : data.stage) === "running") {
+          const cur = instances.find((i) => i.id === instanceId);
+          if (cur) {
+            cur.lastPlayed = Date.now();
+            saveJsonData(instancesFile, instances);
+          }
+          if (settings.closeLauncherOnGameStart) {
+            setTimeout(() => {
+              try {
+                hideToTray();
+              } catch {
+              }
+            }, 3e3);
+          }
         }
+        if ((data == null ? void 0 : data.stage) === "idle" || (data == null ? void 0 : data.stage) === "error") {
+          tray == null ? void 0 : tray.setToolTip("Mine Launcher");
+        }
+        win == null ? void 0 : win.webContents.send("launch-progress", data);
       },
       (logData) => win == null ? void 0 : win.webContents.send("game-log", logData)
     );
@@ -16759,6 +16855,10 @@ function setupIpcHandlers() {
     win == null ? void 0 : win.show();
     return true;
   });
+  ipcMain.handle("get-system-info", () => ({
+    totalRamMb,
+    defaultMaxMemory
+  }));
   ipcMain.handle("open-instance-folder", (_, instanceId) => {
     const instDir = path$j.join(rootDir, "instances", instanceId);
     if (!fs$n.existsSync(instDir)) fs$n.mkdirSync(instDir, { recursive: true });
