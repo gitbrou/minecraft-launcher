@@ -51,6 +51,16 @@ const electronAPI = {
   getAccountHead: (username: string) => ipcRenderer.invoke('get-account-head', username),
   getProfileStats: (username: string) => ipcRenderer.invoke('get-profile-stats', username),
 
+  // Auto-updater
+  checkForUpdates: () => ipcRenderer.invoke('updater:check'),
+  downloadUpdate: () => ipcRenderer.invoke('updater:download'),
+  installUpdate: () => ipcRenderer.invoke('updater:install'),
+  onUpdateState: (callback: (state: any) => void) => {
+    const handler = (_: any, state: any) => callback(state)
+    ipcRenderer.on('updater:state', handler)
+    return () => ipcRenderer.removeListener('updater:state', handler)
+  },
+
   // Subscriptions
   onLaunchProgress: (callback: (data: any) => void) => {
     const handler = (_: any, data: any) => callback(data)

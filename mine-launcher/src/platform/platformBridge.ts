@@ -71,6 +71,10 @@ export function ensurePlatformBridge() {
     getRequiredJava: async () => 17,
     getSystemInfo: async () => ({ totalRamMb: 8192, defaultMaxMemory: 4096 }),
     openLauncherFolder: async () => {},
+    checkForUpdates: async () => ({ ok: true }),
+    downloadUpdate: async () => ({ ok: true }),
+    installUpdate: async () => false,
+    onUpdateState: () => () => {},
 
     launchInstance: async (id: string) => {
       const inst = stubState.instances.find((i: any) => i.id === id) || stubState.instances[0]

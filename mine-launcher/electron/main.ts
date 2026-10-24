@@ -35,6 +35,7 @@ process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path.join(process.env.APP_ROOT, 
 
 let win: BrowserWindow | null = null
 let tray: Tray | null = null
+let isQuittingForUpdate = false
 
 const rootDir = getRootDir()
 const accountsFile = path.join(rootDir, 'accounts.json')
@@ -127,6 +128,60 @@ function ensureTray() {
   return tray
 }
 
+function sendUpdateState(state: any) {
+  try {
+    win?.webContents.send('updater:state', state)
+  } catch {}
+}
+
+function initAutoUpdater() {
+  if (VITE_DEV_SERVER_URL) return
+  if (process.platform === 'linux') return
+
+  autoUpdater.autoDownload = true
+  autoUpdater.autoInstallOnAppQuit = true
+  autoUpdater.allowDowngrade = false
+
+  autoUpdater.on('checking-for-update', () => {
+    sendUpdateState({ status: 'checking' })
+  })
+
+  autoUpdater.on('update-available', (info) => {
+    sendUpdateState({ status: 'available', info })
+    try { autoUpdater.downloadUpdate() } catch {}
+  })
+
+  autoUpdater.on('update-not-available', (info) => {
+    sendUpdateState({ status: 'not-available', info })
+  })
+
+  autoUpdater.on('download-progress', (progressObj) => {
+    sendUpdateState({
+      status: 'downloading',
+      percent: progressObj.percent,
+      transferred: progressObj.transferred,
+      total: progressObj.total,
+      bytesPerSecond: progressObj.bytesPerSecond
+    })
+  })
+
+  autoUpdater.on('update-downloaded', (info) => {
+    sendUpdateState({ status: 'downloaded', info })
+  })
+
+  autoUpdater.on('error', (err) => {
+    sendUpdateState({ status: 'error', message: err?.message || 'Ошибка обновления' })
+  })
+
+  setTimeout(() => {
+    autoUpdater.checkForUpdates().catch(() => {})
+  }, 4000)
+
+  setInterval(() => {
+    autoUpdater.checkForUpdates().catch(() => {})
+  }, 4 * 60 * 60 * 1000)
+}
+
 function hideToTray() {
   ensureTray()
   tray?.setToolTip('Mine Launcher — игра запущена')
@@ -145,7 +200,10 @@ app.on('second-instance', () => {
 })
 
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') app.quit()
+  if (process.platform !== 'darwin') {
+    if (isQuittingForUpdate) return
+    app.quit()
+  }
   win = null
 })
 
@@ -560,16 +618,44 @@ function setupIpcHandlers() {
     }
     return `https://mc-heads.net/avatar/${encodeURIComponent(username)}/64`
   })
+
+  // ── Auto-updater ──────────────────────────────────────────────
+  ipcMain.handle('updater:check', async () => {
+    if (VITE_DEV_SERVER_URL) return { status: 'dev' }
+    try {
+      await autoUpdater.checkForUpdates()
+      return { ok: true }
+    } catch (e: any) {
+      return { ok: false, message: e?.message }
+    }
+  })
+
+  ipcMain.handle('updater:download', async () => {
+    if (VITE_DEV_SERVER_URL) return { status: 'dev' }
+    try {
+      await autoUpdater.downloadUpdate()
+      return { ok: true }
+    } catch (e: any) {
+      return { ok: false, message: e?.message }
+    }
+  })
+
+  ipcMain.handle('updater:install', () => {
+    if (VITE_DEV_SERVER_URL) return false
+    try {
+      isQuittingForUpdate = true
+      setImmediate(() => {
+        autoUpdater.quitAndInstall()
+      })
+      return true
+    } catch {
+      return false
+    }
+  })
 }
 
 app.whenReady().then(() => {
   setupIpcHandlers()
   createWindow()
-
-  if (app.isPackaged) {
-    autoUpdater.autoDownload = true
-    autoUpdater.checkForUpdatesAndNotify().catch((err) => {
-      console.error('Auto-update check failed:', err)
-    })
-  }
+  initAutoUpdater()
 })
