@@ -244,6 +244,22 @@ function downloadUrlToFile(url: string, destPath: string): Promise<void> {
   })
 }
 
+// ── Path-safety helpers: IPC-строки и внешние метаданные не выводят нас за пределы каталога ──
+function isInsideDir(dir: string, target: string): boolean {
+  const rel = path.relative(path.resolve(dir), path.resolve(target))
+  return rel !== '' && !rel.startsWith('..') && !path.isAbsolute(rel)
+}
+
+function safeInstId(instanceId: string): string {
+  if (!/^[A-Za-z0-9_-]{1,64}$/.test(instanceId)) throw new Error('Некорректный id сборки')
+  return instanceId
+}
+
+function safeFilename(filename: string): string {
+  if (!/^[A-Za-z0-9._ -]{1,255}$/.test(filename)) throw new Error('Некорректное имя файла')
+  return filename
+}
+
 function setupIpcHandlers() {
   // ── Window controls ───────────────────────────────────────────
   ipcMain.handle('minimize-window', () => { win?.minimize() })
@@ -333,6 +349,7 @@ function setupIpcHandlers() {
   })
 
   ipcMain.handle('delete-instance', (_, instanceId: string) => {
+    safeInstId(instanceId)
     const inst = instances.find((i: any) => i.id === instanceId)
     instances = instances.filter((i: any) => i.id !== instanceId)
     saveJsonData(instancesFile, instances)
@@ -388,6 +405,7 @@ function setupIpcHandlers() {
 
   // ── Launching ────────────────────────────────────────────────
   ipcMain.handle('launch-instance', async (_, instanceId: string) => {
+    safeInstId(instanceId)
     const inst: any = instances.find((i: any) => i.id === instanceId)
     if (!inst) throw new Error('Сборка не найдена')
 
@@ -451,12 +469,14 @@ function setupIpcHandlers() {
 
   // ── Mods ─────────────────────────────────────────────────────
   ipcMain.handle('open-instance-folder', (_, instanceId: string) => {
+    safeInstId(instanceId)
     const instDir = path.join(rootDir, 'instances', instanceId)
     if (!fs.existsSync(instDir)) fs.mkdirSync(instDir, { recursive: true })
     shell.openPath(instDir)
   })
 
   ipcMain.handle('get-instance-mods', (_, instanceId: string) => {
+    safeInstId(instanceId)
     const modsDir = path.join(rootDir, 'instances', instanceId, 'mods')
     if (!fs.existsSync(modsDir)) return []
 
@@ -480,33 +500,43 @@ function setupIpcHandlers() {
   })
 
   ipcMain.handle('toggle-mod', (_, { instanceId, modFilename }: { instanceId: string; modFilename: string }) => {
+    safeInstId(instanceId)
     const modsDir = path.join(rootDir, 'instances', instanceId, 'mods')
-    const oldPath = path.join(modsDir, modFilename)
+    const oldPath = path.join(modsDir, safeFilename(modFilename))
+    if (!isInsideDir(modsDir, oldPath)) return false
     if (!fs.existsSync(oldPath)) return false
 
     const newFilename = modFilename.endsWith('.jar')
       ? modFilename + '.disabled'
       : modFilename.replace(/\.disabled$/, '')
-    fs.renameSync(oldPath, path.join(modsDir, newFilename))
+    const newPath = path.join(modsDir, safeFilename(newFilename))
+    if (!isInsideDir(modsDir, newPath)) return false
+    fs.renameSync(oldPath, newPath)
     return true
   })
 
   ipcMain.handle('delete-mod', (_, { instanceId, modFilename }: { instanceId: string; modFilename: string }) => {
+    safeInstId(instanceId)
     const modsDir = path.join(rootDir, 'instances', instanceId, 'mods')
-    const targetPath = path.join(modsDir, modFilename)
+    const targetPath = path.join(modsDir, safeFilename(modFilename))
+    if (!isInsideDir(modsDir, targetPath)) return false
     if (fs.existsSync(targetPath)) fs.unlinkSync(targetPath)
     return true
   })
 
   ipcMain.handle('download-mod-file', async (_, { instanceId, downloadUrl, filename }: { instanceId: string; downloadUrl: string; filename: string }) => {
-    if (!/^[a-zA-Z0-9._ -]+$/.test(filename)) throw new Error('Некорректное имя файла мода')
+    safeInstId(instanceId)
+    const safeName = safeFilename(filename)
+    // Мод файла может прийти только с CDN Modrinth — внешние/локальные URL не принимаем
+    if (!downloadUrl.startsWith('https://cdn.modrinth.com/')) throw new Error('Недопустимый источник файла')
     const modsDir = path.join(rootDir, 'instances', instanceId, 'mods')
     if (!fs.existsSync(modsDir)) fs.mkdirSync(modsDir, { recursive: true })
-    await downloadUrlToFile(downloadUrl, path.join(modsDir, filename))
+    await downloadUrlToFile(downloadUrl, path.join(modsDir, safeName))
     return true
   })
 
   ipcMain.handle('add-mod-file', async (_, instanceId: string) => {
+    safeInstId(instanceId)
     if (!win) return false
     const res = await dialog.showOpenDialog(win, {
       title: 'Выберите файл мода (.jar)',

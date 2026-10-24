@@ -168,6 +168,10 @@ function downloadFile(url: string, destPath: string, onBytes?: (bytesSinceLast: 
   })
 }
 
+function isSafeRelPath(rel: string): boolean {
+  return !rel.includes('..') && !path.isAbsolute(rel)
+}
+
 async function extractNativeDlls(jarPath: string, destDir: string) {
   if (!fs.existsSync(jarPath)) return
   try {
@@ -582,6 +586,7 @@ export async function launchMinecraft(
 
       if (lib.downloads?.artifact) {
         const libRelPath = lib.downloads.artifact.path
+        if (!isSafeRelPath(libRelPath)) { onLog({ timestamp: Date.now(), type: 'warn', message: `Библиотека пропущена (путь вне каталога): ${libRelPath}` }); continue }
         const libFullPath = path.join(librariesDir, libRelPath)
         if (!fs.existsSync(libFullPath)) {
           try {
@@ -605,6 +610,7 @@ export async function launchMinecraft(
             : classifiers['natives-linux']
         if (wantedNative) {
           const nativeRelPath = wantedNative.path
+          if (!isSafeRelPath(nativeRelPath)) continue
           const nativeFullPath = path.join(librariesDir, nativeRelPath)
           if (!fs.existsSync(nativeFullPath)) {
             try {
@@ -621,6 +627,7 @@ export async function launchMinecraft(
         const name = parts[1]
         const ver = parts[2]
         const relPath = `${domain}/${name}/${ver}/${name}-${ver}.jar`
+        if (!isSafeRelPath(relPath)) continue
         const libFullPath = path.join(librariesDir, relPath)
         const url = lib.url ? `${lib.url}${relPath}` : `https://libraries.minecraft.net/${relPath}`
         if (!fs.existsSync(libFullPath)) {
@@ -671,6 +678,7 @@ export async function launchMinecraft(
               const name = parts[1]
               const ver = parts[2]
               const relPath = `${domain}/${name}/${ver}/${name}-${ver}.jar`
+              if (!isSafeRelPath(relPath)) continue
               const fLibPath = path.join(librariesDir, relPath)
               const url = fLib.url ? `${fLib.url}${relPath}` : `https://maven.fabricmc.net/${relPath}`
               if (!fs.existsSync(fLibPath)) {
@@ -702,6 +710,7 @@ export async function launchMinecraft(
               const name = parts[1]
               const ver = parts[2]
               const relPath = `${domain}/${name}/${ver}/${name}-${ver}.jar`
+              if (!isSafeRelPath(relPath)) continue
               const qLibPath = path.join(librariesDir, relPath)
               const url = qLib.url ? `${qLib.url}${relPath}` : `https://maven.quiltmc.org/repository/release/${relPath}`
               if (!fs.existsSync(qLibPath)) {
