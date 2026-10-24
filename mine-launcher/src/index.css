@@ -204,8 +204,8 @@ body {
 .side-nav-item:hover { background: rgba(255, 255, 255, 0.04); color: var(--text); }
 .side-nav-item.active {
   background: rgba(255, 255, 255, 0.03);
-  border-left-color: var(--accent);
-  color: var(--text);
+  border-left-color: var(--text-muted);
+  color: #fff;
 }
 .side-nav-item[aria-disabled="true"] { opacity: 0.45; cursor: not-allowed; }
 .side-nav-item[aria-disabled="true"]:hover { background: transparent; color: var(--text-muted); }
@@ -241,7 +241,7 @@ body {
 }
 
 .account-item:hover { background: rgba(255, 255, 255, 0.04); }
-.account-item.active { border-left-color: var(--accent); background: rgba(255, 255, 255, 0.03); }
+.account-item.active { border-left-color: var(--text-muted); background: rgba(255, 255, 255, 0.03); }
 
 .account-avatar {
   width: 24px;
@@ -339,10 +339,10 @@ body {
 
 .section-title {
   margin: 0;
-  font-size: 16px;
+  font-size: 20px;
   font-weight: 600;
+  letter-spacing: -0.01em;
   color: var(--text);
-  letter-spacing: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -431,9 +431,10 @@ body {
 }
 .instance-row:hover { background: rgba(255, 255, 255, 0.025); }
 .instance-row.is-selected {
-  border-left-color: var(--accent);
-  background: rgba(76, 175, 80, 0.045);
+  border-left-color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.04);
 }
+.instance-row.is-selected .instance-row-name { color: #fff; }
 
 .instance-icon {
   width: 22px;
