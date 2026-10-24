@@ -334,7 +334,11 @@ export const InstanceManager: React.FC<InstanceManagerProps> = ({
     return (
       <div className="page-col">
         <div className="content-toolbar">
-          <h1 className="section-title">Моды · {selectedInstance.name}</h1>
+          <div className="title-group">
+            <h1 className="section-title">Моды</h1>
+            <span className="section-count">{modsList.length}</span>
+            <span className="section-context">{selectedInstance.name}</span>
+          </div>
           <div className="toolbar-actions">
             <button className="btn" onClick={handleOpenFolder}>
               <IconFolder /> Папка
@@ -413,7 +417,10 @@ export const InstanceManager: React.FC<InstanceManagerProps> = ({
   return (
     <div className="page-col">
       <div className="content-toolbar">
-        <h1 className="section-title">Логи</h1>
+        <div className="title-group">
+          <h1 className="section-title">Логи</h1>
+          <span className="section-count">{logs.length}</span>
+        </div>
         <div className="toolbar-actions">
           {copyNotice && <span className="copy-notice">{copyNotice}</span>}
           <button className="btn" onClick={handleCopyLogs} disabled={logs.length === 0}>

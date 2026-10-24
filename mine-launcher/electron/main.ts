@@ -21,6 +21,7 @@ import {
 } from './launcherEngine'
 import { buildInstanceMeta, validateArchiveEntries, parseExportedMeta, uniqueInstanceName, MAX_MOD_BYTES_EXPORTED } from './instancePack'
 import { parseImportDeepLink, findDeepLink } from './deepLink'
+import { safeInstId, safeFilename } from './safeNames'
 import type { Account, Instance, LauncherSettings, ProfileWorld, UpdateState } from '../src/types'
 import { errorMessage } from '../src/utils/errors'
 
@@ -385,16 +386,6 @@ function flushPendingDeepLink() {
 function isInsideDir(dir: string, target: string): boolean {
   const rel = path.relative(path.resolve(dir), path.resolve(target))
   return rel !== '' && !rel.startsWith('..') && !path.isAbsolute(rel)
-}
-
-function safeInstId(instanceId: string): string {
-  if (!/^[A-Za-z0-9_-]{1,64}$/.test(instanceId)) throw new Error('Некорректный id сборки')
-  return instanceId
-}
-
-function safeFilename(filename: string): string {
-  if (!/^[A-Za-z0-9._ -]{1,255}$/.test(filename)) throw new Error('Некорректное имя файла')
-  return filename
 }
 
 // Общий путь импорта: и для диалога, и для deep link. Валидация целиком до записи на диск.
@@ -840,7 +831,14 @@ function setupIpcHandlers() {
 
   ipcMain.handle('get-user-skin', (_, username: string) => {
     const skinPath = path.join(skinsDir, `${username.replace(/[^a-zA-Z0-9_]/g, '')}.png`)
-    return fs.existsSync(skinPath) ? skinPath : null
+    if (!fs.existsSync(skinPath)) return null
+    try {
+      // data-URL вместо пути: renderer не может читать произвольные файлы и не должен
+      const base64 = fs.readFileSync(skinPath).toString('base64')
+      return `data:image/png;base64,${base64}`
+    } catch {
+      return null
+    }
   })
 
   // ── Profile (honest data only) ───────────────────────────────

@@ -1,4 +1,4 @@
-import type { Account, Instance } from '../types'
+import type { Account, Instance, ModItem } from '../types'
 
 type BridgeWindow = { electronAPI?: Window['electronAPI'] }
 
@@ -20,9 +20,15 @@ export function ensurePlatformBridge() {
 
   // Только для локального превью дизайна в браузере: /?demo=1
   // В production-сборке условие ложно, данные не подставляются.
+  const demoMods: ModItem[] = []
   const isDemo = import.meta.env.DEV && typeof location !== 'undefined' && location.search.includes('demo=1')
   if (isDemo) {
     const now = Date.now()
+    demoMods.push(
+      { id: 'm1', filename: 'sodium-0.5.11+mc1.20.1.jar', name: 'Sodium', enabled: true, size: 1_240_000 },
+      { id: 'm2', filename: 'iris-1.7.0+mc1.20.1.jar', name: 'Iris Shaders', enabled: true, size: 2_100_000 },
+      { id: 'm3', filename: 'jei-1.20.1-forge-15.2.0.27.jar', name: 'Just Enough Items', enabled: false, size: 1_800_000 }
+    )
     stubState.accounts.push({
       id: 'demo-account',
       username: 'Steve',
@@ -132,7 +138,7 @@ export function ensurePlatformBridge() {
     stopInstance: async () => true,
     restoreWindow: async () => {},
 
-    getInstanceMods: async () => [],
+    getInstanceMods: async () => demoMods,
     toggleMod: async () => false,
     deleteMod: async () => false,
     downloadModFile: async () => true,

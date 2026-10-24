@@ -69,11 +69,28 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ activeUsername }) => {
   const [skinVersion, setSkinVersion] = useState(0)
 
   useEffect(() => {
-    if (window.electronAPI) {
-      window.electronAPI.getProfileStats(activeUsername).then(setStats)
-      window.electronAPI.getUserSkin(activeUsername).then(setSkinPath)
+    if (!window.electronAPI) return
+    let cancelled = false
+
+    window.electronAPI.getProfileStats(activeUsername).then(setStats)
+
+    const loadSkin = async () => {
+      let skin = await window.electronAPI.getUserSkin(activeUsername)
+      if (!skin) {
+        // Скина ещё нет — один раз подтягиваем по нику, чтобы 3D-модель не была пустой
+        try {
+          await window.electronAPI.fetchOnlineSkin({ username: activeUsername, targetUsername: activeUsername })
+          skin = await window.electronAPI.getUserSkin(activeUsername)
+        } catch {
+          // нет сети/ника — останется дефолтная модель
+        }
+      }
+      if (!cancelled) setSkinPath(skin)
     }
+    loadSkin()
     setSkinNick(activeUsername)
+
+    return () => { cancelled = true }
   }, [activeUsername])
 
   const handleUploadSkin = async () => {
@@ -81,7 +98,7 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ activeUsername }) => {
     try {
       const result = await window.electronAPI.uploadUserSkin(activeUsername)
       if (result) {
-        setSkinPath(result)
+        setSkinPath(await window.electronAPI.getUserSkin(activeUsername))
         setSkinVersion((v) => v + 1)
         setNotice('Скин загружен')
       } else {
@@ -122,7 +139,8 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ activeUsername }) => {
   return (
     <div className="profile-layout">
       {/* Left card: skin */}
-      <div className="profile-card">
+      <section className="profile-skin-panel">
+        <span className="panel-label">Скин</span>
         <SkinViewerCanvas key={`${skinPath || 'default'}-${skinVersion}`} username={activeUsername} skinPath={skinPath} />
 
         <div className="profile-name">{activeUsername}</div>
@@ -159,12 +177,14 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ activeUsername }) => {
 
         {notice && <div className="profile-notice">{notice}</div>}
         {busy && <div className="spinner" />}
-      </div>
+      </section>
 
       {/* Right: honest stats */}
-      <div className="profile-column">
-        <div className="profile-stats-card">
-          <span className="profile-stats-title">Статистика</span>
+      <div className="profile-side">
+        <section className="profile-section">
+          <div className="profile-section-head">
+            <h2 className="profile-section-title">Аккаунт</h2>
+          </div>
           <div className="stat-list">
             <div className="stat-row">
               <span className="stat-key">Сборок</span>
@@ -179,10 +199,13 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ activeUsername }) => {
               <span className="stat-value">{stats?.lastPlayedFormatted ?? '—'}</span>
             </div>
           </div>
-        </div>
+        </section>
 
-        <div className="profile-stats-card">
-          <span className="profile-stats-title">Миры ({stats?.worldsCount ?? 0})</span>
+        <section className="profile-section">
+          <div className="profile-section-head">
+            <h2 className="profile-section-title">Миры</h2>
+            <span className="profile-section-count">{stats?.worldsCount ?? 0}</span>
+          </div>
           {(!stats?.worlds || stats.worlds.length === 0) ? (
             <div className="profile-hint">
               Миров пока нет — создайте новый в игре и он появится здесь.
@@ -200,7 +223,7 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ activeUsername }) => {
               ))}
             </div>
           )}
-        </div>
+        </section>
       </div>
     </div>
   )
