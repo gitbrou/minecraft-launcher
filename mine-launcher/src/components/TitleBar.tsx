@@ -7,27 +7,26 @@ const IconLogo = () => (
 )
 
 const IconMinimize = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-    <path d="M5 12h14" />
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+    <path d="M7 20q-.213 0-.356-.144t-.144-.357t.144-.356T7 19h10q.213 0 .356.144t.144.357t-.144.356T17 20z" />
   </svg>
 )
 
-const IconMaximize = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-    <rect x="5" y="5" width="14" height="14" rx="1.5" />
+const IconExpand = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5">
+    <path d="M19 12V9c0-1.886 0-2.828-.586-3.414S16.886 5 15 5h-3m-7 7v3c0 1.886 0 2.828.586 3.414S7.114 19 9 19h3" />
   </svg>
 )
 
-const IconRestore = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-    <rect x="4" y="9" width="11" height="11" rx="1.5" />
-    <path d="M8 9V6a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-3" />
+const IconCollapse = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+    <path d="M2 15h7v7h2v-9H2zM15 2h-2v9h9V9h-7z" />
   </svg>
 )
 
 const IconClose = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-    <path d="m6 6l12 12M18 6L6 18" />
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+    <path d="m12 12.708l-5.246 5.246q-.14.14-.344.15t-.364-.15t-.16-.354t.16-.354L11.292 12L6.046 6.754q-.14-.14-.15-.344t.15-.364t.354-.16t.354.16L12 11.292l5.246-5.246q.14-.14.345-.15q.203-.01.363.15t.16.354t-.16.354L12.708 12l5.246 5.246q.14.14.15.345q.01.203-.15.363t-.354.16t-.354-.16z" />
   </svg>
 )
 
@@ -55,7 +54,7 @@ export const TitleBar: React.FC = () => {
         </button>
 
         <button className="titlebar-btn" title={isMaximized ? 'Восстановить' : 'Развернуть'} onClick={handleToggleMaximize}>
-          {isMaximized ? <IconRestore /> : <IconMaximize />}
+          {isMaximized ? <IconCollapse /> : <IconExpand />}
         </button>
 
         <button className="titlebar-btn close" title="Закрыть" onClick={() => window.electronAPI?.closeWindow?.()}>
