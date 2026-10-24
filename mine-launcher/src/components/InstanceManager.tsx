@@ -300,7 +300,7 @@ export const InstanceManager: React.FC<InstanceManagerProps> = ({
                   if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelectInstance(inst) }
                 }}
               >
-                <img className="instance-icon" src={loaderIcon(inst.loader)} alt="" width={22} height={22} aria-hidden="true" />
+                <img className={`instance-icon ${inst.loader === 'quilt' ? 'is-smooth' : ''}`} src={loaderIcon(inst.loader)} alt="" width={22} height={22} aria-hidden="true" />
 
                 <div className="instance-row-main">
                   {renamingId === inst.id ? (
@@ -590,7 +590,7 @@ const CreateInstanceModal: React.FC<{
                 <img className="loader-tab-icon" src={LOADER_ICONS.fabric} alt="" /> Fabric
               </button>
               <button className={`loader-tab ${loader === 'quilt' ? 'active' : ''}`} onClick={() => setLoader('quilt')}>
-                <img className="loader-tab-icon" src={LOADER_ICONS.quilt} alt="" /> Quilt
+                <img className="loader-tab-icon is-smooth" src={LOADER_ICONS.quilt} alt="" /> Quilt
               </button>
               <button className="loader-tab" disabled title="Скоро">
                 <img className="loader-tab-icon" src={LOADER_ICONS.forge} alt="" /> Forge

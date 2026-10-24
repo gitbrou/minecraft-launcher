@@ -444,6 +444,8 @@ body {
   flex-shrink: 0;
   image-rendering: pixelated;
 }
+.instance-icon.is-smooth,
+.loader-tab-icon.is-smooth { image-rendering: auto; }
 .launch-target .instance-icon { width: 20px; height: 20px; }
 
 .instance-row-main {

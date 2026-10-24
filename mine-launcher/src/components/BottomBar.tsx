@@ -85,7 +85,7 @@ export const BottomBar: React.FC<BottomBarProps> = ({
               aria-expanded={dropdownOpen}
               aria-label="Выбрать сборку для запуска"
             >
-              <img className="instance-icon" src={loaderIcon(selectedInstance?.loader)} alt="" width={20} height={20} aria-hidden="true" />
+              <img className={`instance-icon ${selectedInstance?.loader === 'quilt' ? 'is-smooth' : ''}`} src={loaderIcon(selectedInstance?.loader)} alt="" width={20} height={20} aria-hidden="true" />
               <span className="launch-target-main">
                 <span className="launch-target-name">{selectedInstance?.name || 'Нет сборки'}</span>
                 <span className="launch-target-sub">

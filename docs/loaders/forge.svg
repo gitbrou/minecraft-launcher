@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
-  <!-- Forge: anvil, pixel style, transparent background -->
+  <!-- Forge: anvil, original Mine Launcher pixel rendering -->
   <rect x="8" y="20" width="44" height="10" fill="#8a8f98" />
   <rect x="8" y="20" width="44" height="4" fill="#c87941" />
   <rect x="16" y="30" width="28" height="12" fill="#787d86" />
