@@ -656,6 +656,25 @@ body {
 .switch.on .switch-knob { transform: translateX(19px); }
 
 /* ───────────────────────── Bottom bar ───────────────────────── */
+.error-strip {
+  flex-shrink: 0;
+  background: rgba(255, 107, 107, 0.12);
+  border-top: 1px solid rgba(255, 107, 107, 0.25);
+  color: var(--text-danger);
+  font-size: 12.5px;
+  padding: 7px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.error-strip-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .bottom-bar {
   height: 84px;
   flex-shrink: 0;

@@ -53,6 +53,9 @@ export const BottomBar: React.FC<BottomBarProps> = ({
   else if (!hasAccount) disabledReason = 'Добавьте аккаунт на панели слева'
 
   const disabled = !!disabledReason || isActiveForSelected || isRunning
+  const errorText = launchProgress?.stage === 'error' && launchProgress?.instanceId === selectedInstance?.id
+    ? launchProgress.statusText
+    : null
 
   const getButtonText = () => {
     if (isActiveForSelected) {
@@ -63,7 +66,20 @@ export const BottomBar: React.FC<BottomBarProps> = ({
   }
 
   return (
-    <div className="bottom-bar">
+    <>
+      {errorText && (
+        <div className="error-strip">
+          <span className="error-strip-text">{errorText}</span>
+          <button
+            className="btn btn-ghost"
+            style={{ fontSize: '11px', padding: '3px 10px' }}
+            title="Перейдите на вкладку «Логи» для полной информации"
+          >
+            Смотрите вкладку «Логи»
+          </button>
+        </div>
+      )}
+      <div className="bottom-bar">
       <div className="launch-instance-selector" ref={menuRef}>
         <button className="selector-trigger" onClick={() => setDropdownOpen(!dropdownOpen)}>
           <div>
@@ -111,6 +127,7 @@ export const BottomBar: React.FC<BottomBarProps> = ({
       >
         <IconStop /> Остановить
       </button>
-    </div>
+      </div>
+    </>
   )
 }
