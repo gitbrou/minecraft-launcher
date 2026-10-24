@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import type { SkinViewer } from 'skinview3d'
 import { ProfileStats, ProfileWorld } from '../types'
 import { errorMessage } from '../utils/errors'
+import { emitSkinUpdated } from '../utils/skins'
 
 interface ProfileTabProps {
   activeUsername: string
@@ -100,6 +101,7 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ activeUsername }) => {
       if (result) {
         setSkinPath(await window.electronAPI.getUserSkin(activeUsername))
         setSkinVersion((v) => v + 1)
+        emitSkinUpdated()
         setNotice('Скин загружен')
       } else {
         setNotice('Загрузка отменена')
@@ -124,6 +126,7 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ activeUsername }) => {
       await window.electronAPI.fetchOnlineSkin({ username: activeUsername, targetUsername: nick })
       setSkinPath(await window.electronAPI.getUserSkin(activeUsername))
       setSkinVersion((v) => v + 1)
+      emitSkinUpdated()
       setNotice(`Скин «${nick}» применён`)
     } catch (err) {
       setNotice(errorMessage(err, 'Не удалось загрузить скин'))

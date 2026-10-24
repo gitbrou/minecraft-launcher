@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { Instance, LaunchProgress } from '../types'
-import appIcon from '../assets/icon.png'
+import { loaderIcon } from '../utils/loaderIcons'
 
 interface BottomBarProps {
   instances: Instance[]
@@ -85,7 +85,7 @@ export const BottomBar: React.FC<BottomBarProps> = ({
               aria-expanded={dropdownOpen}
               aria-label="Выбрать сборку для запуска"
             >
-              <img className="instance-icon" src={appIcon} alt="" width={20} height={20} aria-hidden="true" />
+              <img className="instance-icon" src={loaderIcon(selectedInstance?.loader)} alt="" width={20} height={20} aria-hidden="true" />
               <span className="launch-target-main">
                 <span className="launch-target-name">{selectedInstance?.name || 'Нет сборки'}</span>
                 <span className="launch-target-sub">

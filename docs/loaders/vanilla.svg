@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <!-- Vanilla: grass block, pixel style, transparent background -->
+  <rect x="0" y="0" width="64" height="20" fill="#63b74b" />
+  <rect x="0" y="0" width="12" height="8" fill="#4f9c3b" />
+  <rect x="40" y="0" width="24" height="12" fill="#4f9c3b" />
+  <rect x="20" y="12" width="16" height="8" fill="#4f9c3b" />
+  <rect x="0" y="20" width="64" height="44" fill="#7a5233" />
+  <rect x="4" y="28" width="20" height="16" fill="#684429" />
+  <rect x="32" y="24" width="28" height="12" fill="#684429" />
+  <rect x="12" y="48" width="24" height="16" fill="#684429" />
+  <rect x="44" y="44" width="16" height="20" fill="#684429" />
+  <rect x="28" y="36" width="12" height="8" fill="#8c5f3c" />
+  <rect x="48" y="24" width="8" height="8" fill="#8c5f3c" />
+</svg>

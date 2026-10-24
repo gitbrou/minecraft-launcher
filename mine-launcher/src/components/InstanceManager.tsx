@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { Instance, ModItem, LaunchProgress, GameLog, MinecraftVersion } from '../types'
 import { NavSection } from './Sidebar'
 import { ProfileTab } from './ProfileTab'
 import { useFocusTrap } from '../hooks/useFocusTrap'
-import appIcon from '../assets/icon.png'
+import { LOADER_ICONS, loaderIcon } from '../utils/loaderIcons'
 
 interface InstanceManagerProps {
   section: NavSection
@@ -124,21 +125,48 @@ export const InstanceManager: React.FC<InstanceManagerProps> = ({
   const [renamingId, setRenamingId] = useState<string | null>(null)
   const [renameText, setRenameText] = useState('')
   const [copyNotice, setCopyNotice] = useState('')
-  const [rowMenuId, setRowMenuId] = useState<string | null>(null)
+  const [rowMenu, setRowMenu] = useState<{ id: string; top: number; right: number } | null>(null)
 
   useEffect(() => {
-    if (!rowMenuId) return
+    if (!rowMenu) return
     const onDown = (e: MouseEvent) => {
-      if (!(e.target as HTMLElement).closest('.row-menu-wrap')) setRowMenuId(null)
+      const target = e.target as HTMLElement
+      if (!target.closest('.row-menu') && !target.closest('.row-menu-trigger')) setRowMenu(null)
     }
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setRowMenuId(null) }
+    const close = () => setRowMenu(null)
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setRowMenu(null) }
     document.addEventListener('mousedown', onDown)
     document.addEventListener('keydown', onKey)
+    window.addEventListener('resize', close)
+    window.addEventListener('scroll', close, true)
     return () => {
       document.removeEventListener('mousedown', onDown)
       document.removeEventListener('keydown', onKey)
+      window.removeEventListener('resize', close)
+      window.removeEventListener('scroll', close, true)
     }
-  }, [rowMenuId])
+  }, [rowMenu])
+
+  const toggleRowMenu = (inst: Instance, button: HTMLButtonElement) => {
+    if (rowMenu?.id === inst.id) {
+      setRowMenu(null)
+      return
+    }
+    const rect = button.getBoundingClientRect()
+    const menuHeight = 118
+    const openUp = rect.bottom + menuHeight > window.innerHeight - 72
+    setRowMenu({
+      id: inst.id,
+      top: openUp ? rect.top - menuHeight - 4 : rect.bottom + 4,
+      right: Math.max(8, window.innerWidth - rect.right)
+    })
+  }
+
+  const menuInstance = rowMenu ? instances.find((i) => i.id === rowMenu.id) : null
+
+  useEffect(() => {
+    setRowMenu(null)
+  }, [section])
 
   const selectedInstanceId = selectedInstance?.id
 
@@ -272,7 +300,7 @@ export const InstanceManager: React.FC<InstanceManagerProps> = ({
                   if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelectInstance(inst) }
                 }}
               >
-                <img className="instance-icon" src={appIcon} alt="" width={22} height={22} aria-hidden="true" />
+                <img className="instance-icon" src={loaderIcon(inst.loader)} alt="" width={22} height={22} aria-hidden="true" />
 
                 <div className="instance-row-main">
                   {renamingId === inst.id ? (
@@ -324,36 +352,36 @@ export const InstanceManager: React.FC<InstanceManagerProps> = ({
                   >
                     <IconPlay />
                   </button>
-                  <div className="row-menu-wrap">
-                    <button
-                      className="icon-btn"
-                      title="Действия"
-                      aria-label={`Действия со сборкой ${inst.name}`}
-                      aria-haspopup="menu"
-                      aria-expanded={rowMenuId === inst.id}
-                      onClick={() => setRowMenuId(rowMenuId === inst.id ? null : inst.id)}
-                    >
-                      <IconDots />
-                    </button>
-                    {rowMenuId === inst.id && (
-                      <div className="row-menu" role="menu">
-                        <button role="menuitem" onClick={() => { onExportInstance(inst); setRowMenuId(null) }}>
-                          <IconShare /> Экспорт в zip
-                        </button>
-                        <button role="menuitem" onClick={() => { setRenamingId(inst.id); setRenameText(inst.name); setRowMenuId(null) }}>
-                          <IconPen /> Переименовать
-                        </button>
-                        <button role="menuitem" className="danger" onClick={() => { onDeleteInstance(inst.id); setRowMenuId(null) }}>
-                          <IconTrash /> Удалить
-                        </button>
-                      </div>
-                    )}
-                  </div>
+                  <button
+                    className={`icon-btn row-menu-trigger ${rowMenu?.id === inst.id ? 'is-open' : ''}`}
+                    title="Действия"
+                    aria-label={`Действия со сборкой ${inst.name}`}
+                    aria-haspopup="menu"
+                    aria-expanded={rowMenu?.id === inst.id}
+                    onClick={(e) => toggleRowMenu(inst, e.currentTarget)}
+                  >
+                    <IconDots />
+                  </button>
                 </div>
               </div>
             )
           })}
         </div>
+
+        {rowMenu && menuInstance && createPortal(
+          <div className="row-menu" style={{ top: rowMenu.top, right: rowMenu.right }} role="menu">
+            <button role="menuitem" onClick={() => { onExportInstance(menuInstance); setRowMenu(null) }}>
+              <IconShare /> Экспорт в zip
+            </button>
+            <button role="menuitem" onClick={() => { setRenamingId(menuInstance.id); setRenameText(menuInstance.name); setRowMenu(null) }}>
+              <IconPen /> Переименовать
+            </button>
+            <button role="menuitem" className="danger" onClick={() => { onDeleteInstance(menuInstance.id); setRowMenu(null) }}>
+              <IconTrash /> Удалить
+            </button>
+          </div>,
+          document.body
+        )}
 
         {showCreateModal && (
           <CreateInstanceModal
@@ -555,10 +583,18 @@ const CreateInstanceModal: React.FC<{
           <div className="form-row">
             <span className="form-label">Загрузчик</span>
             <div className="loader-tabs">
-              <button className={`loader-tab ${loader === 'vanilla' ? 'active' : ''}`} onClick={() => setLoader('vanilla')}>Vanilla</button>
-              <button className={`loader-tab ${loader === 'fabric' ? 'active' : ''}`} onClick={() => setLoader('fabric')}>Fabric</button>
-              <button className={`loader-tab ${loader === 'quilt' ? 'active' : ''}`} onClick={() => setLoader('quilt')}>Quilt</button>
-              <button className="loader-tab" disabled title="Скоро">Forge (скоро)</button>
+              <button className={`loader-tab ${loader === 'vanilla' ? 'active' : ''}`} onClick={() => setLoader('vanilla')}>
+                <img className="loader-tab-icon" src={LOADER_ICONS.vanilla} alt="" /> Vanilla
+              </button>
+              <button className={`loader-tab ${loader === 'fabric' ? 'active' : ''}`} onClick={() => setLoader('fabric')}>
+                <img className="loader-tab-icon" src={LOADER_ICONS.fabric} alt="" /> Fabric
+              </button>
+              <button className={`loader-tab ${loader === 'quilt' ? 'active' : ''}`} onClick={() => setLoader('quilt')}>
+                <img className="loader-tab-icon" src={LOADER_ICONS.quilt} alt="" /> Quilt
+              </button>
+              <button className="loader-tab" disabled title="Скоро">
+                <img className="loader-tab-icon" src={LOADER_ICONS.forge} alt="" /> Forge
+              </button>
             </div>
             {loader !== 'vanilla' && (
               <span className="form-hint">Fabric и Quilt позволяют устанавливать моды через вкладку «Моды».</span>

@@ -1,6 +1,7 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Account } from '../types'
 import { errorMessage } from '../utils/errors'
+import { cropSkinHead, onSkinUpdated } from '../utils/skins'
 import appIcon from '../assets/icon.png'
 
 export type NavSection = 'builds' | 'mods' | 'profile' | 'logs'
@@ -74,6 +75,32 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [isAdding, setIsAdding] = useState(false)
   const [input, setInput] = useState('')
   const [inputError, setInputError] = useState('')
+  const [heads, setHeads] = useState<Record<string, string>>({})
+
+  useEffect(() => {
+    let cancelled = false
+
+    const loadHeads = async () => {
+      const next: Record<string, string> = {}
+      await Promise.all(accounts.map(async (acc) => {
+        const fallback = `https://mc-heads.net/avatar/${encodeURIComponent(acc.username)}/32`
+        try {
+          const skin = window.electronAPI ? await window.electronAPI.getUserSkin(acc.username) : null
+          next[acc.id] = skin ? await cropSkinHead(skin) : fallback
+        } catch {
+          next[acc.id] = fallback
+        }
+      }))
+      if (!cancelled) setHeads(next)
+    }
+
+    loadHeads()
+    const unsubscribe = onSkinUpdated(loadHeads)
+    return () => {
+      cancelled = true
+      unsubscribe()
+    }
+  }, [accounts])
 
   const formatNickname = (val: string): string => {
     const cleaned = val.replace(/[^a-zA-Z0-9_]/g, '')
@@ -142,7 +169,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           >
             <img
               className="account-avatar"
-              src={`https://mc-heads.net/avatar/${acc.username}/32`}
+              src={heads[acc.id] || `https://mc-heads.net/avatar/${encodeURIComponent(acc.username)}/32`}
               alt=""
               onError={(e) => { (e.target as HTMLImageElement).style.visibility = 'hidden' }}
             />
