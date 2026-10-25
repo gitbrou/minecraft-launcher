@@ -4,21 +4,17 @@
 [![License](https://img.shields.io/badge/license-MIT-5fae4a?style=flat-square)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-2b2f38?style=flat-square)](https://github.com/gitbrou/minecraft-launcher/releases/latest)
 
-Лаунчер Minecraft: Vanilla, Fabric и Quilt. Моды ставятся с Modrinth, Java нужной версии
-скачивается сама.
+Крутой майнрафт лаунчер
 
 <img src="docs/screenshot.png" alt="Mine Launcher" width="860" />
 
 ## Скачать
 
-Windows: [установщик](https://github.com/gitbrou/minecraft-launcher/releases/latest).
-
-macOS и Linux: dmg и AppImage в том же релизе.
+Windows, macOS и Linux [установщик](https://github.com/gitbrou/minecraft-launcher/releases/latest).
 
 ## Использование
 
-Добавь ник, создай сборку и выбери версию с загрузчиком. Моды ставятся во вкладке
-«Моды». Первый запуск дольше обычного: качаются Java, библиотеки и ассеты.
+Ник, вресия, кнопка играть
 
 ## Сборка
 
@@ -26,9 +22,6 @@ macOS и Linux: dmg и AppImage в том же релизе.
 npm install
 npm run dev
 ```
-
-`npm test` прогоняет 65 тестов, `npm run lint` проверяет eslint, `npm run build`
-собирает установщик в `dist-build/`.
 
 ## Данные
 
