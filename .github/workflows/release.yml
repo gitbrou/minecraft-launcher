@@ -28,6 +28,7 @@ jobs:
           files: |
             mine-launcher/dist-build/*.exe
             mine-launcher/dist-build/*.exe.blockmap
+            mine-launcher/dist-build/latest.yml
           generate_release_notes: true
 
   macos:

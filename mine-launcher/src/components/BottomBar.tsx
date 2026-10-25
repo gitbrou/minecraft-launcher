@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { Instance, LaunchProgress } from '../types'
-import { loaderIcon } from '../utils/loaderIcons'
+import { loaderIcon, loaderLabel } from '../utils/loaderIcons'
 
 interface BottomBarProps {
   instances: Instance[]
@@ -89,7 +89,7 @@ export const BottomBar: React.FC<BottomBarProps> = ({
               <span className="launch-target-main">
                 <span className="launch-target-name">{selectedInstance?.name || 'Нет сборки'}</span>
                 <span className="launch-target-sub">
-                  {selectedInstance ? `${selectedInstance.version} · ${selectedInstance.loader}` : 'Создайте сборку'}
+                  {selectedInstance ? `${selectedInstance.version} · ${loaderLabel(selectedInstance.loader)}` : 'Создайте сборку'}
                 </span>
               </span>
               <span className={`selector-arrow ${dropdownOpen ? 'open' : ''}`} aria-hidden="true">▾</span>

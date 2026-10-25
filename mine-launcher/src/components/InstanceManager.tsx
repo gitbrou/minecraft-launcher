@@ -4,7 +4,7 @@ import { Instance, ModItem, LaunchProgress, GameLog, MinecraftVersion } from '..
 import { NavSection } from './Sidebar'
 import { ProfileTab } from './ProfileTab'
 import { useFocusTrap } from '../hooks/useFocusTrap'
-import { LOADER_ICONS, loaderIcon } from '../utils/loaderIcons'
+import { LOADER_ICONS, loaderIcon, loaderLabel } from '../utils/loaderIcons'
 
 interface InstanceManagerProps {
   section: NavSection
@@ -332,7 +332,7 @@ export const InstanceManager: React.FC<InstanceManagerProps> = ({
                   <span className="instance-row-sub">Minecraft {inst.version}</span>
                 </div>
 
-                <span className="instance-col instance-col-loader">{inst.loader}</span>
+                <span className="instance-col instance-col-loader">{loaderLabel(inst.loader)}</span>
 
                 <span className={`instance-col instance-col-date ${runningForThis ? 'is-live' : ''}`}>
                   {runningForThis

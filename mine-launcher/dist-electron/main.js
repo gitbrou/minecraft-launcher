@@ -18617,7 +18617,10 @@ function safeInstId(instanceId) {
 function safeFilename(filename) {
   if (!filename || filename.length > 255) throw new Error("Некорректное имя файла");
   if (filename === "." || filename === "..") throw new Error("Некорректное имя файла");
-  if (/[\\/:*?"<>|\x00-\x1f]/.test(filename)) throw new Error("Некорректное имя файла");
+  for (const ch of filename) {
+    if (ch.codePointAt(0) < 32) throw new Error("Некорректное имя файла");
+  }
+  if (/[\\/:*?"<>|]/.test(filename)) throw new Error("Некорректное имя файла");
   return filename;
 }
 Menu.setApplicationMenu(null);

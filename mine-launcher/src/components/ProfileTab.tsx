@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import type { SkinViewer } from 'skinview3d'
 import { ProfileStats, ProfileWorld } from '../types'
 import { errorMessage } from '../utils/errors'
-import { emitSkinUpdated } from '../utils/skins'
+import { cropSkinHead, emitSkinUpdated } from '../utils/skins'
 
 interface ProfileTabProps {
   activeUsername: string
@@ -10,20 +10,45 @@ interface ProfileTabProps {
 
 const SkinViewerCanvas: React.FC<{ username: string; skinPath: string | null }> = ({ username, skinPath }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const frameRef = useRef<HTMLDivElement>(null)
   const viewerRef = useRef<SkinViewer | null>(null)
+  const [status, setStatus] = useState<'loading' | 'ready' | 'failed'>('loading')
+  const [head, setHead] = useState<string | null>(null)
+
+  // Статичная голова — заглушка, пока 3D-модель грузится или если WebGL/скин недоступен
+  useEffect(() => {
+    let cancelled = false
+    const loadHead = async () => {
+      if (skinPath) {
+        try {
+          const cropped = await cropSkinHead(skinPath)
+          if (!cancelled) setHead(cropped)
+          return
+        } catch {
+          // битый файл — падаем на онлайн-голову
+        }
+      }
+      if (!cancelled) setHead(`https://mc-heads.net/avatar/${encodeURIComponent(username)}/128`)
+    }
+    loadHead()
+    return () => { cancelled = true }
+  }, [username, skinPath])
 
   useEffect(() => {
     let disposed = false
+    setStatus('loading')
 
     const setupViewer = async () => {
       try {
         const mod = await import('skinview3d')
         if (disposed || !canvasRef.current) return
 
+        // Кадр квадратный: берём фактическую ширину, чтобы модель не «плавала» в рамке
+        const size = frameRef.current?.clientWidth || 146
         const viewer = new mod.SkinViewer({
           canvas: canvasRef.current,
-          width: 140,
-          height: 140
+          width: size,
+          height: size
         })
         viewerRef.current = viewer
 
@@ -33,14 +58,17 @@ const SkinViewerCanvas: React.FC<{ username: string; skinPath: string | null }> 
         viewer.controls.enableRotate = true
         viewer.controls.enableZoom = true
 
+        const source = skinPath || `https://mc-heads.net/skin/${encodeURIComponent(username)}`
         try {
-          const source = skinPath || `https://mc-heads.net/skin/${encodeURIComponent(username)}`
           await viewer.loadSkin(source)
+          if (!disposed) setStatus('ready')
         } catch {
-          // нет интернета/скина — остаётся дефолтная модель, это не ошибка экрана
+          // Скин не загрузился — оставляем голову заглушкой
+          if (!disposed) setStatus('failed')
         }
       } catch {
-        // skinview3d не загрузился (нет WebGL) — карточка просто останется без 3D
+        // skinview3d не загрузился (нет WebGL) — карточка покажет голову
+        if (!disposed) setStatus('failed')
       }
     }
 
@@ -53,8 +81,22 @@ const SkinViewerCanvas: React.FC<{ username: string; skinPath: string | null }> 
   }, [username, skinPath])
 
   return (
-    <div className="profile-skin-frame">
+    <div ref={frameRef} className={`profile-skin-frame is-${status}`}>
       <canvas ref={canvasRef} className="skin-canvas" />
+      {status !== 'ready' && (
+        <div className="skin-placeholder" aria-hidden="true">
+          {head ? (
+            <img
+              className="skin-head"
+              src={head}
+              alt=""
+              onError={() => setHead(null)}
+            />
+          ) : (
+            <span className="skin-head-empty" />
+          )}
+        </div>
+      )}
     </div>
   )
 }

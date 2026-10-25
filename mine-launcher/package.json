@@ -93,7 +93,11 @@
       "allowToChangeInstallationDirectory": false,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Mine Launcher"
+      "shortcutName": "Mine Launcher",
+      "artifactName": "${name}-${version}-setup-${arch}.${ext}"
+    },
+    "portable": {
+      "artifactName": "${name}-${version}-portable-${arch}.${ext}"
     },
     "linux": {
       "target": [
@@ -106,7 +110,8 @@
       ],
       "category": "Game",
       "maintainer": "gitbrou <gitbrou@users.noreply.github.com>",
-      "icon": "public/icon.png"
+      "icon": "public/icon.png",
+      "artifactName": "${name}-${version}-${arch}.${ext}"
     },
     "mac": {
       "target": [
@@ -119,7 +124,8 @@
         }
       ],
       "icon": "public/icon.png",
-      "category": "public.app-category.games"
+      "category": "public.app-category.games",
+      "artifactName": "${name}-${version}-${arch}.${ext}"
     },
     "publish": [
       {

@@ -11,6 +11,10 @@ export function safeInstId(instanceId: string): string {
 export function safeFilename(filename: string): string {
   if (!filename || filename.length > 255) throw new Error('Некорректное имя файла')
   if (filename === '.' || filename === '..') throw new Error('Некорректное имя файла')
-  if (/[\\/:*?"<>|\x00-\x1f]/.test(filename)) throw new Error('Некорректное имя файла')
+  // Управляющие символы ловим по коду, чтобы не держать их в регулярке
+  for (const ch of filename) {
+    if (ch.codePointAt(0)! < 0x20) throw new Error('Некорректное имя файла')
+  }
+  if (/[\\/:*?"<>|]/.test(filename)) throw new Error('Некорректное имя файла')
   return filename
 }
