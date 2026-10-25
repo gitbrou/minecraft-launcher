@@ -1,43 +1,32 @@
 # Mine Launcher
 
-> Лаунчер Minecraft на Electron: сборки, моды с Modrinth и своя Java.
+Лаунчер Minecraft, который я написал для себя. Надоело каждый раз выяснять, какая Java
+нужна для 1.12.2, и раскладывать моды по папкам вручную.
 
-[![Release](https://img.shields.io/github/v/release/gitbrou/minecraft-launcher?style=flat-square&color=5fae4a)](https://github.com/gitbrou/minecraft-launcher/releases)
-[![License](https://img.shields.io/badge/license-MIT-5fae4a?style=flat-square)](LICENSE)
-[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-2b2f38?style=flat-square)](https://github.com/gitbrou/minecraft-launcher/releases)
+Лаунчеров и так много. Мне не хватало простого: отдельные сборки, которые не дублируют
+библиотеки, моды с Modrinth в два клика и чтобы про Java можно было не думать.
 
-Запускает ваниллу, Fabric и Quilt. Моды ищутся и ставятся с Modrinth, Java нужной версии
-скачивается сама, ставить её заранее не нужно.
+<img src="docs/screenshot.png" alt="Mine Launcher" width="860" />
 
-Сборки независимые: у каждой свой набор модов и миров, а библиотеки, ассеты и версии игры
-общие. Ещё есть скины с 3D-просмотром, живые логи, экспорт и импорт сборок в zip.
-Обновляется через GitHub Releases, как обычная программа.
+## Скачать
 
-<img src="docs/screenshot.png" alt="Mine Launcher" width="900" />
+Windows: [установщик](https://github.com/gitbrou/minecraft-launcher/releases/latest).
+Подписи нет, SmartScreen скажет, что файл опасный. «Подробнее» → «Выполнить в любом случае».
 
-## Установка
+macOS и Linux: там же dmg и AppImage. Проверял их мало, так что если что-то не заведётся,
+пиши в issues, будем разбираться.
 
-Готовые сборки лежат в [Releases](https://github.com/gitbrou/minecraft-launcher/releases).
+## Как играть
 
-**Windows.** Скачать `mine-launcher-2.0.0-setup-x64.exe` и запустить. Установщик не
-подписан, поэтому SmartScreen может предупредить: «Подробнее» → «Выполнить в любом случае».
+Добавляешь ник (пока только оффлайн), создаёшь сборку, выбираешь версию и загрузчик.
+Дальше или ставишь моды во вкладке «Моды», или сразу жмёшь «Играть».
 
-**macOS и Linux.** Там же dmg и AppImage. Собирал их реже, так что возможны сюрпризы;
-если что-то не работает, лучше написать в issues.
+Первый запуск долгий: качается Java, библиотеки и ассеты. Это нормально, второй раз
+быстрее.
 
-## Как пользоваться
+## Собрать самому
 
-1. Добавить аккаунт. Пока только оффлайн-ник.
-2. Создать сборку: выбрать версию игры и загрузчик.
-3. Поставить моды во вкладке «Моды» или оставить ваниллу.
-4. Нажать «Играть». Java и остальные файлы лаунчер докачает сам.
-
-Сборку можно выгрузить в zip и отдать другу, а он импортирует её кнопкой «Импорт» или
-ссылкой `minelauncher://import?url=…`.
-
-## Разработка
-
-Нужен Node.js 18+ и npm.
+Нужен Node 18+ и npm.
 
 ```bash
 cd mine-launcher
@@ -45,33 +34,28 @@ npm install
 npm run dev
 ```
 
-Полезные команды:
+`npm test` — 65 тестов, `npm run lint` — eslint, `npm run build` — установщик и portable
+в `dist-build/`.
 
-- `npm test` — 65 тестов, сеть не нужна;
-- `npm run lint` — eslint;
-- `npm run build` — NSIS-установщик и portable в `dist-build/`.
+## Где данные
 
-Данные приложения лежат в `%APPDATA%\mine-launcher\.mine-launcher` на Windows и в
-стандартном `userData` на других системах. Внутри `accounts.json`, `instances.json`,
-`settings.json` и папки с версиями, библиотеками и скинами.
+`%APPDATA%\mine-launcher\.mine-launcher` на Windows, на других системах стандартный
+`userData`. Внутри `accounts.json`, `instances.json`, `settings.json` и папки с версиями,
+библиотеками и скинами. Там же миры, так что целиком папку лучше не сносить.
 
-## История версий
+## Версии
 
-- **2.0.0** — новый интерфейс, автообновления, скины, импорт сборок по ссылке.
-- **1.1.0** — исправления, deep link `minelauncher://import`.
-- **1.0.2** — первый релиз.
+- 2.0.0 — новый интерфейс и автообновления.
+- 1.1.0 — импорт по ссылке `minelauncher://import`.
+- 1.0.2 — первый релиз.
 
-## Автор
+## Ещё
 
-gitbrou — [github.com/gitbrou](https://github.com/gitbrou)
+Сборку можно выгрузить в zip и отдать другу. Скин — загрузить PNG или скачать по нику,
+покрутить в 3D. Логи пишутся вживую, при падении игры лаунчер пытается сказать, чего не
+хватило.
 
-Проект распространяется по MIT, текст в [LICENSE](LICENSE).
-
-## Участие
-
-Баг или идея — открывай issue. Если есть лог из вкладки «Логи», приложи его: по нему
-обычно видно, чего не хватило. Пулл-реквесты тоже можно, только сначала опиши, что
-хочешь поменять.
+Если что-то сломалось, issues. Код под MIT, делай что хочешь.
 
 ---
 
