@@ -5,6 +5,7 @@
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-2b2f38?style=flat-square)](https://github.com/gitbrou/minecraft-launcher/releases/latest)
 
 Крутой майнрафт лаунчер
+Моды, можно делится версиями, скины и многое другое
 
 <img src="docs/screenshot.png" alt="Mine Launcher" width="860" />
 
@@ -26,7 +27,7 @@ npm run dev
 ## Данные
 
 В `%APPDATA%\mine-launcher\.mine-launcher` лежат аккаунты, сборки, настройки, версии,
-скины и миры.
+скины и миры. На macos linux путь отличается (`~/Library/Application Support/mine-launcher/.mine-launcher`, `~/.config/ или $XDG_CONFIG_HOME/mine-launcher/.mine-launcher`)
 
 ## Версии
 
