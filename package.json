@@ -80,10 +80,7 @@
         }
       ],
       "icon": "public/icon.png",
-      "signingHashAlgorithms": [
-        "sha256"
-      ],
-      "rfc3161TimeStampServer": "http://timestamp.digicert.com"
+      "signAndEditExecutable": false
     },
     "nsis": {
       "oneClick": true,
