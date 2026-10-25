@@ -11,65 +11,58 @@ permissions:
 jobs:
   windows:
     runs-on: windows-latest
-    defaults:
-      run:
-        working-directory: mine-launcher
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
-          cache-dependency-path: mine-launcher/package-lock.json
+          cache-dependency-path: package-lock.json
       - run: npm ci
       - run: npm run build
+        env:
+          CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
       - uses: softprops/action-gh-release@v2
         with:
           files: |
-            mine-launcher/dist-build/*.exe
-            mine-launcher/dist-build/*.exe.blockmap
-            mine-launcher/dist-build/latest.yml
+            dist-build/*.exe
+            dist-build/*.exe.blockmap
+            dist-build/latest.yml
           generate_release_notes: true
 
   macos:
     runs-on: macos-latest
     env:
       CSC_IDENTITY_AUTO_DISCOVERY: 'false'
-    defaults:
-      run:
-        working-directory: mine-launcher
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
-          cache-dependency-path: mine-launcher/package-lock.json
+          cache-dependency-path: package-lock.json
       - run: npm ci
       - run: npm run build
       - uses: softprops/action-gh-release@v2
         with:
           files: |
-            mine-launcher/dist-build/*.dmg
+            dist-build/*.dmg
           generate_release_notes: true
 
   linux:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: mine-launcher
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
-          cache-dependency-path: mine-launcher/package-lock.json
+          cache-dependency-path: package-lock.json
       - run: npm ci
       - run: npm run build
       - uses: softprops/action-gh-release@v2
         with:
           files: |
-            mine-launcher/dist-build/*.AppImage
+            dist-build/*.AppImage
           generate_release_notes: true
-

@@ -79,8 +79,11 @@
           ]
         }
       ],
-      "signAndEditExecutable": false,
-      "icon": "public/icon.png"
+      "icon": "public/icon.png",
+      "signingHashAlgorithms": [
+        "sha256"
+      ],
+      "rfc3161TimeStampServer": "http://timestamp.digicert.com"
     },
     "nsis": {
       "oneClick": true,

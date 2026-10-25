@@ -24,7 +24,6 @@ macOS и Linux: dmg и AppImage в том же релизе.
 ## Сборка
 
 ```bash
-cd mine-launcher
 npm install
 npm run dev
 ```

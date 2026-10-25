@@ -9,4 +9,4 @@ Sources and licenses:
 - `forge.svg` — original Mine Launcher pixel rendering of an anvil in the classic Forge shape.
   Forge is a trademark of the MinecraftForge project; not an official logo copy.
 
-Build assets are rasterized to 64×64 PNG in `mine-launcher/src/assets/loaders/`.
+Build assets are rasterized to 64×64 PNG in `src/assets/loaders/`.
