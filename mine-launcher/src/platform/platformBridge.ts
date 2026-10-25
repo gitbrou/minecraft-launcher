@@ -6,8 +6,8 @@ export function ensurePlatformBridge() {
   const w = window as unknown as BridgeWindow
   if (w.electronAPI) return
 
-  // Мобильная заглушка (Android): main-process недоступен, для запуска
-  // используется PojavLauncher-мост через Capacitor.
+  // Заглушка для браузера: main-процесса нет, поэтому UI работает на пустых данных.
+  // Нужна только для `npm run dev` и превью дизайна, в Electron не используется.
   const stubState: {
     accounts: Account[]
     instances: Instance[]
@@ -114,28 +114,7 @@ export function ensurePlatformBridge() {
     installUpdate: async () => false,
     onUpdateState: () => () => {},
 
-    launchInstance: async (id: string) => {
-      const inst = stubState.instances.find((i) => i.id === id) || stubState.instances[0]
-      const username = stubState.accounts.find((a) => a.isActive)?.username
-
-      try {
-        const { Capacitor, registerPlugin } = await import('@capacitor/core')
-        const PojavBridge = registerPlugin<{ launch: (o: { version: string }) => Promise<{ ok: boolean }> }>('PojavBridge')
-        if (Capacitor.isNativePlatform()) {
-          await PojavBridge.launch({ version: inst?.version || '' })
-          return true
-        }
-      } catch { /* fallthrough */ }
-
-      const deepLink = 'pojavlauncher://launch?version=' + encodeURIComponent(inst?.version || '') + '&user=' + encodeURIComponent(username || '')
-      const marketUrl = 'https://play.google.com/store/apps/details?id=net.kdt.pojavlaunch'
-      try { window.open(deepLink, '_system') } catch { /* ignore */ }
-      setTimeout(() => {
-        alert('Для запуска установите движок PojavLauncher (Play Market).')
-        window.open(marketUrl, '_system')
-      }, 1200)
-      return true
-    },
+    launchInstance: async () => false,
     stopInstance: async () => true,
     restoreWindow: async () => {},
 
@@ -146,7 +125,7 @@ export function ensurePlatformBridge() {
     addModFile: async () => false,
 
     uploadUserSkin: async () => null,
-    fetchOnlineSkin: async () => { throw new Error('Недоступно на Android') },
+    fetchOnlineSkin: async () => { throw new Error('Недоступно в браузере') },
     getUserSkin: async () => null,
     getAccountHead: async (username: string) => `https://mc-heads.net/avatar/${username}/64`,
     getProfileStats: async (username: string) => ({

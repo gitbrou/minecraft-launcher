@@ -14,7 +14,7 @@ import '@fontsource/jetbrains-mono/cyrillic-500.css'
 import '@fontsource/jetbrains-mono/latin-400.css'
 import '@fontsource/jetbrains-mono/latin-500.css'
 
-  // На Android подменяем electronAPI заглушкой
+// В браузере (dev/превью) electronAPI эмулируется заглушкой
 ensurePlatformBridge()
 
 ReactDOM.createRoot(document.getElementById('root')!).render(

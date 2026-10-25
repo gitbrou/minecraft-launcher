@@ -25,17 +25,10 @@
   </g>
   <!-- headline -->
   <text x="440" y="300" font-family="Segoe UI, Arial, sans-serif" font-size="88" font-weight="700" fill="#ffffff">Mine Launcher</text>
-  <!-- tagline -->
-  <text x="442" y="372" font-family="Segoe UI, Arial, sans-serif" font-size="34" fill="#9aa3b2">Лаунчер Minecraft, который не мешает играть</text>
-  <!-- feature chips: flat outline -->
-  <g font-family="Segoe UI, Arial, sans-serif" font-size="24" fill="#c8cfda">
-    <rect x="442" y="430" width="230" height="56" rx="12" fill="none" stroke="#2a2f3a" stroke-width="2" />
-    <text x="486" y="466">Сборки</text>
-    <rect x="688" y="430" width="230" height="56" rx="12" fill="none" stroke="#2a2f3a" stroke-width="2" />
-    <text x="742" y="466">Modrinth</text>
-    <rect x="934" y="430" width="200" height="56" rx="12" fill="none" stroke="#2a2f3a" stroke-width="2" />
-    <text x="982" y="466">Java сама</text>
-  </g>
+  <!-- what it actually does -->
+  <text x="442" y="372" font-family="Segoe UI, Arial, sans-serif" font-size="33" fill="#9aa3b2">Vanilla, Fabric, Quilt. Моды с Modrinth.</text>
+  <!-- feature line, no badge boxes -->
+  <text x="442" y="446" font-family="Segoe UI, Arial, sans-serif" font-size="23" fill="#8b93a1">Скины · Java сама · Обмен сборками</text>
   <!-- repo url -->
   <text x="442" y="540" font-family="Segoe UI, Arial, sans-serif" font-size="22" fill="#737d8d">github.com/gitbrou/minecraft-launcher</text>
 </svg>

@@ -73,29 +73,3 @@ jobs:
             mine-launcher/dist-build/*.AppImage
           generate_release_notes: true
 
-  android:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: mine-launcher
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-          cache-dependency-path: mine-launcher/package-lock.json
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '17'
-      - run: npm ci
-      - run: npm run compile
-      - run: npx cap sync android
-      - run: chmod +x android/gradlew
-      - run: cd android && ./gradlew assembleDebug --no-daemon
-      - uses: softprops/action-gh-release@v2
-        with:
-          files: |
-            mine-launcher/android/app/build/outputs/apk/debug/*.apk
-          generate_release_notes: true
