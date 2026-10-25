@@ -81,12 +81,23 @@ export function App() {
       }
     })
 
+    // Прогреваем тяжёлый 3D-вьюер скина в фоне — профиль открывается без паузы
+    const warmViewer = () => { void import('skinview3d').catch(() => {}) }
+    const idleHandle = typeof requestIdleCallback === 'function'
+      ? requestIdleCallback(warmViewer, { timeout: 3000 })
+      : window.setTimeout(warmViewer, 1500)
+
     return () => {
       unsubscribeProgress()
       unsubscribeLogs()
       unsubscribeUpdate?.()
       unsubscribeDeepLink?.()
       clearInterval(logFlushTimer)
+      if (typeof cancelIdleCallback === 'function' && typeof requestIdleCallback === 'function') {
+        cancelIdleCallback(idleHandle)
+      } else {
+        clearTimeout(idleHandle)
+      }
     }
   }, [])
 

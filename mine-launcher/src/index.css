@@ -115,7 +115,7 @@ body {
 .titlebar-btn {
   background: transparent;
   border: none;
-  color: var(--text-muted);
+  color: #c6c6c1;
   width: 46px;
   height: 100%;
   padding: 0;
@@ -546,6 +546,11 @@ body {
   font-size: 11px;
   color: var(--text-faint);
 }
+.section-context::before {
+  content: '·';
+  margin-right: 8px;
+  color: var(--border-strong);
+}
 
 .icon-btn {
   background: none;
@@ -934,6 +939,7 @@ body {
 .launch-target:hover { background: rgba(255, 255, 255, 0.04); border-color: var(--border); }
 
 .launch-target-main {
+  flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
@@ -956,8 +962,9 @@ body {
 
 .selector-arrow {
   margin-left: auto;
-  color: var(--text-faint);
-  font-size: 9px;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
   transition: transform 0.15s;
 }
 .selector-arrow.open { transform: rotate(180deg); }
@@ -1091,7 +1098,7 @@ body {
   display: grid;
   grid-template-columns: 236px 1fr;
   gap: 28px;
-  align-content: start;
+  align-content: stretch;
   padding-bottom: 12px;
 }
 
@@ -1455,6 +1462,12 @@ body {
 :focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
+}
+/* У полей ввода фокус уже виден по зелёной рамке — второй контур лишний */
+.form-input:focus-visible,
+.form-select:focus-visible,
+.search-bar input:focus-visible {
+  outline: none;
 }
 
 /* ───────────────────────── Layout utilities ─────────────────── */

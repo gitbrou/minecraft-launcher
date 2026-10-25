@@ -2,6 +2,12 @@ import React, { useState, useRef, useEffect } from 'react'
 import { Instance, LaunchProgress } from '../types'
 import { loaderIcon, loaderLabel } from '../utils/loaderIcons'
 
+const IconChevron = () => (
+  <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M2 3.5 5 6.5 8 3.5" />
+  </svg>
+)
+
 interface BottomBarProps {
   instances: Instance[]
   selectedInstance: Instance | null
@@ -92,7 +98,7 @@ export const BottomBar: React.FC<BottomBarProps> = ({
                   {selectedInstance ? `${selectedInstance.version} · ${loaderLabel(selectedInstance.loader)}` : 'Создайте сборку'}
                 </span>
               </span>
-              <span className={`selector-arrow ${dropdownOpen ? 'open' : ''}`} aria-hidden="true">▾</span>
+              <span className={`selector-arrow ${dropdownOpen ? 'open' : ''}`} aria-hidden="true"><IconChevron /></span>
             </button>
 
             {dropdownOpen && (

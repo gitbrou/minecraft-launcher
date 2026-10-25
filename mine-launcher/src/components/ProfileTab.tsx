@@ -189,7 +189,9 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ activeUsername }) => {
         <SkinViewerCanvas key={`${skinPath || 'default'}-${skinVersion}`} username={activeUsername} skinPath={skinPath} />
 
         <div className="profile-name">{activeUsername}</div>
-        {stats?.uuid && <div className="profile-uuid">{stats.uuid}</div>}
+        {stats?.uuid && (
+          <div className="profile-uuid" title={stats.uuid}>{stats.uuid.slice(0, 8)}…</div>
+        )}
 
         <div className="skin-actions">
           <button className="btn" onClick={handleUploadSkin} disabled={busy}>

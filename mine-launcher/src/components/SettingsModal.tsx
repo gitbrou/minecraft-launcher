@@ -166,7 +166,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
                       <option key={j} value={j}>{j.split(/[/\\]/).slice(-3).join('/')}</option>
                     ))}
                   </select>
-                  <span className="settings-hint">или укажите путь вручную</span>
+                  <span className="settings-hint">или выберите из найденных</span>
                 </div>
               )}
               <div className="settings-field-head settings-subhead">
