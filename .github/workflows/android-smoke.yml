@@ -87,6 +87,8 @@ jobs:
             sleep 45
             adb shell input keyevent 4 || true
             adb shell am start-foreground-service -n com.movtery.zalithlauncher.v2.debug/com.movtery.zalithlauncher.keepalive.TaskKeepAliveService || true
+            adb shell am start-foreground-service -n com.movtery.zalithlauncher.v2.debug/com.movtery.zalithlauncher.game.launch.GameService || true
+            adb shell am start-foreground-service -n com.movtery.zalithlauncher.v2.debug/com.movtery.zalithlauncher.game.download.jvm_server.JvmService || true
             sleep 10
             echo '--- crashes ---'
             adb logcat -d | grep -A 25 -E 'FATAL EXCEPTION' || echo 'no fatal exceptions'
