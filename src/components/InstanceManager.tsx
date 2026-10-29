@@ -5,7 +5,7 @@ import { NavSection } from './Sidebar'
 import { ProfileTab } from './ProfileTab'
 import { useFocusTrap } from '../hooks/useFocusTrap'
 import { LOADER_ICONS, loaderIcon, loaderLabel } from '../utils/loaderIcons'
-import { isAndroid, openNativeScreen } from '../platform/androidBridge'
+import { isAndroid } from '../platform/androidBridge'
 
 interface InstanceManagerProps {
   section: NavSection
@@ -268,20 +268,14 @@ export const InstanceManager: React.FC<InstanceManagerProps> = ({
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
-            {isAndroid() ? (
-              <button className="btn btn-primary" onClick={openNativeScreen} title="Открыть нативный экран версий">
-                <IconPlus /> Установить версию
+            {!isAndroid() && (
+              <button className="btn" onClick={onImportInstance} title="Импортировать сборку из zip-архива">
+                <IconImport /> Импорт
               </button>
-            ) : (
-              <>
-                <button className="btn" onClick={onImportInstance} title="Импортировать сборку из zip-архива">
-                  <IconImport /> Импорт
-                </button>
-                <button className="btn btn-primary" onClick={() => setShowCreateModal(true)}>
-                  <IconPlus /> Новая сборка
-                </button>
-              </>
             )}
+            <button className="btn btn-primary" onClick={() => setShowCreateModal(true)}>
+              <IconPlus /> Новая сборка
+            </button>
           </div>
         </div>
 
@@ -700,23 +694,17 @@ const EmptyOnboarding: React.FC<{ onCreate: () => void; onImport: () => void }> 
       <div className="empty-state-title">{android ? 'Пока нет версий' : 'Пока нет сборок'}</div>
       <div className="empty-state-text">
         {android
-          ? 'Установи версию в нативном режиме, она сразу появится здесь. Загрузчик и моды выберешь там же.'
+          ? 'Нажми «Новая сборка», выбери версию и загрузчик. Лаунчер сам скачает игру, библиотеки и Java.'
           : 'Создайте свою первую сборку — выберите версию Minecraft и загрузчик (Fabric или Quilt для модов). Лаунчер сам скачает игру, библиотеки и нужную Java при первом запуске.'}
       </div>
       <div className="empty-actions">
-        {android ? (
-          <button className="btn btn-primary" onClick={openNativeScreen}>
-            <IconPlus /> Установить версию
+        <button className="btn btn-primary" onClick={onCreate}>
+          <IconPlus /> Создать сборку
+        </button>
+        {!android && (
+          <button className="btn" onClick={onImport} title="Открыть zip-архив сборки, которым поделился друг">
+            <IconImport /> Импорт из zip
           </button>
-        ) : (
-          <>
-            <button className="btn btn-primary" onClick={onCreate}>
-              <IconPlus /> Создать сборку
-            </button>
-            <button className="btn" onClick={onImport} title="Открыть zip-архив сборки, которым поделился друг">
-              <IconImport /> Импорт из zip
-            </button>
-          </>
         )}
       </div>
     </div>

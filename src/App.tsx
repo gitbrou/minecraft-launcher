@@ -41,7 +41,21 @@ export function App() {
       }).catch(() => {})
     }
     window.addEventListener('mine:state', reload)
-    return () => window.removeEventListener('mine:state', reload)
+    const onInstallError = (event: Event) => {
+      const detail = (event as CustomEvent).detail
+      setToast(`Установка: ${detail || 'ошибка'}`)
+    }
+    const onInstallDone = (event: Event) => {
+      const detail = (event as CustomEvent).detail
+      setToast(`Версия ${detail} установлена`)
+    }
+    window.addEventListener('mine:install-error', onInstallError)
+    window.addEventListener('mine:install-done', onInstallDone)
+    return () => {
+      window.removeEventListener('mine:state', reload)
+      window.removeEventListener('mine:install-error', onInstallError)
+      window.removeEventListener('mine:install-done', onInstallDone)
+    }
   }, [])
 
   useEffect(() => {
@@ -151,7 +165,11 @@ export function App() {
       return window.electronAPI.createInstance(data).then((next: Instance[]) => {
         setInstances(next)
         const created = next.find((i) => i.name === data.name)
-        if (created) handleSelectInstance(created)
+        if (created) {
+          handleSelectInstance(created)
+        } else {
+          setToast('Установка пошла, версия появится в списке через пару минут')
+        }
       })
     }
     return Promise.reject(new Error('electronAPI недоступен'))

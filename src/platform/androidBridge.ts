@@ -17,6 +17,8 @@ type NativeBridge = {
   getSettings(): string
   saveSettings(json: string): boolean
   getSystemInfo(): string
+  getVersions(): string
+  installVersion(mc: string, loader: string, name: string): void
   launch(name: string): boolean
   getMods(version: string): string
   toggleMod(version: string, filename: string): boolean
@@ -68,6 +70,10 @@ export function installAndroidBridge(): boolean {
       emitProgress({ instanceId: payload, stage: 'running', statusText: 'Игра запущена', progress: 100 })
     } else if (type === 'launch-error') {
       emitProgress({ instanceId: '', stage: 'error', statusText: payload || 'Ошибка запуска', progress: 0, error: payload })
+    } else if (type === 'install-error') {
+      window.dispatchEvent(new CustomEvent('mine:install-error', { detail: payload }))
+    } else if (type === 'install-done') {
+      window.dispatchEvent(new CustomEvent('mine:install-done', { detail: payload }))
     } else if (type === 'state') {
       window.dispatchEvent(new CustomEvent('mine:state'))
     }
@@ -97,8 +103,9 @@ export function installAndroidBridge(): boolean {
     deleteAccount: async (id: string) => read<Account[]>(native.deleteAccount(id), []),
 
     getInstances: async () => read<Instance[]>(native.getInstances(), []),
-    createInstance: async () => {
-      throw new Error('Установка версий пока в нативном режиме')
+    createInstance: async (data: { name: string; version: string; loader: string }) => {
+      native.installVersion(data.version, data.loader, data.name)
+      return read<Instance[]>(native.getInstances(), [])
     },
     renameInstance: async () => read<Instance[]>(native.getInstances(), []),
     deleteInstance: async (id: string) => read<Instance[]>(native.deleteInstance(id), []),
@@ -106,7 +113,7 @@ export function installAndroidBridge(): boolean {
     exportInstance: async () => ({ ok: false, canceled: true }),
     importInstance: async () => ({ ok: false, canceled: true }),
 
-    getVersions: async () => ({ versions: [] as MinecraftVersion[] }),
+    getVersions: async () => ({ versions: read<MinecraftVersion[]>(native.getVersions(), []) }),
 
     getSettings: async () => cachedSettings,
     saveSettings: async (settings: Partial<LauncherSettings>) => {

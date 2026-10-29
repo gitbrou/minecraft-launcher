@@ -28,9 +28,14 @@ import com.movtery.zalithlauncher.BuildConfig
 import com.movtery.zalithlauncher.game.account.Account
 import com.movtery.zalithlauncher.game.account.AccountType
 import com.movtery.zalithlauncher.game.account.AccountsManager
+import com.movtery.zalithlauncher.game.addons.modloader.fabriclike.fabric.FabricVersions
+import com.movtery.zalithlauncher.game.addons.modloader.fabriclike.quilt.QuiltVersions
+import com.movtery.zalithlauncher.game.download.game.GameDownloadInfo
+import com.movtery.zalithlauncher.game.download.game.GameInstaller
 import com.movtery.zalithlauncher.game.launch.GameLaunchFlow
 import com.movtery.zalithlauncher.game.version.installed.Version
 import com.movtery.zalithlauncher.game.version.installed.VersionsManager
+import com.movtery.zalithlauncher.game.versioninfo.MinecraftVersions
 import com.movtery.zalithlauncher.setting.AllSettings
 import com.movtery.zalithlauncher.ui.toAndroidString
 import kotlinx.coroutines.CoroutineScope
@@ -262,6 +267,62 @@ class MineWebActivity : Activity() {
                 connection.disconnect()
                 temp.renameTo(target)
             }.getOrDefault(false)
+        }
+
+        @JavascriptInterface
+        fun getVersions(): String = runBlocking {
+            runCatching {
+                val manifest = MinecraftVersions.getVersionManifest()
+                val list = JSONArray()
+                manifest.versions
+                    .filter { it.type == "release" || it.type == "snapshot" }
+                    .forEach { version ->
+                        list.put(
+                            JSONObject()
+                                .put("id", version.id)
+                                .put("type", version.type)
+                                .put("releaseTime", version.releaseTime)
+                        )
+                    }
+                list.toString()
+            }.getOrDefault("[]")
+        }
+
+        @JavascriptInterface
+        fun installVersion(mc: String, loader: String, name: String) {
+            scope.launch {
+                val targetName = name.ifBlank { mc }
+                emit("install-start", targetName)
+                runCatching {
+                    val fabric = if (loader == "fabric") {
+                        FabricVersions.fetchFabricLoaderList(mc)?.firstOrNull()
+                            ?: error("Не нашёл Fabric для $mc")
+                    } else null
+                    val quilt = if (loader == "quilt") {
+                        QuiltVersions.fetchQuiltLoaderList(mc)?.firstOrNull()
+                            ?: error("Не нашёл Quilt для $mc")
+                    } else null
+
+                    val info = GameDownloadInfo(
+                        gameVersion = mc,
+                        customVersionName = targetName,
+                        fabric = fabric,
+                        quilt = quilt
+                    )
+                    GameInstaller(this@MineWebActivity, info, scope).installGame(
+                        onInstalled = { version ->
+                            emit("install-done", version)
+                            emitState()
+                        },
+                        onError = { th ->
+                            emit("install-error", th.message ?: th.toString())
+                        },
+                        onGameAlreadyInstalled = {
+                            emit("install-error", "Эта версия уже установлена")
+                        }
+                    )
+                }.onFailure { emit("install-error", it.message ?: it.toString()) }
+            }
         }
 
         @JavascriptInterface
