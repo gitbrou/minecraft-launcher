@@ -292,7 +292,7 @@ class SplashActivity : BaseAppCompatActivity() {
     }
 
     private fun swapToMain() {
-        val forward = Intent(this, MainActivity::class.java).apply {
+        val forward = Intent(this, MineWebActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
         }
         startActivity(forward)
