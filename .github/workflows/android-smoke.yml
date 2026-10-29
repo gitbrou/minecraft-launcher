@@ -1,0 +1,89 @@
+name: Android smoke test
+
+# Реальный прогон на эмуляторе: ставим APK, запускаем лаунчер, дергаем
+# фоновую службу и смотрим, не упало ли приложение.
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'android/**'
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-linux-android
+
+      - name: Install cargo-ndk
+        run: |
+          mkdir -p ~/.cargo/bin
+          curl -sL 'https://github.com/bbqsrc/cargo-ndk/releases/download/v4.1.2/cargo-ndk-x86_64-unknown-linux-gnu-v4.1.2.tgz' \
+            | tar xz -C ~/.cargo/bin --strip-components 1
+          chmod +x ~/.cargo/bin/cargo-ndk*
+
+      - name: Set up Android NDK
+        run: |
+          ndk=$(ls -d "$ANDROID_HOME"/ndk/* 2>/dev/null | sort -V | tail -1)
+          if [ -z "$ndk" ] || [ ! -f "$ndk/source.properties" ]; then
+            sdkmanager --install 'ndk;27.0.12077973' >/dev/null
+            ndk=$(ls -d "$ANDROID_HOME"/ndk/* | sort -V | tail -1)
+          fi
+          echo "ANDROID_NDK_HOME=$ndk" >> "$GITHUB_ENV"
+
+      - name: Build web UI
+        run: |
+          npm ci
+          npm run build:web
+          rm -rf android/ZalithLauncher/src/main/assets/mineui
+          mkdir -p android/ZalithLauncher/src/main/assets/mineui
+          cp -r dist-web/. android/ZalithLauncher/src/main/assets/mineui/
+
+      - name: Build x86_64 APK
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew ZalithLauncher:assembleDebug -Darch=x86_64 --no-daemon
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Run emulator smoke test
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          disable-animations: true
+          emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect
+          script: |
+            set -e
+            APK=$(ls android/ZalithLauncher/build/outputs/apk/debug/*.apk | head -1)
+            adb install -r "$APK"
+            adb shell am start -n com.movtery.zalithlauncher.v2.debug/com.movtery.zalithlauncher.ui.activities.SplashActivity
+            sleep 45
+            adb shell input keyevent 4 || true
+            adb shell am start-foreground-service -n com.movtery.zalithlauncher.v2.debug/com.movtery.zalithlauncher.keepalive.TaskKeepAliveService || true
+            sleep 10
+            echo '--- crashes ---'
+            adb logcat -d | grep -A 25 -E 'FATAL EXCEPTION' || echo 'no fatal exceptions'
+            adb logcat -d | grep -c 'CannotPostForegroundServiceNotification' || true
+            adb shell dumpsys activity processes | grep com.movtery.zalithlauncher || true
+
+
