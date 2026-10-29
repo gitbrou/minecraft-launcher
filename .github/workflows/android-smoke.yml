@@ -4,6 +4,7 @@ name: Android smoke test
 # фоновую службу и смотрим, не упало ли приложение.
 on:
   workflow_dispatch:
+  workflow_call:
   push:
     paths:
       - 'android/**'

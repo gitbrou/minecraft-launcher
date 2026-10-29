@@ -15,7 +15,11 @@ permissions:
   contents: write
 
 jobs:
+  smoke:
+    uses: ./.github/workflows/android-smoke.yml
+
   build:
+    needs: smoke
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
