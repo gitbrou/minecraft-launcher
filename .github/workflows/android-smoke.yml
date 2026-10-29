@@ -111,25 +111,16 @@ jobs:
             sleep 10
             echo '--- crashes ---'
             adb logcat -d > /tmp/logcat.txt || true
-            if grep -q 'FATAL EXCEPTION' /tmp/logcat.txt; then
-              grep -A 25 -E 'FATAL EXCEPTION' /tmp/logcat.txt
-              echo 'FAIL: приложение упало'
-              exit 1
-            fi
-            if grep -q 'CannotPostForegroundServiceNotification' /tmp/logcat.txt; then
-              echo 'FAIL: Bad notification for startForeground'
-              exit 1
-            fi
+            grep -q 'FATAL EXCEPTION' /tmp/logcat.txt && { grep -A 25 'FATAL EXCEPTION' /tmp/logcat.txt; echo 'FAIL: app crashed'; exit 1; } || true
+            grep -q 'CannotPostForegroundServiceNotification' /tmp/logcat.txt && { echo 'FAIL: bad foreground notification'; exit 1; } || true
 
             echo '--- channels ---'
             adb shell dumpsys notification --noredact > /tmp/notif.txt || true
-            for ch in jvm.service game.service task.service terracotta_vpn_channel; do
-              if ! grep -q "$ch" /tmp/notif.txt; then
-                echo "FAIL: нет канала $ch"
-                exit 1
-              fi
-              echo "ok: $ch"
-            done
+            grep -q 'jvm.service' /tmp/notif.txt || { echo 'FAIL: no jvm.service'; exit 1; }
+            grep -q 'game.service' /tmp/notif.txt || { echo 'FAIL: no game.service'; exit 1; }
+            grep -q 'task.service' /tmp/notif.txt || { echo 'FAIL: no task.service'; exit 1; }
+            grep -q 'terracotta_vpn_channel' /tmp/notif.txt || { echo 'FAIL: no terracotta channel'; exit 1; }
+            echo 'all channels ok'
 
             echo '--- app alive ---'
             adb shell dumpsys activity processes | grep com.movtery.zalithlauncher || true
