@@ -131,7 +131,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
         <div>
           <div className="side-brand-name">Mine Launcher</div>
-          <div className="side-brand-sub">2.0.0</div>
+          <div className="side-brand-sub">{__APP_VERSION__}</div>
         </div>
       </div>
 

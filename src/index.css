@@ -1566,3 +1566,18 @@ body {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ───────────────────────── Android ─────────────────────────── */
+html.android .titlebar { display: none; }
+html.android .sidebar { width: 176px; }
+html.android .bottom-bar { height: 52px; padding: 0 12px; }
+html.android .content-area { padding: 10px 12px; }
+
+@media (max-height: 460px) and (pointer: coarse) {
+  .sidebar { width: 160px; }
+  .sidebar .sidebar-label,
+  .sidebar .nav-label,
+  .sidebar .account-name { font-size: 11px; }
+  .bottom-bar { height: 48px; }
+  .instance-row { padding-top: 7px; padding-bottom: 7px; }
+}

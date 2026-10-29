@@ -4,3 +4,4 @@ dist-electron/
 dist-build/
 .DS_Store
 *.local
+dist-web/

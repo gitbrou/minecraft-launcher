@@ -32,6 +32,21 @@ export function App() {
   useEffect(() => {
     if (!window.electronAPI) return
 
+    // Android: движок присылает state, когда меняются версии или аккаунты
+    const reload = () => {
+      window.electronAPI?.getAccounts().then(setAccounts).catch(() => {})
+      window.electronAPI?.getInstances().then((next: Instance[]) => {
+        setInstances(next)
+        setSelectedInstance((prev) => (prev ? next.find((i) => i.id === prev.id) || next[0] || null : next[0] || null))
+      }).catch(() => {})
+    }
+    window.addEventListener('mine:state', reload)
+    return () => window.removeEventListener('mine:state', reload)
+  }, [])
+
+  useEffect(() => {
+    if (!window.electronAPI) return
+
     Promise.all([
       window.electronAPI.getAccounts(),
       window.electronAPI.getInstances(),

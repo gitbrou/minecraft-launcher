@@ -95,6 +95,13 @@ jobs:
             ndk=$(ls -d "$ANDROID_HOME"/ndk/* | sort -V | tail -1)
           fi
           echo "ANDROID_NDK_HOME=$ndk" >> "$GITHUB_ENV"
+      - name: Build web UI
+        run: |
+          npm ci
+          npm run build:web
+          rm -rf android/ZalithLauncher/src/main/assets/mineui
+          mkdir -p android/ZalithLauncher/src/main/assets/mineui
+          cp -r dist-web/. android/ZalithLauncher/src/main/assets/mineui/
       - name: Build APK
         working-directory: android
         run: |

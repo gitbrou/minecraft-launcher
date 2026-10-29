@@ -1,8 +1,11 @@
 import type { Account, Instance, ModItem } from '../types'
+import { installAndroidBridge } from './androidBridge'
 
 type BridgeWindow = { electronAPI?: Window['electronAPI'] }
 
 export function ensurePlatformBridge() {
+  if (installAndroidBridge()) return
+
   const w = window as unknown as BridgeWindow
   if (w.electronAPI) return
 
