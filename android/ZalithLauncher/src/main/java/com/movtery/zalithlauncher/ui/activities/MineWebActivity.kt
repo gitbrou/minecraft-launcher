@@ -31,6 +31,7 @@ import com.movtery.zalithlauncher.game.account.AccountsManager
 import com.movtery.zalithlauncher.game.launch.GameLaunchFlow
 import com.movtery.zalithlauncher.game.version.installed.Version
 import com.movtery.zalithlauncher.game.version.installed.VersionsManager
+import com.movtery.zalithlauncher.setting.AllSettings
 import com.movtery.zalithlauncher.ui.toAndroidString
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -38,6 +39,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
@@ -109,7 +111,10 @@ class MineWebActivity : Activity() {
                 username = name,
                 accountType = AccountType.LOCAL.tag
             )
-            AccountsManager.saveAccount(account)
+            // Пишем сразу, чтобы интерфейс получил готовый список, а не пустоту
+            runBlocking(Dispatchers.IO) {
+                AccountsManager.suspendSaveAccount(account)
+            }
             return accountsJson()
         }
 
@@ -141,23 +146,31 @@ class MineWebActivity : Activity() {
 
         @JavascriptInterface
         fun getSettings(): String {
-            val memory = maxMemoryMb()
+            val args = AllSettings.jvmArgs.getValue()
+            val max = Regex("-Xmx(\\d+)[mM]").find(args)?.groupValues?.get(1)?.toIntOrNull() ?: maxMemoryMb()
+            val min = Regex("-Xms(\\d+)[mM]").find(args)?.groupValues?.get(1)?.toIntOrNull() ?: 1024
             return JSONObject()
                 .put("javaPath", "")
-                .put("memoryMin", 1024)
-                .put("memoryMax", memory)
-                .put("customJvmArgs", "")
+                .put("memoryMin", min)
+                .put("memoryMax", max)
+                .put("customJvmArgs", args)
                 .put("closeLauncherOnGameStart", false)
-                .put("fullscreen", false)
+                .put("fullscreen", AllSettings.launcherFullScreen.getValue())
                 .put("hideLauncher", false)
                 .toString()
         }
 
         @JavascriptInterface
-        @Suppress("UNUSED_PARAMETER")
         fun saveSettings(json: String): Boolean {
-            // Память и параметры запуска пока задаются в нативном режиме
-            return true
+            return runCatching {
+                val obj = JSONObject(json)
+                val min = obj.optInt("memoryMin", 1024)
+                val max = obj.optInt("memoryMax", maxMemoryMb())
+                val custom = obj.optString("customJvmArgs", "").trim()
+                val args = "-Xms${min}M -Xmx${max}M${if (custom.isEmpty()) "" else " $custom"}"
+                AllSettings.jvmArgs.save(args)
+                true
+            }.getOrDefault(false)
         }
 
         @JavascriptInterface
