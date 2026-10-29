@@ -3,23 +3,39 @@
   "version": "1.0.0",
   "created_at": "2026-10-29T18:00:00Z",
   "cloud_drives": [],
-  "files": [],
+  "files": [
+    {
+      "file_name": "MineLauncher-1.0.0-arm64-v8a.apk",
+      "uri": "https://github.com/gitbrou/minecraft-launcher/releases/download/v2.1.0/MineLauncher-1.0.0-arm64-v8a.apk",
+      "arch": "arm64"
+    },
+    {
+      "file_name": "MineLauncher-1.0.0-armeabi-v7a.apk",
+      "uri": "https://github.com/gitbrou/minecraft-launcher/releases/download/v2.1.0/MineLauncher-1.0.0-armeabi-v7a.apk",
+      "arch": "arm"
+    },
+    {
+      "file_name": "MineLauncher-1.0.0.apk",
+      "uri": "https://github.com/gitbrou/minecraft-launcher/releases/download/v2.1.0/MineLauncher-1.0.0.apk",
+      "arch": "all"
+    }
+  ],
   "default_body": {
-    "language": "en",
-    "markdown": "First build of Mine Launcher for Android, based on Zalith Launcher 2 (GPL-3.0). Unofficial modification."
+    "language": "ru",
+    "markdown": "Первый APK Mine Launcher. Наш интерфейс, оффлайн аккаунты, Fabric и Quilt, моды с Modrinth."
   },
   "bodies": [
     {
       "language": "ru",
-      "markdown": "Первая сборка Mine Launcher для Android, на базе Zalith Launcher 2 (GPL-3.0). Неофициальная модификация."
+      "markdown": "Первый APK Mine Launcher. Наш интерфейс, оффлайн аккаунты, Fabric и Quilt, моды с Modrinth."
     },
     {
       "language": "en",
-      "markdown": "First build of Mine Launcher for Android, based on Zalith Launcher 2 (GPL-3.0). Unofficial modification."
+      "markdown": "First Mine Launcher APK. Our UI, offline accounts, Fabric and Quilt, Modrinth mods."
     },
     {
       "language": "zh_CN",
-      "markdown": "Mine Launcher Android 版首个构建，基于 Zalith Launcher 2（GPL-3.0），非官方修改版。"
+      "markdown": "Mine Launcher Android 版首个构建，使用自有界面，支持离线账号与 Modrinth 模组。"
     }
   ]
 }
