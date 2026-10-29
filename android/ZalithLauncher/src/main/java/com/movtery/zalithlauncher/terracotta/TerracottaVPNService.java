@@ -81,7 +81,7 @@ public class TerracottaVPNService extends VpnService {
             notificationManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
         }
 
-        com.movtery.zalithlauncher.notification.NotificationManager.createNotificationChannel(
+        com.movtery.zalithlauncher.notification.NotificationManager.INSTANCE.createNotificationChannel(
                 this, NotificationChannelData.TERRACOTTA_VPN_CHANNEL);
 
         if (ACTION_STOP.equals(action)) {
