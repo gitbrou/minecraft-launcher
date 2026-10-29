@@ -8,6 +8,19 @@ interface ProfileTabProps {
   activeUsername: string
 }
 
+const IconCopy = () => (
+  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <rect x="9" y="9" width="11" height="11" rx="1.5" />
+    <path d="M5 15V5.5A1.5 1.5 0 0 1 6.5 4H16" />
+  </svg>
+)
+
+const IconCheck = () => (
+  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="m4 12 5 5L20 6" />
+  </svg>
+)
+
 const SkinViewerCanvas: React.FC<{ username: string; skinPath: string | null }> = ({ username, skinPath }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const frameRef = useRef<HTMLDivElement>(null)
@@ -108,8 +121,20 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ activeUsername }) => {
   const [notice, setNotice] = useState('')
   const [skinNick, setSkinNick] = useState(activeUsername)
   const [nickError, setNickError] = useState('')
+  const [copied, setCopied] = useState(false)
   // Пересоздаём 3D-вьюер после смены скина: путь к файлу тот же, без этого модель не обновится
   const [skinVersion, setSkinVersion] = useState(0)
+
+  const copyUuid = async () => {
+    if (!stats?.uuid || !navigator.clipboard) return
+    try {
+      await navigator.clipboard.writeText(stats.uuid)
+      setCopied(true)
+      window.setTimeout(() => setCopied(false), 1400)
+    } catch {
+      // буфер обмена недоступен, UUID остаётся в title
+    }
+  }
 
   useEffect(() => {
     if (!window.electronAPI) return
@@ -183,24 +208,39 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ activeUsername }) => {
 
   return (
     <div className="profile-layout">
-      {/* Left card: skin */}
-      <section className="profile-skin-panel">
-        <span className="panel-label">Скин</span>
+      <aside className="profile-skin-panel">
+        <div className="profile-panel-head">
+          <span className="panel-label">Профиль</span>
+          <span className="profile-badge">offline</span>
+        </div>
+
         <SkinViewerCanvas key={`${skinPath || 'default'}-${skinVersion}`} username={activeUsername} skinPath={skinPath} />
 
-        <div className="profile-name">{activeUsername}</div>
-        {stats?.uuid && (
-          <div className="profile-uuid" title={stats.uuid}>{stats.uuid.slice(0, 8)}…</div>
-        )}
+        <div className="profile-identity">
+          <h2 className="profile-name">{activeUsername}</h2>
+          {stats?.uuid ? (
+            <button
+              type="button"
+              className="profile-uuid"
+              onClick={copyUuid}
+              title={copied ? 'Скопировано' : 'Скопировать UUID'}
+            >
+              <span>{stats.uuid.slice(0, 8)}…</span>
+              {copied ? <IconCheck /> : <IconCopy />}
+            </button>
+          ) : (
+            <span className="profile-uuid is-empty">—</span>
+          )}
+        </div>
 
         <div className="skin-actions">
           <button className="btn" onClick={handleUploadSkin} disabled={busy}>
-            Загрузить скин
+            Загрузить PNG
           </button>
         </div>
 
         <form className="skin-nick-form" onSubmit={handleFetchSkin}>
-          <span className="form-label">Скин по нику</span>
+          <span className="panel-label">Скин по нику</span>
           <div className="skin-nick-row">
             <input
               className="form-input"
@@ -222,29 +262,26 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ activeUsername }) => {
           {nickError && <div className="form-error">{nickError}</div>}
         </form>
 
+        <p className="profile-skin-hint">PNG 64×64. Скин применится сразу.</p>
         {notice && <div className="profile-notice">{notice}</div>}
         {busy && <div className="spinner" />}
-      </section>
+      </aside>
 
-      {/* Right: honest stats */}
       <div className="profile-side">
-        <section className="profile-section">
-          <div className="profile-section-head">
-            <h2 className="profile-section-title">Аккаунт</h2>
+        <section className="profile-stats" aria-label="Статистика аккаунта">
+          <div className="profile-stat">
+            <span className="profile-stat-value">{stats?.instancesCount ?? '—'}</span>
+            <span className="profile-stat-label">Сборки</span>
           </div>
-          <div className="stat-list">
-            <div className="stat-row">
-              <span className="stat-key">Сборок</span>
-              <span className="stat-value">{stats?.instancesCount ?? '—'}</span>
-            </div>
-            <div className="stat-row">
-              <span className="stat-key">Установлено модов (всех)</span>
-              <span className="stat-value">{stats?.modsCount ?? '—'}</span>
-            </div>
-            <div className="stat-row">
-              <span className="stat-key">Последний запуск игры</span>
-              <span className="stat-value">{stats?.lastPlayedFormatted ?? '—'}</span>
-            </div>
+          <div className="profile-stat">
+            <span className="profile-stat-value">{stats?.modsCount ?? '—'}</span>
+            <span className="profile-stat-label">Моды</span>
+          </div>
+          <div className="profile-stat">
+            <span className={`profile-stat-value is-date ${stats?.lastPlayedFormatted ? '' : 'is-empty'}`}>
+              {stats?.lastPlayedFormatted ?? '—'}
+            </span>
+            <span className="profile-stat-label">Последний запуск</span>
           </div>
         </section>
 
@@ -253,23 +290,48 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({ activeUsername }) => {
             <h2 className="profile-section-title">Миры</h2>
             <span className="profile-section-count">{stats?.worldsCount ?? 0}</span>
           </div>
-          {(!stats?.worlds || stats.worlds.length === 0) ? (
-            <div className="profile-hint">
-              Миров пока нет — создайте новый в игре и он появится здесь.
-            </div>
-          ) : (
-            <div className="list-rows worlds-list">
+
+          {stats?.worlds?.length ? (
+            <>
+              <div className="profile-worlds-head">
+                <span>Мир</span>
+                <span>Сборка</span>
+                <span>Вход</span>
+              </div>
               {stats.worlds.map((w: ProfileWorld) => (
-                <div key={`${w.instanceId}-${w.worldName}`} className="row-item world-row">
-                  <div className="row-item-main">
-                    <div className="row-item-title">{w.worldName}</div>
-                    <div className="row-item-sub">Сборка: {w.instanceName}</div>
-                  </div>
-                  <span className="row-item-sub">{formatDate(w.lastPlayed)}</span>
+                <div key={`${w.instanceId}-${w.worldName}`} className="profile-world">
+                  <span className="profile-world-name">{w.worldName}</span>
+                  <span className="profile-world-instance">{w.instanceName}</span>
+                  <span className="profile-world-date">{formatDate(w.lastPlayed)}</span>
                 </div>
               ))}
+            </>
+          ) : (
+            <div className="profile-empty">
+              <span className="profile-empty-title">Пока нет миров</span>
+              <span className="profile-empty-hint">Создай мир в игре, и он появится здесь.</span>
             </div>
           )}
+        </section>
+
+        <section className="profile-section">
+          <div className="profile-section-head">
+            <h2 className="profile-section-title">Аккаунт</h2>
+          </div>
+          <div className="profile-kv">
+            <span>Тип входа</span>
+            <span className="profile-kv-value">Offline</span>
+          </div>
+          <div className="profile-kv">
+            <span>UUID</span>
+            <span className="profile-kv-value profile-kv-uuid">{stats?.uuid || '—'}</span>
+          </div>
+          <div className="profile-kv">
+            <span>Папка лаунчера</span>
+            <button className="profile-link" onClick={() => window.electronAPI.openLauncherFolder()}>
+              Открыть
+            </button>
+          </div>
         </section>
       </div>
     </div>

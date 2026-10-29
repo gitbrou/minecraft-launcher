@@ -25,6 +25,7 @@ type NativeBridge = {
   deleteMod(version: string, filename: string): boolean
   downloadMod(version: string, url: string, filename: string): boolean
   getStats(): string
+  installUpdate(uri: string): void
   openNative(): void
   refresh(): void
 }
@@ -40,6 +41,10 @@ export const isAndroid = () => Boolean(window.MineNative)
 
 export function openNativeScreen() {
   window.MineNative?.openNative()
+}
+
+export function installUpdate(uri: string) {
+  window.MineNative?.installUpdate(uri)
 }
 
 function read<T>(value: string | null, fallback: T): T {
@@ -78,6 +83,10 @@ export function installAndroidBridge(): boolean {
       window.dispatchEvent(new CustomEvent('mine:install-progress', { detail: payload }))
     } else if (type === 'install-done') {
       window.dispatchEvent(new CustomEvent('mine:install-done', { detail: payload }))
+    } else if (type === 'update-available') {
+      window.dispatchEvent(new CustomEvent('mine:update', { detail: payload }))
+    } else if (type === 'update-error') {
+      window.dispatchEvent(new CustomEvent('mine:update-error', { detail: payload }))
     } else if (type === 'state') {
       window.dispatchEvent(new CustomEvent('mine:state'))
     }

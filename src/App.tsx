@@ -7,6 +7,7 @@ import { InstanceManager } from './components/InstanceManager'
 import { BottomBar } from './components/BottomBar'
 import { SettingsModal } from './components/SettingsModal'
 import { ModDownloaderModal } from './components/ModDownloaderModal'
+import { installUpdate } from './platform/androidBridge'
 
 export function App() {
   const [accounts, setAccounts] = useState<Account[]>([])
@@ -23,6 +24,7 @@ export function App() {
   const [modsRefreshKey, setModsRefreshKey] = useState(0)
   const [toast, setToast] = useState('')
   const [install, setInstall] = useState<{ name: string; text: string; percent: number } | null>(null)
+  const [updateInfo, setUpdateInfo] = useState<{ version?: string; uri?: string } | null>(null)
 
   useEffect(() => {
     if (!toast) return
@@ -68,16 +70,30 @@ export function App() {
         // кривой payload, просто держим прошлое состояние
       }
     }
+    const onUpdateAvailable = (event: Event) => {
+      try {
+        setUpdateInfo(JSON.parse(String((event as CustomEvent).detail || '{}')))
+      } catch {
+        // пустой payload, оставляем как есть
+      }
+    }
+    const onUpdateError = (event: Event) => {
+      setToast(`Обновление: ${(event as CustomEvent).detail || 'ошибка'}`)
+    }
     window.addEventListener('mine:install-error', onInstallError)
     window.addEventListener('mine:install-done', onInstallDone)
     window.addEventListener('mine:install-start', onInstallStart)
     window.addEventListener('mine:install-progress', onInstallProgress)
+    window.addEventListener('mine:update', onUpdateAvailable)
+    window.addEventListener('mine:update-error', onUpdateError)
     return () => {
       window.removeEventListener('mine:state', reload)
       window.removeEventListener('mine:install-error', onInstallError)
       window.removeEventListener('mine:install-done', onInstallDone)
       window.removeEventListener('mine:install-start', onInstallStart)
       window.removeEventListener('mine:install-progress', onInstallProgress)
+      window.removeEventListener('mine:update', onUpdateAvailable)
+      window.removeEventListener('mine:update-error', onUpdateError)
     }
   }, [])
 
@@ -308,6 +324,26 @@ export function App() {
   return (
     <>
       <TitleBar />
+
+      {updateInfo && (
+        <div className="update-banner" role="status" aria-live="polite">
+          <div className="update-banner-left">
+            <span className="update-banner-text">Доступно обновление {updateInfo.version}</span>
+          </div>
+          <div className="update-banner-actions">
+            <button
+              className="btn btn-primary btn-sm"
+              onClick={() => {
+                if (!updateInfo.uri) return
+                installUpdate(updateInfo.uri)
+                setToast('Скачиваем обновление, потом Android спросит установку')
+              }}
+            >
+              Обновить
+            </button>
+          </div>
+        </div>
+      )}
 
       {toast && (
         <div className="app-toast" role="status" aria-live="polite">{toast}</div>

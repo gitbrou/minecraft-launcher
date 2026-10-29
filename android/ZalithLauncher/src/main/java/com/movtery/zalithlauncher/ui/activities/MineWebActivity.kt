@@ -17,11 +17,13 @@ import android.app.ActivityManager
 import android.content.Context
 import android.content.Intent
 import android.graphics.Color
+import android.os.Build
 import android.os.Bundle
 import android.webkit.JavascriptInterface
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebView
+import androidx.core.content.FileProvider
 import androidx.webkit.WebViewAssetLoader
 import androidx.webkit.WebViewClientCompat
 import com.movtery.zalithlauncher.BuildConfig
@@ -49,11 +51,14 @@ import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
+
+private const val UPDATE_INFO_URL = "https://raw.githubusercontent.com/gitbrou/minecraft-launcher/main/android-info/latest_version_md.json"
 
 /**
  * Экран лаунчера на нашем интерфейсе.
@@ -100,6 +105,11 @@ class MineWebActivity : Activity() {
             AccountsManager.accountsFlow.collect { emitState() }
         }
         VersionsManager.refresh("MineWeb")
+
+        scope.launch {
+            delay(1500)
+            checkUpdate()
+        }
     }
 
     override fun onDestroy() {
@@ -366,6 +376,29 @@ class MineWebActivity : Activity() {
         }
 
         @JavascriptInterface
+        fun installUpdate(uri: String) {
+            scope.launch {
+                emit("update-progress", "Скачиваем обновление")
+                runCatching {
+                    val apk = withContext(Dispatchers.IO) {
+                        val target = File(cacheDir, "mine-launcher-${System.currentTimeMillis()}.apk")
+                        URL(uri).openStream().use { input -> target.outputStream().use { input.copyTo(it) } }
+                        target
+                    }
+                    val authority = "${BuildConfig.APPLICATION_ID}.provider"
+                    val apkUri = FileProvider.getUriForFile(this@MineWebActivity, authority, apk)
+                    val intent = Intent(Intent.ACTION_VIEW).apply {
+                        setDataAndType(apkUri, "application/vnd.android.package-archive")
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                    startActivity(intent)
+                }.onFailure {
+                    emit("update-error", it.message ?: it.toString())
+                }
+            }
+        }
+
+        @JavascriptInterface
         fun refresh() {
             VersionsManager.refresh("MineWeb")
         }
@@ -423,6 +456,46 @@ class MineWebActivity : Activity() {
 
     private fun openNativeScreen() {
         startActivity(Intent(this, MainActivity::class.java))
+    }
+
+    /** Проверяем android-info в репозитории: если код новее сборки, показываем плашку */
+    private fun checkUpdate() {
+        scope.launch {
+            runCatching {
+                val text = withContext(Dispatchers.IO) { URL(UPDATE_INFO_URL).readText() }
+                val info = JSONObject(text)
+                if (info.optInt("code", 0) <= BuildConfig.VERSION_CODE) return@launch
+
+                val version = info.optString("version")
+                val abi = Build.SUPPORTED_ABIS.firstOrNull() ?: "arm64-v8a"
+                val arch = when {
+                    abi.contains("arm64") -> "arm64"
+                    abi.contains("armeabi") -> "arm"
+                    abi.contains("x86_64") -> "x86_64"
+                    abi.contains("x86") -> "x86"
+                    else -> "all"
+                }
+
+                val files = info.optJSONArray("files") ?: JSONArray()
+                var uri = ""
+                for (index in 0 until files.length()) {
+                    val file = files.getJSONObject(index)
+                    if (file.optString("arch") == arch) {
+                        uri = file.optString("uri")
+                        break
+                    }
+                }
+                if (uri.isEmpty() && files.length() > 0) {
+                    uri = files.getJSONObject(0).optString("uri")
+                }
+                if (uri.isNotEmpty()) {
+                    emit(
+                        "update-available",
+                        JSONObject().put("version", version).put("uri", uri).toString()
+                    )
+                }
+            }
+        }
     }
 
     private fun modsDir(version: Version): File = File(version.getGameHome(), "mods")
