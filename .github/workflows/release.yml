@@ -97,7 +97,9 @@ jobs:
           echo "ANDROID_NDK_HOME=$ndk" >> "$GITHUB_ENV"
       - name: Build APK
         working-directory: android
-        run: ./gradlew ZalithLauncher:assembleRelease -Darch=${{ matrix.arch }} --no-daemon
+        run: |
+          chmod +x gradlew
+          ./gradlew ZalithLauncher:assembleRelease -Darch=${{ matrix.arch }} --no-daemon
       - name: Rename mapping (arch)
         if: hashFiles('android/ZalithLauncher/build/outputs/mapping/release/mapping.txt') != ''
         working-directory: android/ZalithLauncher/build/outputs/mapping/release
