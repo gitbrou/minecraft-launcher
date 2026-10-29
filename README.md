@@ -2,7 +2,7 @@
 
 [![Release](https://img.shields.io/github/v/release/gitbrou/minecraft-launcher?style=flat-square&color=5fae4a)](https://github.com/gitbrou/minecraft-launcher/releases/latest)
 [![License](https://img.shields.io/badge/license-MIT-5fae4a?style=flat-square)](LICENSE)
-[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-2b2f38?style=flat-square)](https://github.com/gitbrou/minecraft-launcher/releases/latest)
+[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux%20%7C%20Android-2b2f38?style=flat-square)](https://github.com/gitbrou/minecraft-launcher/releases/latest)
 
 Крутой майнрафт лаунчер
 Моды, можно делится версиями, скины и многое другое
@@ -11,7 +11,10 @@
 
 ## Скачать
 
-Windows, macOS и Linux [установщик](https://github.com/gitbrou/minecraft-launcher/releases/latest).
+Windows, macOS, Linux и Android: [релиз](https://github.com/gitbrou/minecraft-launcher/releases/latest).
+
+На телефоне бери `MineLauncher-1.0.0-arm64-v8a.apk`, он подходит почти всем. Если Android
+ругается на процессор, качай `MineLauncher-1.0.0.apk`.
 
 ## Использование
 
@@ -24,6 +27,9 @@ npm install
 npm run dev
 ```
 
+Android собирается в тех же релизах, исходники в `android/`. Это наш лаунчер на базе
+Zalith Launcher 2 (GPL-3.0), неофициальная модификация.
+
 ## Данные
 
 В `%APPDATA%\mine-launcher\.mine-launcher` лежат аккаунты, сборки, настройки, версии,
@@ -31,6 +37,7 @@ npm run dev
 
 ## Версии
 
+- 2.1.0. APK для Android в релизах
 - 2.0.0. Новый интерфейс, импорт по ссылке и автообновления
 - 1.1.0. Исправления
 - 1.0.0. Первый релиз

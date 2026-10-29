@@ -1,0 +1,25 @@
+{
+  "code": 100000,
+  "version": "1.0.0",
+  "created_at": "2026-10-29T18:00:00Z",
+  "cloud_drives": [],
+  "files": [],
+  "default_body": {
+    "language": "en",
+    "markdown": "First build of Mine Launcher for Android, based on Zalith Launcher 2 (GPL-3.0). Unofficial modification."
+  },
+  "bodies": [
+    {
+      "language": "ru",
+      "markdown": "Первая сборка Mine Launcher для Android, на базе Zalith Launcher 2 (GPL-3.0). Неофициальная модификация."
+    },
+    {
+      "language": "en",
+      "markdown": "First build of Mine Launcher for Android, based on Zalith Launcher 2 (GPL-3.0). Unofficial modification."
+    },
+    {
+      "language": "zh_CN",
+      "markdown": "Mine Launcher Android 版首个构建，基于 Zalith Launcher 2（GPL-3.0），非官方修改版。"
+    }
+  ]
+}
