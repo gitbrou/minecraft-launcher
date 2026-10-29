@@ -81,6 +81,9 @@ public class TerracottaVPNService extends VpnService {
             notificationManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
         }
 
+        com.movtery.zalithlauncher.notification.NotificationManager.createNotificationChannel(
+                this, NotificationChannelData.TERRACOTTA_VPN_CHANNEL);
+
         if (ACTION_STOP.equals(action)) {
             isStopping = true;
             cleanup();
@@ -208,7 +211,7 @@ public class TerracottaVPNService extends VpnService {
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
         );
 
-        builder.setSmallIcon(R.mipmap.ic_launcher)
+        builder.setSmallIcon(R.drawable.ic_stat_mine)
                 .setContentTitle(title)
                 .setContentText(contentText)
                 .setWhen(System.currentTimeMillis())

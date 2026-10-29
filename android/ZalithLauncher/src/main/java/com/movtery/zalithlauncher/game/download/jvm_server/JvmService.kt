@@ -35,6 +35,7 @@ import com.movtery.zalithlauncher.game.launch.Launcher
 import com.movtery.zalithlauncher.notification.NOTIFICATION_ID_JVM_SERVICE
 import com.movtery.zalithlauncher.notification.NoticeProgress
 import com.movtery.zalithlauncher.notification.NotificationChannelData
+import com.movtery.zalithlauncher.notification.NotificationManager
 import com.movtery.zalithlauncher.utils.logging.Logger
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -51,6 +52,11 @@ class JvmService : Service() {
     private val scope = CoroutineScope(Dispatchers.Default)
 
     override fun onBind(intent: Intent?): IBinder? = null
+
+    override fun onCreate() {
+        super.onCreate()
+        NotificationManager.createNotificationChannel(this, NotificationChannelData.JVM_SERVICE_CHANNEL)
+    }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         //立即尝试启动前台服务，防止启动超时
@@ -137,7 +143,7 @@ class JvmService : Service() {
             }
             .setOngoing(true) //持续通知
             .setPriority(NotificationCompat.PRIORITY_LOW)
-            .setSmallIcon(R.mipmap.ic_launcher)
+            .setSmallIcon(R.drawable.ic_stat_mine)
             .build()
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {

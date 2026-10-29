@@ -39,6 +39,8 @@ import com.movtery.zalithlauncher.coroutine.TaskSystem
 import com.movtery.zalithlauncher.game.account.AccountsManager
 import com.movtery.zalithlauncher.game.path.GamePathManager
 import com.movtery.zalithlauncher.keepalive.TaskKeepAlive
+import com.movtery.zalithlauncher.notification.NotificationChannelData
+import com.movtery.zalithlauncher.notification.NotificationManager as ChannelManager
 import com.movtery.zalithlauncher.path.IMAGE_LOADER_CLIENT
 import com.movtery.zalithlauncher.path.PathManager
 import com.movtery.zalithlauncher.setting.loadAllSettings
@@ -66,6 +68,12 @@ class ZLApplication : Application(), SingletonImageLoader.Factory {
         refreshContext(this)
         //初始化任务保活控制器，需在任何任务开始前完成初始化
         TaskKeepAlive.initialize(this)
+
+        // Каналы уведомлений для всех foreground-служб: без этого Android 8+
+        // отбивает startForeground и процесс падает с Bad notification
+        NotificationChannelData.entries.forEach { data ->
+            ChannelManager.createNotificationChannel(this, data)
+        }
 
         Thread.setDefaultUncaughtExceptionHandler { _, th ->
             //停止所有任务

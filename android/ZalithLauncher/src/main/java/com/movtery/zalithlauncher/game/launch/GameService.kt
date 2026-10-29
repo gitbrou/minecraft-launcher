@@ -28,6 +28,7 @@ import androidx.core.app.NotificationCompat
 import com.movtery.zalithlauncher.R
 import com.movtery.zalithlauncher.notification.NOTIFICATION_ID_GAME_SERVICE
 import com.movtery.zalithlauncher.notification.NotificationChannelData
+import com.movtery.zalithlauncher.notification.NotificationManager
 import com.movtery.zalithlauncher.utils.logging.Logger
 
 private const val TAG = "GameService"
@@ -37,6 +38,7 @@ class GameService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        NotificationManager.createNotificationChannel(this, NotificationChannelData.GAME_SERVICE_CHANNEL)
         startForegroundNotification()
     }
 
@@ -53,7 +55,7 @@ class GameService : Service() {
             .setContentTitle(getString(R.string.notification_jvm_running_name))
             .setOngoing(true)
             .setPriority(NotificationCompat.PRIORITY_LOW)
-            .setSmallIcon(R.mipmap.ic_launcher)
+            .setSmallIcon(R.drawable.ic_stat_mine)
             .build()
 
         try {
