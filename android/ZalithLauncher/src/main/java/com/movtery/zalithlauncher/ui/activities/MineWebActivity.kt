@@ -105,6 +105,7 @@ class MineWebActivity : Activity() {
             AccountsManager.accountsFlow.collect { emitState() }
         }
         VersionsManager.refresh("MineWeb")
+        AccountsManager.reloadAccounts()
 
         scope.launch {
             delay(1500)
@@ -351,6 +352,7 @@ class MineWebActivity : Activity() {
                     installer.installGame(
                         onInstalled = { version ->
                             installJob?.cancel()
+                            VersionsManager.refresh("MineWeb-install", version)
                             emit("install-done", version)
                             emitState()
                         },
@@ -381,16 +383,49 @@ class MineWebActivity : Activity() {
                 emit("update-progress", "Скачиваем обновление")
                 runCatching {
                     val apk = withContext(Dispatchers.IO) {
+                        val connection = URL(uri).openConnection() as HttpURLConnection
+                        connection.instanceFollowRedirects = true
+                        connection.connectTimeout = 20000
+                        connection.readTimeout = 30000
+                        connection.connect()
+                        val code = connection.responseCode
+                        if (code !in 200..299) error("Сервер отдал $code")
+
+                        val total = connection.contentLengthLong
                         val target = File(cacheDir, "mine-launcher-${System.currentTimeMillis()}.apk")
-                        URL(uri).openStream().use { input -> target.outputStream().use { input.copyTo(it) } }
+                        connection.inputStream.use { input ->
+                            target.outputStream().use { output ->
+                                val buffer = ByteArray(64 * 1024)
+                                var readTotal = 0L
+                                var lastEmit = 0L
+                                while (true) {
+                                    val read = input.read(buffer)
+                                    if (read < 0) break
+                                    output.write(buffer, 0, read)
+                                    readTotal += read
+                                    val now = System.currentTimeMillis()
+                                    if (total > 0 && now - lastEmit > 400) {
+                                        lastEmit = now
+                                        emit(
+                                            "update-progress",
+                                            "Скачиваем обновление ${readTotal * 100 / total}%"
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                        connection.disconnect()
+                        if (target.length() < 1024) error("Файл обновления пустой")
                         target
                     }
+
                     val authority = "${BuildConfig.APPLICATION_ID}.provider"
                     val apkUri = FileProvider.getUriForFile(this@MineWebActivity, authority, apk)
                     val intent = Intent(Intent.ACTION_VIEW).apply {
                         setDataAndType(apkUri, "application/vnd.android.package-archive")
                         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
                     }
+                    emit("update-progress", "Открываем установщик")
                     startActivity(intent)
                 }.onFailure {
                     emit("update-error", it.message ?: it.toString())

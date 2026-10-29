@@ -85,6 +85,8 @@ export function installAndroidBridge(): boolean {
       window.dispatchEvent(new CustomEvent('mine:install-done', { detail: payload }))
     } else if (type === 'update-available') {
       window.dispatchEvent(new CustomEvent('mine:update', { detail: payload }))
+    } else if (type === 'update-progress') {
+      window.dispatchEvent(new CustomEvent('mine:update-progress', { detail: payload }))
     } else if (type === 'update-error') {
       window.dispatchEvent(new CustomEvent('mine:update-error', { detail: payload }))
     } else if (type === 'state') {

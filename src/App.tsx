@@ -25,6 +25,7 @@ export function App() {
   const [toast, setToast] = useState('')
   const [install, setInstall] = useState<{ name: string; text: string; percent: number } | null>(null)
   const [updateInfo, setUpdateInfo] = useState<{ version?: string; uri?: string } | null>(null)
+  const [updateNote, setUpdateNote] = useState('')
 
   useEffect(() => {
     if (!toast) return
@@ -78,7 +79,11 @@ export function App() {
       }
     }
     const onUpdateError = (event: Event) => {
+      setUpdateNote('')
       setToast(`Обновление: ${(event as CustomEvent).detail || 'ошибка'}`)
+    }
+    const onUpdateProgress = (event: Event) => {
+      setUpdateNote(String((event as CustomEvent).detail || ''))
     }
     window.addEventListener('mine:install-error', onInstallError)
     window.addEventListener('mine:install-done', onInstallDone)
@@ -86,6 +91,7 @@ export function App() {
     window.addEventListener('mine:install-progress', onInstallProgress)
     window.addEventListener('mine:update', onUpdateAvailable)
     window.addEventListener('mine:update-error', onUpdateError)
+    window.addEventListener('mine:update-progress', onUpdateProgress)
     return () => {
       window.removeEventListener('mine:state', reload)
       window.removeEventListener('mine:install-error', onInstallError)
@@ -94,6 +100,7 @@ export function App() {
       window.removeEventListener('mine:install-progress', onInstallProgress)
       window.removeEventListener('mine:update', onUpdateAvailable)
       window.removeEventListener('mine:update-error', onUpdateError)
+      window.removeEventListener('mine:update-progress', onUpdateProgress)
     }
   }, [])
 
@@ -113,6 +120,17 @@ export function App() {
       }
       setIsBooted(true)
     }).catch(() => setIsBooted(true))
+
+    // На Android движок читает аккаунты и версии из БД чуть позже старта окна,
+    // поэтому добираем списки ещё пару раз, иначе слева пусто до первого действия
+    const lateReload = () => {
+      window.electronAPI?.getAccounts().then(setAccounts).catch(() => {})
+      window.electronAPI?.getInstances().then((next: Instance[]) => {
+        setInstances(next)
+        setSelectedInstance((prev) => prev ? next.find((i) => i.id === prev.id) || next[0] || null : next[0] || null)
+      }).catch(() => {})
+    }
+    const lateTimers = [window.setTimeout(lateReload, 1200), window.setTimeout(lateReload, 3500)]
 
     const unsubscribeProgress = window.electronAPI.onLaunchProgress((data: LaunchProgress) => {
       setLaunchProgress(data)
@@ -161,6 +179,7 @@ export function App() {
       unsubscribeUpdate?.()
       unsubscribeDeepLink?.()
       clearInterval(logFlushTimer)
+      lateTimers.forEach((id) => clearTimeout(id))
       if (typeof cancelIdleCallback === 'function' && typeof requestIdleCallback === 'function') {
         cancelIdleCallback(idleHandle)
       } else {
@@ -328,7 +347,9 @@ export function App() {
       {updateInfo && (
         <div className="update-banner" role="status" aria-live="polite">
           <div className="update-banner-left">
-            <span className="update-banner-text">Доступно обновление {updateInfo.version}</span>
+            <span className="update-banner-text">
+              {updateNote || `Доступно обновление ${updateInfo.version}`}
+            </span>
           </div>
           <div className="update-banner-actions">
             <button
