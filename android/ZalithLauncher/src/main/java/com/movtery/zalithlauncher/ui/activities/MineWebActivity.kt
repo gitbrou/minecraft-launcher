@@ -31,6 +31,7 @@ import com.movtery.zalithlauncher.coroutine.TaskStage
 import com.movtery.zalithlauncher.game.account.Account
 import com.movtery.zalithlauncher.game.account.AccountType
 import com.movtery.zalithlauncher.game.account.AccountsManager
+import com.movtery.zalithlauncher.game.control.ControlManager
 import com.movtery.zalithlauncher.game.addons.modloader.fabriclike.fabric.FabricVersions
 import com.movtery.zalithlauncher.game.addons.modloader.fabriclike.quilt.QuiltVersions
 import com.movtery.zalithlauncher.game.download.game.GameDownloadInfo
@@ -106,6 +107,9 @@ class MineWebActivity : Activity() {
         }
         VersionsManager.refresh("MineWeb")
         AccountsManager.reloadAccounts()
+        // Без этого в игре нет экранных кнопок: стандартная раскладка
+        // распаковывается только отсюда
+        ControlManager.checkDefaultAndRefresh(this)
 
         scope.launch {
             delay(1500)
