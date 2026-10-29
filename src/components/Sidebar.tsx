@@ -3,6 +3,7 @@ import { Account } from '../types'
 import { errorMessage } from '../utils/errors'
 import { cropSkinHead, onSkinUpdated } from '../utils/skins'
 import appIcon from '../assets/icon.png'
+import { isAndroid, openNativeScreen } from '../platform/androidBridge'
 
 export type NavSection = 'builds' | 'mods' | 'profile' | 'logs'
 
@@ -224,6 +225,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </svg>
           <span>Настройки</span>
         </button>
+        {isAndroid() && (
+          <button className="side-action" onClick={openNativeScreen} title="Сервера, режим сети и настройки движка">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="4" width="7" height="7" rx="1.5" />
+              <rect x="14" y="4" width="7" height="7" rx="1.5" />
+              <rect x="3" y="14" width="7" height="7" rx="1.5" />
+              <rect x="14" y="14" width="7" height="7" rx="1.5" />
+            </svg>
+            <span>Сеть и сервера</span>
+          </button>
+        )}
       </div>
     </aside>
   )
