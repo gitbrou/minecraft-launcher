@@ -1,41 +1,41 @@
 {
-  "code": 100001,
-  "version": "1.0.1",
-  "created_at": "2026-10-29T19:30:00Z",
+  "code": 100002,
+  "version": "1.0.2",
+  "created_at": "2026-10-29T20:10:00Z",
   "cloud_drives": [],
   "files": [
     {
-      "file_name": "MineLauncher-1.0.1-arm64-v8a.apk",
-      "uri": "https://github.com/gitbrou/minecraft-launcher/releases/download/v2.1.0/MineLauncher-1.0.1-arm64-v8a.apk",
+      "file_name": "MineLauncher-1.0.2-arm64-v8a.apk",
+      "uri": "https://github.com/gitbrou/minecraft-launcher/releases/download/v2.1.0/MineLauncher-1.0.2-arm64-v8a.apk",
       "arch": "arm64"
     },
     {
-      "file_name": "MineLauncher-1.0.1-armeabi-v7a.apk",
-      "uri": "https://github.com/gitbrou/minecraft-launcher/releases/download/v2.1.0/MineLauncher-1.0.1-armeabi-v7a.apk",
+      "file_name": "MineLauncher-1.0.2-armeabi-v7a.apk",
+      "uri": "https://github.com/gitbrou/minecraft-launcher/releases/download/v2.1.0/MineLauncher-1.0.2-armeabi-v7a.apk",
       "arch": "arm"
     },
     {
-      "file_name": "MineLauncher-1.0.1.apk",
-      "uri": "https://github.com/gitbrou/minecraft-launcher/releases/download/v2.1.0/MineLauncher-1.0.1.apk",
+      "file_name": "MineLauncher-1.0.2.apk",
+      "uri": "https://github.com/gitbrou/minecraft-launcher/releases/download/v2.1.0/MineLauncher-1.0.2.apk",
       "arch": "all"
     }
   ],
   "default_body": {
     "language": "ru",
-    "markdown": "Иконка как в старом APK, прогресс установки версии, фикс краша с уведомлением."
+    "markdown": "Отдельная иконка и канал уведомления для фоновой задачи, чтобы не падало на Android 16. Плюс прогресс установки и автообновление."
   },
   "bodies": [
     {
       "language": "ru",
-      "markdown": "Иконка как в старом APK, прогресс установки версии, фикс краша с уведомлением."
+      "markdown": "Отдельная иконка и канал уведомления для фоновой задачи, чтобы не падало на Android 16. Плюс прогресс установки и автообновление."
     },
     {
       "language": "en",
-      "markdown": "Old APK icon, install progress, foreground notification crash fix."
+      "markdown": "Dedicated notification icon so the Android 16 foreground service no longer crashes. Install progress and auto-update included."
     },
     {
       "language": "zh_CN",
-      "markdown": "恢复旧版图标，增加版本安装进度，修复前台服务通知崩溃。"
+      "markdown": "使用独立通知图标，修复 Android 16 前台服务崩溃。包含安装进度和自动更新。"
     }
   ]
 }
