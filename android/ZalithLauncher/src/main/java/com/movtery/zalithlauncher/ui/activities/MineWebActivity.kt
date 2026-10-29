@@ -19,8 +19,11 @@ import android.content.Intent
 import android.graphics.Color
 import android.os.Bundle
 import android.webkit.JavascriptInterface
+import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
 import android.webkit.WebView
-import android.webkit.WebViewClient
+import androidx.webkit.WebViewAssetLoader
+import androidx.webkit.WebViewClientCompat
 import com.movtery.zalithlauncher.BuildConfig
 import com.movtery.zalithlauncher.game.account.Account
 import com.movtery.zalithlauncher.game.account.AccountType
@@ -52,6 +55,13 @@ class MineWebActivity : Activity() {
     private lateinit var web: WebView
     private var launching = false
 
+    /** Локальный https-домен: ES-модули с file:// WebView блокирует */
+    private val assetLoader by lazy {
+        WebViewAssetLoader.Builder()
+            .addPathHandler("/assets/", WebViewAssetLoader.AssetsPathHandler(this))
+            .build()
+    }
+
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -60,12 +70,16 @@ class MineWebActivity : Activity() {
             setBackgroundColor(Color.parseColor("#131313"))
             settings.javaScriptEnabled = true
             settings.domStorageEnabled = true
-            settings.allowFileAccess = true
             addJavascriptInterface(MineBridge(), "MineNative")
-            webViewClient = WebViewClient()
+            webViewClient = object : WebViewClientCompat() {
+                override fun shouldInterceptRequest(
+                    view: WebView,
+                    request: WebResourceRequest
+                ): WebResourceResponse? = assetLoader.shouldInterceptRequest(request.url)
+            }
         }
         setContentView(web)
-        web.loadUrl("file:///android_asset/mineui/index.html")
+        web.loadUrl("https://appassets.androidplatform.net/assets/mineui/index.html")
 
         scope.launch {
             VersionsManager.versions.collect { emitState() }
