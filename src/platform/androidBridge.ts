@@ -72,6 +72,10 @@ export function installAndroidBridge(): boolean {
       emitProgress({ instanceId: '', stage: 'error', statusText: payload || 'Ошибка запуска', progress: 0, error: payload })
     } else if (type === 'install-error') {
       window.dispatchEvent(new CustomEvent('mine:install-error', { detail: payload }))
+    } else if (type === 'install-start') {
+      window.dispatchEvent(new CustomEvent('mine:install-start', { detail: payload }))
+    } else if (type === 'install-progress') {
+      window.dispatchEvent(new CustomEvent('mine:install-progress', { detail: payload }))
     } else if (type === 'install-done') {
       window.dispatchEvent(new CustomEvent('mine:install-done', { detail: payload }))
     } else if (type === 'state') {

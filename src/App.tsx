@@ -22,6 +22,7 @@ export function App() {
   const [navSection, setNavSection] = useState<NavSection>('builds')
   const [modsRefreshKey, setModsRefreshKey] = useState(0)
   const [toast, setToast] = useState('')
+  const [install, setInstall] = useState<{ name: string; text: string; percent: number } | null>(null)
 
   useEffect(() => {
     if (!toast) return
@@ -43,18 +44,40 @@ export function App() {
     window.addEventListener('mine:state', reload)
     const onInstallError = (event: Event) => {
       const detail = (event as CustomEvent).detail
+      setInstall(null)
       setToast(`Установка: ${detail || 'ошибка'}`)
     }
     const onInstallDone = (event: Event) => {
       const detail = (event as CustomEvent).detail
+      setInstall(null)
       setToast(`Версия ${detail} установлена`)
+    }
+    const onInstallStart = (event: Event) => {
+      const name = String((event as CustomEvent).detail || '')
+      setInstall({ name, text: 'Готовимся к установке', percent: -1 })
+    }
+    const onInstallProgress = (event: Event) => {
+      try {
+        const data = JSON.parse(String((event as CustomEvent).detail || '{}')) as { name?: string; text?: string; percent?: number }
+        setInstall((prev) => ({
+          name: data.name || prev?.name || '',
+          text: data.text || prev?.text || 'Установка',
+          percent: typeof data.percent === 'number' ? data.percent : prev?.percent ?? -1
+        }))
+      } catch {
+        // кривой payload, просто держим прошлое состояние
+      }
     }
     window.addEventListener('mine:install-error', onInstallError)
     window.addEventListener('mine:install-done', onInstallDone)
+    window.addEventListener('mine:install-start', onInstallStart)
+    window.addEventListener('mine:install-progress', onInstallProgress)
     return () => {
       window.removeEventListener('mine:state', reload)
       window.removeEventListener('mine:install-error', onInstallError)
       window.removeEventListener('mine:install-done', onInstallDone)
+      window.removeEventListener('mine:install-start', onInstallStart)
+      window.removeEventListener('mine:install-progress', onInstallProgress)
     }
   }, [])
 
@@ -364,6 +387,25 @@ export function App() {
           />
         </main>
       </div>
+
+      {install && (
+        <div className="install-overlay" role="status" aria-live="polite">
+          <div className="install-card">
+            <span className="install-title">Установка {install.name}</span>
+            <span className="install-text">{install.text}</span>
+            {install.percent >= 0 ? (
+              <>
+                <div className="install-bar">
+                  <div className="install-bar-fill" style={{ width: `${Math.min(100, Math.max(0, install.percent))}%` }} />
+                </div>
+                <span className="install-percent">{install.percent}%</span>
+              </>
+            ) : (
+              <div className="spinner" />
+            )}
+          </div>
+        </div>
+      )}
 
       <SettingsModal
         isOpen={isSettingsOpen}

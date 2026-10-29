@@ -25,6 +25,7 @@ import android.webkit.WebView
 import androidx.webkit.WebViewAssetLoader
 import androidx.webkit.WebViewClientCompat
 import com.movtery.zalithlauncher.BuildConfig
+import com.movtery.zalithlauncher.coroutine.TaskStage
 import com.movtery.zalithlauncher.game.account.Account
 import com.movtery.zalithlauncher.game.account.AccountType
 import com.movtery.zalithlauncher.game.account.AccountsManager
@@ -40,9 +41,12 @@ import com.movtery.zalithlauncher.setting.AllSettings
 import com.movtery.zalithlauncher.ui.toAndroidString
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.json.JSONArray
@@ -61,6 +65,7 @@ class MineWebActivity : Activity() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private lateinit var web: WebView
     private var launching = false
+    private var installJob: Job? = null
 
     /** Локальный https-домен: ES-модули с file:// WebView блокирует */
     private val assetLoader by lazy {
@@ -309,19 +314,49 @@ class MineWebActivity : Activity() {
                         fabric = fabric,
                         quilt = quilt
                     )
-                    GameInstaller(this@MineWebActivity, info, scope).installGame(
+                    val installer = GameInstaller(this@MineWebActivity, info, scope)
+
+                    // Раз в 400 мс отдаём в интерфейс текущий шаг и процент
+                    installJob?.cancel()
+                    installJob = scope.launch {
+                        while (isActive) {
+                            val tasks = installer.tasksFlow.value
+                            val active = tasks.firstOrNull { it.task.stage.value == TaskStage.RUNNING }
+                                ?: tasks.lastOrNull()
+                            if (active != null) {
+                                val progress = active.task.progress.value
+                                emit(
+                                    "install-progress",
+                                    JSONObject()
+                                        .put("name", targetName)
+                                        .put("text", active.title.toAndroidString(this@MineWebActivity))
+                                        .put("percent", if (progress >= 0f) (progress * 100).toInt() else -1)
+                                        .toString()
+                                )
+                            }
+                            delay(400)
+                        }
+                    }
+
+                    installer.installGame(
                         onInstalled = { version ->
+                            installJob?.cancel()
                             emit("install-done", version)
                             emitState()
                         },
                         onError = { th ->
+                            installJob?.cancel()
                             emit("install-error", th.message ?: th.toString())
                         },
                         onGameAlreadyInstalled = {
+                            installJob?.cancel()
                             emit("install-error", "Эта версия уже установлена")
                         }
                     )
-                }.onFailure { emit("install-error", it.message ?: it.toString()) }
+                }.onFailure {
+                    installJob?.cancel()
+                    emit("install-error", it.message ?: it.toString())
+                }
             }
         }
 
