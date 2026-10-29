@@ -24,10 +24,22 @@ jobs:
           distribution: temurin
           java-version: '21'
 
+      - uses: gradle/actions/setup-gradle@v4
+
       - name: Setup Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: aarch64-linux-android,armv7-linux-androideabi,i686-linux-android,x86_64-linux-android
+
+      - name: Cache Rust build
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            android/PetLib/rust/target
+          key: petlib-rust-${{ runner.os }}-${{ hashFiles('android/PetLib/rust/Cargo.lock') }}
+          restore-keys: petlib-rust-${{ runner.os }}-
 
       - name: Install cargo-ndk
         run: |
@@ -44,6 +56,12 @@ jobs:
             ndk=$(ls -d "$ANDROID_HOME"/ndk/* | sort -V | tail -1)
           fi
           echo "ANDROID_NDK_HOME=$ndk" >> "$GITHUB_ENV"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: package-lock.json
 
       - name: Build web UI
         run: |

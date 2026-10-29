@@ -1,8 +1,7 @@
 name: Android release
 
 # Только Android: собирает APK и заливает их в уже существующий релиз.
-# Нужен, когда менялся только android/ или веб-интерфейс, чтобы не
-# пересобирать Windows, macOS и Linux.
+# Смоук и сборка идут параллельно, но публикация начнётся только если оба зелёные.
 on:
   workflow_dispatch:
     inputs:
@@ -19,22 +18,31 @@ jobs:
     uses: ./.github/workflows/android-smoke.yml
 
   build:
-    needs: smoke
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        arch: [all, arm, arm64, x86, x86_64]
+        arch: [all, arm64]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '21'
+      - uses: gradle/actions/setup-gradle@v4
       - name: Setup Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: aarch64-linux-android,armv7-linux-androideabi,i686-linux-android,x86_64-linux-android
+      - name: Cache Rust build
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            android/PetLib/rust/target
+          key: petlib-rust-${{ runner.os }}-${{ hashFiles('android/PetLib/rust/Cargo.lock') }}
+          restore-keys: petlib-rust-${{ runner.os }}-
       - name: Install cargo-ndk
         run: |
           mkdir -p ~/.cargo/bin
@@ -49,6 +57,11 @@ jobs:
             ndk=$(ls -d "$ANDROID_HOME"/ndk/* | sort -V | tail -1)
           fi
           echo "ANDROID_NDK_HOME=$ndk" >> "$GITHUB_ENV"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: package-lock.json
       - name: Build web UI
         run: |
           npm ci
@@ -61,7 +74,23 @@ jobs:
         run: |
           chmod +x gradlew
           ./gradlew ZalithLauncher:assembleRelease -Darch=${{ matrix.arch }} --no-daemon
+      - uses: actions/upload-artifact@v4
+        with:
+          name: apk-${{ matrix.arch }}
+          path: android/ZalithLauncher/build/outputs/apk/release/*.apk
+          if-no-files-found: error
+
+  publish:
+    needs: [smoke, build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: apks
+          pattern: apk-*
+          merge-multiple: true
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ inputs.tag }}
-          files: android/ZalithLauncher/build/outputs/apk/release/*.apk
+          files: apks/*.apk
+          fail_on_unmatched_files: true
