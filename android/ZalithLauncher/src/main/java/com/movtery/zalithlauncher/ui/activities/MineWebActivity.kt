@@ -276,9 +276,7 @@ class MineWebActivity : Activity() {
 
         @JavascriptInterface
         fun openNative() {
-            runOnUiThread {
-                startActivity(Intent(this@MineWebActivity, MainActivity::class.java))
-            }
+            runOnUiThread { openNativeScreen() }
         }
     }
 
@@ -327,6 +325,10 @@ class MineWebActivity : Activity() {
     private fun findVersion(name: String): Version? =
         VersionsManager.versions.value.firstOrNull { it.getVersionName() == name }
 
+    private fun openNativeScreen() {
+        startActivity(Intent(this, MainActivity::class.java))
+    }
+
     private fun modsDir(version: Version): File = File(version.getGameHome(), "mods")
 
     private fun totalRamMb(): Int {
@@ -351,7 +353,7 @@ class MineWebActivity : Activity() {
         }
         if (AccountsManager.currentAccountFlow.value == null) {
             emit("launch-error", "Сначала добавь аккаунт")
-            openNative()
+            openNativeScreen()
             return
         }
 
