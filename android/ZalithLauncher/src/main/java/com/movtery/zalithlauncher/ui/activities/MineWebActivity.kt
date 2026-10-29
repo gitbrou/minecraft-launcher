@@ -40,7 +40,6 @@ import com.movtery.zalithlauncher.game.launch.GameLaunchFlow
 import com.movtery.zalithlauncher.game.version.installed.Version
 import com.movtery.zalithlauncher.game.version.installed.VersionsManager
 import com.movtery.zalithlauncher.game.versioninfo.MinecraftVersions
-import com.movtery.zalithlauncher.path.PathManager
 import com.movtery.zalithlauncher.setting.AllSettings
 import com.movtery.zalithlauncher.ui.toAndroidString
 import kotlinx.coroutines.CoroutineScope
@@ -110,7 +109,7 @@ class MineWebActivity : Activity() {
         AccountsManager.reloadAccounts()
         // Без этого в игре нет экранных кнопок: стандартная раскладка
         // распаковывается только отсюда
-        ensureControlLayout()
+        ControlManager.checkDefaultAndRefresh(this)
 
         scope.launch {
             delay(1500)
@@ -496,32 +495,6 @@ class MineWebActivity : Activity() {
 
     private fun openNativeScreen() {
         startActivity(Intent(this, MainActivity::class.java))
-    }
-
-    /**
-     * Раскладка экранных кнопок.
-     *
-     * Свою раскладку кладём вместо стандартной залитовской (она заточена
-     * под мышь и вкладки). Файл перезаписываем только если он ещё не наш,
-     * чтобы не убивать пользовательские правки и выбранную раскладку.
-     */
-    private fun ensureControlLayout() {
-        scope.launch(Dispatchers.IO) {
-            runCatching {
-                val dir = PathManager.DIR_CONTROL_LAYOUTS
-                val ours = assets.open("default_layout.json").bufferedReader().use { it.readText() }
-                dir.listFiles()?.forEach { file ->
-                    if (!file.isFile || !file.extension.equals("json", true)) return@forEach
-                    val info = runCatching { JSONObject(file.readText()).optJSONObject("info") }.getOrNull()
-                    val name = info?.optJSONObject("name")?.optString("default") ?: ""
-                    val version = info?.optString("versionName") ?: ""
-                    if (name == "default" && version != "mine-1") {
-                        file.writeText(ours)
-                    }
-                }
-            }
-            ControlManager.checkDefaultAndRefresh(this@MineWebActivity)
-        }
     }
 
     /** Проверяем android-info в репозитории: если код новее сборки, показываем плашку */

@@ -1,22 +1,22 @@
 {
-  "code": 100005,
-  "version": "1.0.5",
+  "code": 100004,
+  "version": "1.0.4",
   "created_at": "2026-10-29T20:10:00Z",
   "cloud_drives": [],
   "files": [
     {
-      "file_name": "MineLauncher-1.0.5-arm64-v8a.apk",
-      "uri": "https://github.com/gitbrou/minecraft-launcher/releases/download/v2.1.0/MineLauncher-1.0.5-arm64-v8a.apk",
+      "file_name": "MineLauncher-1.0.4-arm64-v8a.apk",
+      "uri": "https://github.com/gitbrou/minecraft-launcher/releases/download/v2.1.0/MineLauncher-1.0.4-arm64-v8a.apk",
       "arch": "arm64"
     },
     {
-      "file_name": "MineLauncher-1.0.5-armeabi-v7a.apk",
-      "uri": "https://github.com/gitbrou/minecraft-launcher/releases/download/v2.1.0/MineLauncher-1.0.5-armeabi-v7a.apk",
+      "file_name": "MineLauncher-1.0.4-armeabi-v7a.apk",
+      "uri": "https://github.com/gitbrou/minecraft-launcher/releases/download/v2.1.0/MineLauncher-1.0.4-armeabi-v7a.apk",
       "arch": "arm"
     },
     {
-      "file_name": "MineLauncher-1.0.5.apk",
-      "uri": "https://github.com/gitbrou/minecraft-launcher/releases/download/v2.1.0/MineLauncher-1.0.5.apk",
+      "file_name": "MineLauncher-1.0.4.apk",
+      "uri": "https://github.com/gitbrou/minecraft-launcher/releases/download/v2.1.0/MineLauncher-1.0.4.apk",
       "arch": "all"
     }
   ],

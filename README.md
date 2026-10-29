@@ -13,8 +13,8 @@
 
 Windows, macOS, Linux и Android: [релиз](https://github.com/gitbrou/minecraft-launcher/releases/latest).
 
-На телефоне бери `MineLauncher-1.0.5-arm64-v8a.apk`, он подходит почти всем. Если Android
-ругается на процессор, качай `MineLauncher-1.0.5.apk`.
+На телефоне бери `MineLauncher-1.0.4-arm64-v8a.apk`, он подходит почти всем. Если Android
+ругается на процессор, качай `MineLauncher-1.0.4.apk`.
 
 ## Использование
 
