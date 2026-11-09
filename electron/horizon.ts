@@ -1,7 +1,8 @@
-import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
+import { spawn, spawnSync, type ChildProcessWithoutNullStreams } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import fs from 'node:fs'
 import fsp from 'node:fs/promises'
+import os from 'node:os'
 import path from 'node:path'
 import { Readable, Transform } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
@@ -105,12 +106,15 @@ export class HorizonManager {
   private busy: HorizonState['busy'] = null
   private lastState: HorizonState | null = null
   private releaseCache: ResolvedRelease | null = null
+  private fullscreenSupport = new Map<string, boolean>()
   private bundledDir: string | null = null
+  private minecraftRoot: string | null = null
 
-  constructor(dir: string, events: HorizonEvents, bundledDir: string | null = null) {
+  constructor(dir: string, events: HorizonEvents, bundledDir: string | null = null, minecraftRoot: string | null = null) {
     this.dir = dir
     this.events = events
     this.bundledDir = bundledDir
+    this.minecraftRoot = minecraftRoot
   }
 
   private exeName(): string {
@@ -139,6 +143,97 @@ export class HorizonManager {
     return !!this.binaryPath()
   }
 
+  // Официальный лаунчер хранит версии в платформенной папке данных (backend::data_dir).
+  private dataRoot(): string {
+    if (process.env.HORIZON_LAUNCHER_HOME) return process.env.HORIZON_LAUNCHER_HOME
+    if (process.platform === 'win32') return path.join(process.env.APPDATA || os.homedir(), 'horizon-launcher')
+    if (process.platform === 'darwin') return path.join(os.homedir(), 'Library', 'Application Support', 'horizon-launcher')
+    return path.join(process.env.XDG_DATA_HOME || path.join(os.homedir(), '.local', 'share'), 'horizon-launcher')
+  }
+
+  // Папка с мирами и настройками игры (backend::game_home).
+  private gameHome(): string {
+    if (process.env.HORIZON_HOME) return process.env.HORIZON_HOME
+    if (process.platform === 'win32') return path.join(process.env.APPDATA || os.homedir(), 'horizon')
+    if (process.platform === 'darwin') return path.join(os.homedir(), 'Library', 'Application Support', 'horizon')
+    return path.join(process.env.XDG_DATA_HOME || path.join(os.homedir(), '.local', 'share'), 'horizon')
+  }
+
+  private versionDir(tag: string): string {
+    return path.join(this.dataRoot(), 'versions', tag)
+  }
+
+  private clientExe(tag: string): string {
+    const name = process.platform === 'win32' ? 'horizon-client.exe' : 'horizon-client'
+    return path.join(this.versionDir(tag), name)
+  }
+
+  /** Версия Minecraft, из которой Horizon собрал свои ресурсы. */
+  private gameVersion(tag: string): string {
+    try {
+      const lock = JSON.parse(fs.readFileSync(path.join(this.versionDir(tag), 'research-lock.json'), 'utf8')) as {
+        minecraft?: { version?: string }
+      }
+      if (lock.minecraft?.version) return lock.minecraft.version
+    } catch {
+      // у старых сборок может не быть research-lock.json
+    }
+    const prepared = path.join(this.versionDir(tag), '.local', 'horizon-client')
+    try {
+      const found = fs.readdirSync(prepared).find((name) => fs.existsSync(path.join(prepared, name, 'horizon-resources.json')))
+      if (found) return found
+    } catch {
+      // версия ещё не подготовлена
+    }
+    return '26.3'
+  }
+
+  private resourcesDir(tag: string): string {
+    return path.join(this.versionDir(tag), '.local', 'horizon-client', this.gameVersion(tag))
+  }
+
+  private isPrepared(tag: string): boolean {
+    // Итоговый манифест пишется в самом конце подготовки (backend::RESOURCES_MANIFEST).
+    return fs.existsSync(path.join(this.resourcesDir(tag), 'horizon-resources.json'))
+  }
+
+  // Старые сборки (например v0.2.97) не знают --fullscreen и падают на нём.
+  // Спрашиваем у самой игры её справку и запоминаем ответ для каждого тега.
+  private supportsFullscreen(tag: string): boolean {
+    const cached = this.fullscreenSupport.get(tag)
+    if (cached !== undefined) return cached
+    let supported = false
+    try {
+      const exe = this.clientExe(tag)
+      if (fs.existsSync(exe)) {
+        const help = spawnSync(exe, ['--help'], { timeout: 8000, windowsHide: true, encoding: 'utf8' })
+        supported = `${help.stdout || ''}${help.stderr || ''}`.includes('--fullscreen')
+      }
+    } catch {
+      supported = false
+    }
+    this.fullscreenSupport.set(tag, supported)
+    return supported
+  }
+
+  private installedTags(): string[] {
+    try {
+      return fs.readdirSync(path.join(this.dataRoot(), 'versions')).filter((tag) => fs.existsSync(this.clientExe(tag)))
+    } catch {
+      return []
+    }
+  }
+
+  private selectedTag(): string | null {
+    try {
+      const settings = JSON.parse(fs.readFileSync(path.join(this.dataRoot(), 'settings.json'), 'utf8')) as { selected?: string }
+      if (settings.selected && fs.existsSync(this.clientExe(settings.selected))) return settings.selected
+    } catch {
+      // настроек ещё нет
+    }
+    return null
+  }
+
   private baseState(): HorizonState {
     return {
       installed: this.installed,
@@ -150,6 +245,7 @@ export class HorizonManager {
       busy: this.busy,
       gameVersions: [],
       selectedVersion: null,
+      prepared: false,
       accountName: null,
       owner: false,
       offline: [],
@@ -196,6 +292,8 @@ export class HorizonManager {
       state.owner = !!accounts.owner
       state.offline = Array.isArray(accounts.offline) ? accounts.offline.map(String) : []
     }
+    const tag = state.selectedVersion || state.gameVersions[0]
+    state.prepared = !!tag && fs.existsSync(this.clientExe(tag)) && this.isPrepared(tag)
     this.lastState = state
     return state
   }
@@ -499,12 +597,7 @@ export class HorizonManager {
     })
   }
 
-  async play(version?: string): Promise<void> {
-    if (!this.installed) throw new Error('Сначала установите Horizon')
-    if (this.playChild) throw new Error('Игра уже запущена')
-    const args = ['play']
-    if (version) args.push('--version', version)
-    const child = spawn(this.launcherPath(), args, { windowsHide: true })
+  private trackGame(child: ChildProcessWithoutNullStreams): void {
     this.playChild = child
     let buffer = ''
     const handle = (chunk: Buffer) => {
@@ -530,6 +623,60 @@ export class HorizonManager {
     })
     this.lastState = { ...(this.lastState || this.baseState()), playing: true }
     this.events.state(this.lastState)
+  }
+
+  async play(version?: string): Promise<void> {
+    if (!this.installed) throw new Error('Сначала установите Horizon')
+    if (this.playChild) throw new Error('Игра уже запущена')
+    const args = ['play']
+    if (version) args.push('--version', version)
+    this.trackGame(spawn(this.launcherPath(), args, { windowsHide: true }))
+  }
+
+  /**
+   * Оффлайн-запуск игры без аккаунта Microsoft — так же, как это делает
+   * официальный лаунчер с включённым скрытым режимом dev_offline: игра стартует
+   * без сессии, берёт файлы из собственной установки Minecraft и умеет только
+   * одиночную игру и LAN. Онлайн-серверы и скины по-прежнему требуют лицензию.
+   */
+  async playOffline(options: { version?: string; nickname?: string; fullscreen?: boolean } = {}): Promise<void> {
+    if (!this.installed) throw new Error('Сначала установите Horizon')
+    if (this.playChild) throw new Error('Игра уже запущена')
+
+    const tag = options.version || this.selectedTag() || this.installedTags()[0]
+    if (!tag) throw new Error('Сначала установите версию игры Horizon')
+    if (!/^[0-9A-Za-z._-]+$/.test(tag) || !fs.existsSync(this.clientExe(tag))) {
+      throw new Error('Эта версия игры Horizon не установлена')
+    }
+    if (options.nickname && !/^[A-Za-z0-9_]{3,16}$/.test(options.nickname)) {
+      throw new Error('Ник: 3-16 символов, только латиница, цифры и _')
+    }
+
+    if (!this.isPrepared(tag)) {
+      if (!this.minecraftRoot) throw new Error('Сначала подготовьте игру Horizon')
+      await this.prepare({ version: tag, minecraftDir: this.minecraftRoot })
+    }
+
+    const home = this.gameHome()
+    await fsp.mkdir(home, { recursive: true })
+    if (options.nickname) {
+      await fsp.writeFile(path.join(home, 'horizon-player.txt'), `name:${options.nickname}\n`)
+    }
+
+    const env: NodeJS.ProcessEnv = {
+      ...process.env,
+      HORIZON_HOME: home,
+      HORIZON_LAUNCHER_EXE: this.launcherPath()
+    }
+    delete env.HORIZON_ACCOUNT_SESSIONS
+
+    const args = ['--resources', this.resourcesDir(tag)]
+    if (options.fullscreen && this.supportsFullscreen(tag)) args.push('--fullscreen')
+    this.trackGame(spawn(this.clientExe(tag), args, {
+      cwd: home,
+      env,
+      windowsHide: false
+    }))
   }
 
   stop(): boolean {

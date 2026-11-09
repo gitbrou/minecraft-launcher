@@ -289,31 +289,44 @@ export function App() {
   const engine = isAndroid() ? 'java' : (settings?.engine || 'horizon')
   const horizonReady = !!horizonState?.installed
 
+  // Движок из настроек главный: Horizon всегда запускает свою 26.3,
+  // Java — выбранную сборку. Кнопка «Играть» внизу работает по этому правилу.
+  const activeEngine: 'horizon' | 'java' = engine
+
   // Launch — принимает необязательную сборку (quick-play с карточки)
   const handleLaunch = (instance?: Instance) => {
     if (!window.electronAPI) return
 
-    if (engine === 'horizon') {
+    const target = instance || selectedInstance
+    const fitsHorizon = !target || (target.version === '26.3' && target.loader === 'vanilla')
+    // Явный клик по карточке сборки уважаем: Horizon берём только если она подходит,
+    // иначе играем именно эту сборку на Java.
+    const useHorizon = engine === 'horizon' && (!instance || fitsHorizon)
+
+    if (useHorizon) {
       if (!horizonReady) {
         setIsHorizonOpen(true)
         setToast('Сначала установите Horizon')
         return
       }
-      if (!horizonState?.owner) {
-        setIsHorizonOpen(true)
-        setToast('Horizon запускается только с аккаунтом Microsoft, у которого есть Minecraft Java')
-        return
-      }
       if (horizonState?.busy || horizonState?.playing) return
-      window.electronAPI.horizonPlay().catch((err: Error) => {
+      const offline = !horizonState?.owner
+      if (offline && !horizonState?.prepared) {
+        setIsHorizonOpen(true)
+        setToast('Готовлю игру Horizon, это займёт пару минут')
+      }
+      const launch = offline
+        ? window.electronAPI.horizonPlayOffline({ fullscreen: !!settings?.fullscreen })
+        : window.electronAPI.horizonPlay()
+      launch.catch((err: Error) => {
         setToast(`Horizon: ${err.message}`)
       })
       return
     }
 
-    const target = instance || selectedInstance
-    if (!target) return
-    const targetId = target.id
+    const javaTarget = instance || selectedInstance
+    if (!javaTarget) return
+    const targetId = javaTarget.id
     if (window.electronAPI) {
       setLogs([])
       logBufferRef.current = []
@@ -332,7 +345,7 @@ export function App() {
   const handleStopGame = async () => {
     if (!window.electronAPI) return
 
-    if (engine === 'horizon') {
+    if (horizonState?.playing) {
       await window.electronAPI.horizonStop?.().catch(() => false)
       return
     }
@@ -477,9 +490,8 @@ export function App() {
             instances={instances}
             selectedInstance={selectedInstance}
             hasAccount={accounts.length > 0}
-            engine={engine}
+            engine={activeEngine}
             horizonInstalled={horizonReady}
-            horizonOwner={!!horizonState?.owner}
             horizonPlaying={!!horizonState?.playing}
             horizonBusy={!!horizonState?.busy}
             onSelectInstance={handleSelectInstance}

@@ -117,7 +117,7 @@ const horizon = new HorizonManager(path.join(rootDir, 'horizon-engine'), {
   progress: (progress) => win?.webContents.send('horizon:progress', progress),
   log: (line) => win?.webContents.send('horizon:log', line),
   auth: (auth) => win?.webContents.send('horizon:auth', auth)
-}, bundledHorizonDir)
+}, bundledHorizonDir, rootDir)
 
 app.on('before-quit', () => horizon.dispose())
 
@@ -930,7 +930,8 @@ function setupIpcHandlers() {
   ipcMain.handle('horizon:install', () => horizon.installLauncher())
   ipcMain.handle('horizon:versions', () => horizon.versions())
   ipcMain.handle('horizon:install-game', (_, tag: string) => horizon.installGame(tag))
-  ipcMain.handle('horizon:prepare', (_, options: { download?: boolean; version?: string }) => horizon.prepare(options))
+  ipcMain.handle('horizon:prepare', (_, options: { download?: boolean; version?: string }) =>
+    horizon.prepare({ ...options, minecraftDir: options.download ? undefined : rootDir }))
   ipcMain.handle('horizon:set-minecraft-dir', async () => {
     if (!win) return null
     const picked = await dialog.showOpenDialog(win, {
@@ -946,6 +947,8 @@ function setupIpcHandlers() {
   })
   ipcMain.handle('horizon:offline', (_, name: string) => horizon.setOffline(name))
   ipcMain.handle('horizon:play', (_, version?: string) => horizon.play(version))
+  ipcMain.handle('horizon:play-offline', (_, options: { version?: string; nickname?: string } = {}) =>
+    horizon.playOffline(options))
   ipcMain.handle('horizon:stop', () => horizon.stop())
 
   // ── Auto-updater ──────────────────────────────────────────────

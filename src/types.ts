@@ -149,6 +149,7 @@ export interface HorizonState {
   busy: 'launcher' | 'game' | 'prepare' | null;
   gameVersions: string[];
   selectedVersion: string | null;
+  prepared: boolean;
   accountName: string | null;
   owner: boolean;
   offline: string[];

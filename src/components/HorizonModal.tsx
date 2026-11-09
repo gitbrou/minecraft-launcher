@@ -18,6 +18,7 @@ const EMPTY_STATE: HorizonState = {
   busy: null,
   gameVersions: [],
   selectedVersion: null,
+  prepared: false,
   accountName: null,
   owner: false,
   offline: [],
@@ -136,7 +137,7 @@ export const HorizonModal: React.FC<HorizonModalProps> = ({ isOpen, onClose }) =
   })
 
   const installGame = () => run('Установка версии', () => api.horizonInstallGame(tag))
-  const prepareGame = () => run('Подготовка игры', () => api.horizonPrepare({ download: true, version: tag || undefined }))
+  const prepareGame = () => run('Подготовка игры', () => api.horizonPrepare({ download: state.owner, version: tag || undefined }))
   const pickFolder = () => run('Выбор папки', async () => {
     const next = await api.horizonSetMinecraftDir()
     return next || undefined
@@ -146,8 +147,19 @@ export const HorizonModal: React.FC<HorizonModalProps> = ({ isOpen, onClose }) =
     await api.horizonSignIn()
   })
   const playOffline = () => run('Запуск', async () => {
-    if (offline.trim()) await api.horizonOffline(offline.trim())
-    await api.horizonPlay(state.selectedVersion || tag || undefined)
+    const nick = offline.trim()
+    const version = state.selectedVersion || tag || undefined
+    if (state.owner) {
+      if (nick) await api.horizonOffline(nick)
+      await api.horizonPlay(version)
+    } else {
+      const prefs = await api.getSettings().catch(() => null)
+      await api.horizonPlayOffline({
+        version,
+        nickname: nick || undefined,
+        fullscreen: !!prefs?.fullscreen
+      })
+    }
   })
   const play = () => run('Запуск', () => api.horizonPlay(state.selectedVersion || tag || undefined))
   const stop = () => run('Остановка', () => api.horizonStop())
@@ -183,11 +195,16 @@ export const HorizonModal: React.FC<HorizonModalProps> = ({ isOpen, onClose }) =
         </div>
 
         <div className="modal-body horizon-body">
+          <div className="horizon-note">
+            Horizon играет только Minecraft 26.3. Другие версии и Fabric/Quilt запускаются
+            на движке Java в настройках.
+          </div>
+
           {!state.installed && !loading && (
             <div className="horizon-intro">
               <p>
                 Horizon это отдельная игра, не Java-сборка. Ставится рядом с лаунчером, примерно 21 МБ.
-                Играть можно только с аккаунтом Microsoft, у которого есть Minecraft Java.
+                Без входа в Microsoft играет оффлайн: одиночная игра и LAN.
               </p>
               <button className="btn btn-primary" onClick={installLauncher}>Установить Horizon</button>
             </div>
@@ -210,11 +227,10 @@ export const HorizonModal: React.FC<HorizonModalProps> = ({ isOpen, onClose }) =
 
               {!state.owner && (
                 <div className="horizon-gate">
-                  <div className="horizon-gate-title">Нужен вход в Microsoft</div>
+                  <div className="horizon-gate-title">Можно играть без входа</div>
                   <div className="horizon-gate-text">
-                    Horizon запускается только с аккаунтом Microsoft, у которого куплен Minecraft Java.
-                    Без этого игра не стартует, и обойти проверку нельзя.
-                    Если входа нет, переключись на движок Java в настройках: там работают оффлайн-аккаунты.
+                    Оффлайн-режим: одиночная игра и LAN, ник ниже. Онлайн-серверы, скины и смена ника
+                    требуют аккаунт Microsoft с купленным Minecraft Java.
                   </div>
                   <button className="btn btn-primary btn-sm" onClick={signIn} disabled={loading}>
                     Войти через Microsoft
@@ -283,7 +299,7 @@ export const HorizonModal: React.FC<HorizonModalProps> = ({ isOpen, onClose }) =
               <div className="horizon-row">
                 <div>
                   <div className="horizon-label">Оффлайн ник</div>
-                  <div className="horizon-hint">Работает только если владелец лицензии уже вошёл</div>
+                  <div className="horizon-hint">Вход не нужен. Если пусто, игра придумает ник сама</div>
                 </div>
                 <div className="horizon-inline">
                   <input
@@ -323,8 +339,8 @@ export const HorizonModal: React.FC<HorizonModalProps> = ({ isOpen, onClose }) =
             {state.playing ? (
               <button className="btn btn-danger" onClick={stop}>Остановить игру</button>
             ) : !state.owner ? (
-              <button className="btn btn-primary" onClick={signIn} disabled={loading}>
-                {loading ? 'Подождите...' : 'Войти в Microsoft'}
+              <button className="btn btn-primary" onClick={playOffline} disabled={busy || !(state.selectedVersion || tag)}>
+                {loading ? 'Подождите...' : 'Играть без входа'}
               </button>
             ) : (
               <button className="btn btn-primary" onClick={play} disabled={busy || !(state.selectedVersion || tag)}>

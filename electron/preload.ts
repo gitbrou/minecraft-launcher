@@ -91,6 +91,8 @@ const electronAPI = {
   horizonSignIn: (): Promise<boolean> => ipcRenderer.invoke('horizon:sign-in'),
   horizonOffline: (name: string): Promise<HorizonState> => ipcRenderer.invoke('horizon:offline', name),
   horizonPlay: (version?: string) => ipcRenderer.invoke('horizon:play', version),
+  horizonPlayOffline: (options: { version?: string; nickname?: string; fullscreen?: boolean } = {}) =>
+    ipcRenderer.invoke('horizon:play-offline', options),
   horizonStop: (): Promise<boolean> => ipcRenderer.invoke('horizon:stop'),
 
   // Subscriptions

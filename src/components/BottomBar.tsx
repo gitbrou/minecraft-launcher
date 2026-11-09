@@ -14,7 +14,6 @@ interface BottomBarProps {
   hasAccount: boolean
   engine: 'java' | 'horizon'
   horizonInstalled: boolean
-  horizonOwner: boolean
   horizonPlaying: boolean
   horizonBusy: boolean
   onSelectInstance: (instance: Instance) => void
@@ -35,7 +34,6 @@ export const BottomBar: React.FC<BottomBarProps> = ({
   hasAccount,
   engine,
   horizonInstalled,
-  horizonOwner,
   horizonPlaying,
   horizonBusy,
   onSelectInstance,
@@ -69,13 +67,12 @@ export const BottomBar: React.FC<BottomBarProps> = ({
   let disabledReason: string | null = null
   if (useHorizon) {
     if (!horizonInstalled) disabledReason = 'Horizon не установлен'
-    else if (!horizonOwner) disabledReason = 'Нужен вход в Microsoft с лицензией Minecraft'
     else if (horizonBusy) disabledReason = 'Horizon уже что-то делает'
   } else if (!selectedInstance) disabledReason = 'Создайте сборку, чтобы играть'
   else if (!hasAccount) disabledReason = 'Добавьте аккаунт на панели слева'
 
-  // Без установки и без входа кнопка не блокируется: по клику откроется панель Horizon
-  const horizonNeedsSetup = useHorizon && (!horizonInstalled || !horizonOwner)
+  // Без установки кнопка не блокируется: по клику откроется панель Horizon
+  const horizonNeedsSetup = useHorizon && !horizonInstalled
   const disabled = (!!disabledReason && !horizonNeedsSetup) || isActiveForSelected || isRunning
   const errorText = !useHorizon && launchProgress?.stage === 'error' && launchProgress?.instanceId === selectedInstance?.id
     ? launchProgress.statusText
@@ -90,7 +87,7 @@ export const BottomBar: React.FC<BottomBarProps> = ({
   }
 
   const shortReason = useHorizon
-    ? (!horizonInstalled ? 'Установить Horizon' : !horizonOwner ? 'Войти в Horizon' : horizonBusy ? 'Занято' : null)
+    ? (!horizonInstalled ? 'Установить Horizon' : horizonBusy ? 'Занято' : null)
     : (!selectedInstance ? 'Нет сборки' : !hasAccount ? 'Нет аккаунта' : null)
 
   return (
