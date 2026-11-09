@@ -20,6 +20,7 @@ import {
   requiredJavaMajor
 } from './launcherEngine'
 import { buildInstanceMeta, validateArchiveEntries, parseExportedMeta, uniqueInstanceName, MAX_MOD_BYTES_EXPORTED } from './instancePack'
+import { HorizonManager } from './horizon'
 import { parseImportDeepLink, findDeepLink } from './deepLink'
 import { safeInstId, safeFilename } from './safeNames'
 import type { Account, Instance, LauncherSettings, ProfileWorld, UpdateState } from '../src/types'
@@ -85,6 +86,7 @@ const totalRamMb = Math.round(os.totalmem() / 1024 / 1024)
 const defaultMaxMemory = Math.max(2048, Math.min(4096, Math.floor(totalRamMb / 3)))
 
 let settings: LauncherSettings = loadJsonData<LauncherSettings>(settingsFile, {
+  engine: 'horizon',
   javaPath: '',
   memoryMin: 1024,
   memoryMax: defaultMaxMemory,
@@ -94,10 +96,30 @@ let settings: LauncherSettings = loadJsonData<LauncherSettings>(settingsFile, {
   hideLauncher: false
 })
 
+// Старые конфиги без поля engine играем через Horizon, как просил владелец проекта
+if (settings.engine !== 'horizon' && settings.engine !== 'java') {
+  settings.engine = 'horizon'
+}
+
 // Если memoryMax больше, чем есть ОЗУ — сбрасываем на разумный дефолт
 if (!settings.memoryMax || settings.memoryMax > totalRamMb * 0.85) {
   settings.memoryMax = defaultMaxMemory
 }
+
+// Horizon живёт отдельно от Java-сборок: свой бинарник и своя папка игры.
+// В упакованной сборке официальный launcher уже лежит в resources/horizon.
+const bundledHorizonDir = app.isPackaged
+  ? path.join(process.resourcesPath, 'horizon')
+  : path.join(app.getAppPath(), 'dist-horizon')
+
+const horizon = new HorizonManager(path.join(rootDir, 'horizon-engine'), {
+  state: (state) => win?.webContents.send('horizon:state', state),
+  progress: (progress) => win?.webContents.send('horizon:progress', progress),
+  log: (line) => win?.webContents.send('horizon:log', line),
+  auth: (auth) => win?.webContents.send('horizon:auth', auth)
+}, bundledHorizonDir)
+
+app.on('before-quit', () => horizon.dispose())
 
 function createWindow() {
   win = new BrowserWindow({
@@ -901,6 +923,30 @@ function setupIpcHandlers() {
     }
     return `https://mc-heads.net/avatar/${encodeURIComponent(username)}/64`
   })
+
+  // ── Horizon ──────────────────────────────────────────────────
+  ipcMain.handle('horizon:status', () => horizon.status())
+  ipcMain.handle('horizon:check-update', () => horizon.checkUpdate())
+  ipcMain.handle('horizon:install', () => horizon.installLauncher())
+  ipcMain.handle('horizon:versions', () => horizon.versions())
+  ipcMain.handle('horizon:install-game', (_, tag: string) => horizon.installGame(tag))
+  ipcMain.handle('horizon:prepare', (_, options: { download?: boolean; version?: string }) => horizon.prepare(options))
+  ipcMain.handle('horizon:set-minecraft-dir', async () => {
+    if (!win) return null
+    const picked = await dialog.showOpenDialog(win, {
+      title: 'Папка Minecraft для Horizon',
+      properties: ['openDirectory']
+    })
+    if (picked.canceled || !picked.filePaths[0]) return null
+    return horizon.setMinecraftDir(picked.filePaths[0])
+  })
+  ipcMain.handle('horizon:sign-in', async () => {
+    await horizon.startSignIn()
+    return true
+  })
+  ipcMain.handle('horizon:offline', (_, name: string) => horizon.setOffline(name))
+  ipcMain.handle('horizon:play', (_, version?: string) => horizon.play(version))
+  ipcMain.handle('horizon:stop', () => horizon.stop())
 
   // ── Auto-updater ──────────────────────────────────────────────
   ipcMain.handle('updater:check', async () => {

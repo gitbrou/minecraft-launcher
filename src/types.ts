@@ -37,7 +37,10 @@ export interface ModItem {
   size: number;
 }
 
+export type GameEngine = 'java' | 'horizon';
+
 export interface LauncherSettings {
+  engine: GameEngine;
   javaPath: string;
   memoryMin: number;
   memoryMax: number;
@@ -124,4 +127,44 @@ export interface ProfileStats {
   instancesCount: number;
   modsCount: number;
   lastPlayedFormatted: string;
+}
+
+/** Horizon — отдельный клиент Java 26.3 на Rust, ставится рядом с лаунчером. */
+export interface HorizonVersion {
+  tag: string;
+  name: string;
+  date: string;
+  prerelease: boolean;
+  available_here: boolean;
+  installed: boolean;
+}
+
+export interface HorizonState {
+  installed: boolean;
+  version: string;
+  latest: string;
+  updateAvailable: boolean;
+  launcherPath: string;
+  playing: boolean;
+  busy: 'launcher' | 'game' | 'prepare' | null;
+  gameVersions: string[];
+  selectedVersion: string | null;
+  accountName: string | null;
+  owner: boolean;
+  offline: string[];
+  minecraftDir: string;
+  lastError: string;
+}
+
+export interface HorizonProgress {
+  stage: 'launcher' | 'game' | 'prepare';
+  text: string;
+  percent: number;
+}
+
+export interface HorizonAuth {
+  status: 'waiting' | 'done' | 'error';
+  url?: string;
+  code?: string;
+  message?: string;
 }

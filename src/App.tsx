@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Account, Instance, LaunchProgress, GameLog, LauncherSettings, UpdateState, DeepLinkResult } from './types'
+import { Account, Instance, LaunchProgress, GameLog, LauncherSettings, UpdateState, DeepLinkResult, HorizonState } from './types'
 import { errorMessage } from './utils/errors'
 import { TitleBar } from './components/TitleBar'
 import { Sidebar, NavSection } from './components/Sidebar'
@@ -7,7 +7,8 @@ import { InstanceManager } from './components/InstanceManager'
 import { BottomBar } from './components/BottomBar'
 import { SettingsModal } from './components/SettingsModal'
 import { ModDownloaderModal } from './components/ModDownloaderModal'
-import { installUpdate } from './platform/androidBridge'
+import { HorizonModal } from './components/HorizonModal'
+import { installUpdate, isAndroid } from './platform/androidBridge'
 
 export function App() {
   const [accounts, setAccounts] = useState<Account[]>([])
@@ -18,6 +19,9 @@ export function App() {
   const logBufferRef = useRef<GameLog[]>([])
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const [isModDownloaderOpen, setIsModDownloaderOpen] = useState(false)
+  const [isHorizonOpen, setIsHorizonOpen] = useState(false)
+  const [settings, setSettings] = useState<LauncherSettings | null>(null)
+  const [horizonState, setHorizonState] = useState<HorizonState | null>(null)
   const [isBooted, setIsBooted] = useState(false)
   const [updateState, setUpdateState] = useState<UpdateState | null>(null)
   const [navSection, setNavSection] = useState<NavSection>('builds')
@@ -114,12 +118,16 @@ export function App() {
     ]).then(([accs, insts, stg]) => {
       setAccounts(accs)
       setInstances(insts)
+      setSettings(stg)
       if (insts.length > 0) {
         const saved = stg?.selectedInstanceId ? insts.find((i: Instance) => i.id === stg.selectedInstanceId) : null
         setSelectedInstance(saved || insts[0])
       }
       setIsBooted(true)
     }).catch(() => setIsBooted(true))
+
+    window.electronAPI.horizonStatus?.().then(setHorizonState).catch(() => {})
+    const unsubscribeHorizon = window.electronAPI.onHorizonState?.((next: HorizonState) => setHorizonState(next))
 
     // На Android движок читает аккаунты и версии из БД чуть позже старта окна,
     // поэтому добираем списки ещё пару раз, иначе слева пусто до первого действия
@@ -178,6 +186,7 @@ export function App() {
       unsubscribeLogs()
       unsubscribeUpdate?.()
       unsubscribeDeepLink?.()
+      unsubscribeHorizon?.()
       clearInterval(logFlushTimer)
       lateTimers.forEach((id) => clearTimeout(id))
       if (typeof cancelIdleCallback === 'function' && typeof requestIdleCallback === 'function') {
@@ -276,8 +285,32 @@ export function App() {
     }
   }
 
+  // Движок выбирается в настройках. На Android Horizon нет, там всегда Java
+  const engine = isAndroid() ? 'java' : (settings?.engine || 'horizon')
+  const horizonReady = !!horizonState?.installed
+
   // Launch — принимает необязательную сборку (quick-play с карточки)
   const handleLaunch = (instance?: Instance) => {
+    if (!window.electronAPI) return
+
+    if (engine === 'horizon') {
+      if (!horizonReady) {
+        setIsHorizonOpen(true)
+        setToast('Сначала установите Horizon')
+        return
+      }
+      if (!horizonState?.owner) {
+        setIsHorizonOpen(true)
+        setToast('Horizon запускается только с аккаунтом Microsoft, у которого есть Minecraft Java')
+        return
+      }
+      if (horizonState?.busy || horizonState?.playing) return
+      window.electronAPI.horizonPlay().catch((err: Error) => {
+        setToast(`Horizon: ${err.message}`)
+      })
+      return
+    }
+
     const target = instance || selectedInstance
     if (!target) return
     const targetId = target.id
@@ -298,6 +331,11 @@ export function App() {
 
   const handleStopGame = async () => {
     if (!window.electronAPI) return
+
+    if (engine === 'horizon') {
+      await window.electronAPI.horizonStop?.().catch(() => false)
+      return
+    }
     // Останавливаем именно запущенный процесс, а не выделенную строку списка
     const targetId = launchProgress?.stage === 'running'
       ? launchProgress.instanceId
@@ -315,6 +353,7 @@ export function App() {
   }
 
   const handleSaveSettings = (newSettings: Partial<LauncherSettings>) => {
+    setSettings((prev) => ({ ...(prev || {}), ...newSettings } as LauncherSettings))
     if (window.electronAPI) {
       window.electronAPI.saveSettings(newSettings)
     }
@@ -410,6 +449,7 @@ export function App() {
           onDeleteAccount={handleDeleteAccount}
           onNavigate={(section) => setNavSection(section)}
           onOpenSettings={() => setIsSettingsOpen(true)}
+          onOpenHorizon={() => setIsHorizonOpen(true)}
         />
 
         <main className="main-content">
@@ -437,6 +477,11 @@ export function App() {
             instances={instances}
             selectedInstance={selectedInstance}
             hasAccount={accounts.length > 0}
+            engine={engine}
+            horizonInstalled={horizonReady}
+            horizonOwner={!!horizonState?.owner}
+            horizonPlaying={!!horizonState?.playing}
+            horizonBusy={!!horizonState?.busy}
             onSelectInstance={handleSelectInstance}
             onLaunch={handleLaunch}
             onStop={handleStopGame}
@@ -469,6 +514,8 @@ export function App() {
         onClose={() => setIsSettingsOpen(false)}
         onSave={handleSaveSettings}
       />
+
+      <HorizonModal isOpen={isHorizonOpen} onClose={() => setIsHorizonOpen(false)} />
 
       {selectedInstance && (
         <ModDownloaderModal

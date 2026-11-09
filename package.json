@@ -13,7 +13,8 @@
     "dev": "vite",
     "compile": "tsc && vite build",
     "test": "vitest run",
-    "build": "tsc && vite build && electron-builder --publish never",
+    "build": "node scripts/fetch-horizon.mjs && tsc && vite build && electron-builder --publish never",
+    "fetch:horizon": "node scripts/fetch-horizon.mjs --required",
     "build:web": "tsc && vite build --config vite.config.web.ts",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview"
@@ -64,6 +65,15 @@
     "files": [
       "dist/**/*",
       "dist-electron/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "dist-horizon",
+        "to": "horizon",
+        "filter": [
+          "**/*"
+        ]
+      }
     ],
     "win": {
       "target": [

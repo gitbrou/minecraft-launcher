@@ -102,7 +102,7 @@ export function ensurePlatformBridge() {
 
     getVersions: async () => ({ latest: { release: '', snapshot: '' }, versions: [] }),
 
-    getSettings: async () => ({ javaPath: '', memoryMin: 1024, memoryMax: 4096, customJvmArgs: '', closeLauncherOnGameStart: false, fullscreen: false, hideLauncher: false, ...stubState.settings }),
+    getSettings: async () => ({ engine: 'horizon' as const, javaPath: '', memoryMin: 1024, memoryMax: 4096, customJvmArgs: '', closeLauncherOnGameStart: false, fullscreen: false, hideLauncher: false, ...stubState.settings }),
     saveSettings: async (s: Record<string, unknown>) => {
       stubState.settings = { ...stubState.settings, ...s }
       return stubState.settings
@@ -135,6 +135,37 @@ export function ensurePlatformBridge() {
       username, uuid: '', worldsCount: 0, worlds: [],
       instancesCount: 0, modsCount: 0, lastPlayedFormatted: '—'
     }),
+
+    horizonStatus: async () => ({
+      installed: false,
+      version: '',
+      latest: '',
+      updateAvailable: false,
+      launcherPath: '',
+      playing: false,
+      busy: null,
+      gameVersions: [],
+      selectedVersion: null,
+      accountName: null,
+      owner: false,
+      offline: [],
+      minecraftDir: '',
+      lastError: ''
+    }),
+    horizonCheckUpdate: async () => { throw new Error('Horizon доступен только в приложении') },
+    horizonInstall: async () => { throw new Error('Horizon доступен только в приложении') },
+    horizonVersions: async () => [],
+    horizonInstallGame: async () => { throw new Error('Horizon доступен только в приложении') },
+    horizonPrepare: async () => { throw new Error('Horizon доступен только в приложении') },
+    horizonSetMinecraftDir: async () => null,
+    horizonSignIn: async () => false,
+    horizonOffline: async () => { throw new Error('Horizon доступен только в приложении') },
+    horizonPlay: async () => { throw new Error('Horizon доступен только в приложении') },
+    horizonStop: async () => false,
+    onHorizonState: () => () => {},
+    onHorizonProgress: () => () => {},
+    onHorizonLog: () => () => {},
+    onHorizonAuth: () => () => {},
 
     onLaunchProgress: () => () => {},
     onGameLog: () => () => {},

@@ -95,6 +95,7 @@ export function installAndroidBridge(): boolean {
   }
 
   let cachedSettings: LauncherSettings = read(native.getSettings(), {
+    engine: 'java',
     javaPath: '',
     memoryMin: 1024,
     memoryMax: 4096,
@@ -178,6 +179,37 @@ export function installAndroidBridge(): boolean {
     downloadUpdate: async () => ({ ok: false }),
     installUpdate: async () => false,
     onUpdateState: () => () => {},
+
+    horizonStatus: async () => ({
+      installed: false,
+      version: '',
+      latest: '',
+      updateAvailable: false,
+      launcherPath: '',
+      playing: false,
+      busy: null,
+      gameVersions: [],
+      selectedVersion: null,
+      accountName: null,
+      owner: false,
+      offline: [],
+      minecraftDir: '',
+      lastError: ''
+    }),
+    horizonCheckUpdate: async () => { throw new Error('Horizon пока только на ПК') },
+    horizonInstall: async () => { throw new Error('Horizon пока только на ПК') },
+    horizonVersions: async () => [],
+    horizonInstallGame: async () => { throw new Error('Horizon пока только на ПК') },
+    horizonPrepare: async () => { throw new Error('Horizon пока только на ПК') },
+    horizonSetMinecraftDir: async () => null,
+    horizonSignIn: async () => false,
+    horizonOffline: async () => { throw new Error('Horizon пока только на ПК') },
+    horizonPlay: async () => { throw new Error('Horizon пока только на ПК') },
+    horizonStop: async () => false,
+    onHorizonState: () => () => {},
+    onHorizonProgress: () => () => {},
+    onHorizonLog: () => () => {},
+    onHorizonAuth: () => () => {},
 
     onLaunchProgress: (callback: (data: LaunchProgress) => void) => {
       progressListeners.add(callback)

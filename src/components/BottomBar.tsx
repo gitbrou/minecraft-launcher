@@ -12,6 +12,11 @@ interface BottomBarProps {
   instances: Instance[]
   selectedInstance: Instance | null
   hasAccount: boolean
+  engine: 'java' | 'horizon'
+  horizonInstalled: boolean
+  horizonOwner: boolean
+  horizonPlaying: boolean
+  horizonBusy: boolean
   onSelectInstance: (instance: Instance) => void
   onLaunch: () => void
   onStop: () => void
@@ -28,6 +33,11 @@ export const BottomBar: React.FC<BottomBarProps> = ({
   instances,
   selectedInstance,
   hasAccount,
+  engine,
+  horizonInstalled,
+  horizonOwner,
+  horizonPlaying,
+  horizonBusy,
   onSelectInstance,
   onLaunch,
   onStop,
@@ -51,16 +61,23 @@ export const BottomBar: React.FC<BottomBarProps> = ({
   const isActiveProgress = (p: LaunchProgress | null) =>
     p && (p.stage === 'downloading' || p.stage === 'checking' || p.stage === 'launching' || p.stage === 'extracting')
 
-  const isActiveForSelected = isActiveProgress(launchProgress) && launchProgress!.instanceId === selectedInstance?.id
-  const isRunning = launchProgress?.stage === 'running' && launchProgress.instanceId === selectedInstance?.id
+  const useHorizon = engine === 'horizon'
+  const isActiveForSelected = !useHorizon && isActiveProgress(launchProgress) && launchProgress!.instanceId === selectedInstance?.id
+  const isRunning = useHorizon ? horizonPlaying : launchProgress?.stage === 'running' && launchProgress.instanceId === selectedInstance?.id
 
   // Почему кнопка недоступна — показываем пользователю текст, а не просто серую кнопку
   let disabledReason: string | null = null
-  if (!selectedInstance) disabledReason = 'Создайте сборку, чтобы играть'
+  if (useHorizon) {
+    if (!horizonInstalled) disabledReason = 'Horizon не установлен'
+    else if (!horizonOwner) disabledReason = 'Нужен вход в Microsoft с лицензией Minecraft'
+    else if (horizonBusy) disabledReason = 'Horizon уже что-то делает'
+  } else if (!selectedInstance) disabledReason = 'Создайте сборку, чтобы играть'
   else if (!hasAccount) disabledReason = 'Добавьте аккаунт на панели слева'
 
-  const disabled = !!disabledReason || isActiveForSelected || isRunning
-  const errorText = launchProgress?.stage === 'error' && launchProgress?.instanceId === selectedInstance?.id
+  // Без установки и без входа кнопка не блокируется: по клику откроется панель Horizon
+  const horizonNeedsSetup = useHorizon && (!horizonInstalled || !horizonOwner)
+  const disabled = (!!disabledReason && !horizonNeedsSetup) || isActiveForSelected || isRunning
+  const errorText = !useHorizon && launchProgress?.stage === 'error' && launchProgress?.instanceId === selectedInstance?.id
     ? launchProgress.statusText
     : null
 
@@ -72,7 +89,9 @@ export const BottomBar: React.FC<BottomBarProps> = ({
     return 'Играть'
   }
 
-  const shortReason = !selectedInstance ? 'Нет сборки' : !hasAccount ? 'Нет аккаунта' : null
+  const shortReason = useHorizon
+    ? (!horizonInstalled ? 'Установить Horizon' : !horizonOwner ? 'Войти в Horizon' : horizonBusy ? 'Занято' : null)
+    : (!selectedInstance ? 'Нет сборки' : !hasAccount ? 'Нет аккаунта' : null)
 
   return (
     <>
@@ -84,7 +103,16 @@ export const BottomBar: React.FC<BottomBarProps> = ({
       <div className="bottom-bar">
         <div className="bottom-bar-inner">
           <div className="launch-instance-selector" ref={menuRef}>
-            <button
+            {useHorizon ? (
+              <div className="launch-target launch-target-static">
+                <span className="launch-target-main">
+                  <span className="launch-target-name">Horizon</span>
+                  <span className="launch-target-sub">Клиент на Rust · 26.3</span>
+                </span>
+              </div>
+            ) : (
+              <>
+                <button
               className="launch-target"
               onClick={() => setDropdownOpen(!dropdownOpen)}
               aria-haspopup="listbox"
@@ -117,11 +145,13 @@ export const BottomBar: React.FC<BottomBarProps> = ({
                 ))}
               </div>
             )}
+              </>
+            )}
           </div>
 
           <div className="bottom-bar-fill" />
 
-          {launchProgress?.stage === 'running' && (
+          {isRunning && (
             <button className="btn stop-button" onClick={onStop} title="Остановить игру">
               <IconStop /> Остановить
             </button>

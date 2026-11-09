@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { LauncherSettings } from '../types'
 import { useFocusTrap } from '../hooks/useFocusTrap'
+import { isAndroid } from '../platform/androidBridge'
 
 interface SettingsModalProps {
   isOpen: boolean
@@ -22,6 +23,7 @@ const Switch: React.FC<{ checked: boolean; onChange: (v: boolean) => void; label
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onSave }) => {
   const [settings, setSettings] = useState<LauncherSettings>({
+    engine: 'horizon',
     javaPath: '',
     memoryMin: 1024,
     memoryMax: 4096,
@@ -40,6 +42,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
       window.electronAPI.getSettings().then((s: LauncherSettings) => {
         if (s) {
           setSettings({
+            engine: s.engine === 'java' ? 'java' : 'horizon',
             javaPath: s.javaPath || '',
             memoryMin: s.memoryMin || 1024,
             memoryMax: s.memoryMax || 4096,
@@ -94,6 +97,39 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
         </div>
 
         <div className="modal-body settings-body">
+          {!isAndroid() && (
+            <section className="settings-section">
+              <h3 className="settings-section-title">Движок</h3>
+              <div className="engine-options" role="radiogroup" aria-label="Движок игры">
+                <button
+                  className={`engine-option ${settings.engine === 'horizon' ? 'active' : ''}`}
+                  role="radio"
+                  aria-checked={settings.engine === 'horizon'}
+                  onClick={() => setSettings({ ...settings, engine: 'horizon' })}
+                >
+                  <span className="engine-option-name">Horizon</span>
+                  <span className="engine-option-sub">
+                    Свой клиент на Rust, версия 26.3. Моды .hmod, Java-сборки и Modrinth не подходят. Нужен вход в Microsoft с купленным Minecraft.
+                  </span>
+                </button>
+                <button
+                  className={`engine-option ${settings.engine === 'java' ? 'active' : ''}`}
+                  role="radio"
+                  aria-checked={settings.engine === 'java'}
+                  onClick={() => setSettings({ ...settings, engine: 'java' })}
+                >
+                  <span className="engine-option-name">Java</span>
+                  <span className="engine-option-sub">
+                    Обычный Minecraft: ванилла, Fabric, Quilt и моды с Modrinth.
+                  </span>
+                </button>
+              </div>
+              <span className="settings-hint">
+                Кнопка «Играть» запускает выбранный движок. Horizon ставится и обновляется в меню слева.
+              </span>
+            </section>
+          )}
+
           <section className="settings-section">
             <h3 className="settings-section-title">Память</h3>
             <div className="settings-field">

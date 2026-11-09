@@ -8,7 +8,11 @@ import type {
   LauncherSettings,
   MinecraftVersion,
   UpdateState,
-  DeepLinkResult
+  DeepLinkResult,
+  HorizonAuth,
+  HorizonProgress,
+  HorizonState,
+  HorizonVersion
 } from '../src/types'
 
 const electronAPI = {
@@ -75,7 +79,41 @@ const electronAPI = {
     return () => { ipcRenderer.removeListener('updater:state', handler) }
   },
 
+  // Horizon (Java 26.3 на Rust)
+  horizonStatus: (): Promise<HorizonState> => ipcRenderer.invoke('horizon:status'),
+  horizonCheckUpdate: (): Promise<HorizonState> => ipcRenderer.invoke('horizon:check-update'),
+  horizonInstall: (): Promise<HorizonState> => ipcRenderer.invoke('horizon:install'),
+  horizonVersions: (): Promise<HorizonVersion[]> => ipcRenderer.invoke('horizon:versions'),
+  horizonInstallGame: (tag: string): Promise<HorizonState> => ipcRenderer.invoke('horizon:install-game', tag),
+  horizonPrepare: (options: { download?: boolean; version?: string }): Promise<HorizonState> =>
+    ipcRenderer.invoke('horizon:prepare', options),
+  horizonSetMinecraftDir: (): Promise<HorizonState | null> => ipcRenderer.invoke('horizon:set-minecraft-dir'),
+  horizonSignIn: (): Promise<boolean> => ipcRenderer.invoke('horizon:sign-in'),
+  horizonOffline: (name: string): Promise<HorizonState> => ipcRenderer.invoke('horizon:offline', name),
+  horizonPlay: (version?: string) => ipcRenderer.invoke('horizon:play', version),
+  horizonStop: (): Promise<boolean> => ipcRenderer.invoke('horizon:stop'),
+
   // Subscriptions
+  onHorizonState: (callback: (state: HorizonState) => void) => {
+    const handler = (_event: unknown, state: HorizonState) => callback(state)
+    ipcRenderer.on('horizon:state', handler)
+    return () => { ipcRenderer.removeListener('horizon:state', handler) }
+  },
+  onHorizonProgress: (callback: (progress: HorizonProgress) => void) => {
+    const handler = (_event: unknown, progress: HorizonProgress) => callback(progress)
+    ipcRenderer.on('horizon:progress', handler)
+    return () => { ipcRenderer.removeListener('horizon:progress', handler) }
+  },
+  onHorizonLog: (callback: (line: string) => void) => {
+    const handler = (_event: unknown, line: string) => callback(line)
+    ipcRenderer.on('horizon:log', handler)
+    return () => { ipcRenderer.removeListener('horizon:log', handler) }
+  },
+  onHorizonAuth: (callback: (auth: HorizonAuth) => void) => {
+    const handler = (_event: unknown, auth: HorizonAuth) => callback(auth)
+    ipcRenderer.on('horizon:auth', handler)
+    return () => { ipcRenderer.removeListener('horizon:auth', handler) }
+  },
   onLaunchProgress: (callback: (data: LaunchProgress) => void) => {
     const handler = (_event: unknown, data: LaunchProgress) => callback(data)
     ipcRenderer.on('launch-progress', handler)

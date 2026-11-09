@@ -17,6 +17,7 @@ interface SidebarProps {
   onDeleteAccount: (id: string) => void
   onNavigate: (section: NavSection) => void
   onOpenSettings: () => void
+  onOpenHorizon: () => void
 }
 
 const NavItems: Array<{ id: NavSection; label: string; icon: React.FC; needsInstance?: boolean; needsAccount?: boolean }> = [
@@ -71,7 +72,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onAddAccount,
   onDeleteAccount,
   onNavigate,
-  onOpenSettings
+  onOpenSettings,
+  onOpenHorizon
 }) => {
   const [isAdding, setIsAdding] = useState(false)
   const [input, setInput] = useState('')
@@ -215,6 +217,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
         ) : (
           <button className="btn-add-account" onClick={() => setIsAdding(true)}>
             + Добавить аккаунт
+          </button>
+        )}
+        {!isAndroid() && (
+          <button className="side-action" onClick={onOpenHorizon} title="Отдельный клиент Java 26.3 на Rust">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M4 15l4-9 4 5 4-7 4 11" />
+              <path d="M3 19h18" />
+            </svg>
+            <span>Horizon</span>
           </button>
         )}
         <button className="side-action" onClick={onOpenSettings}>
