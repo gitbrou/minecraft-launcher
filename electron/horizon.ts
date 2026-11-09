@@ -14,6 +14,22 @@ import type { HorizonAuth, HorizonProgress, HorizonState, HorizonVersion } from 
 const RELEASES_API = 'https://api.github.com/repos/horizon-rust/horizon/releases?per_page=20'
 const ASSET_PREFIX = 'horizon-launcher-'
 const RELEASE_CACHE_MS = 5 * 60 * 1000
+const NETWORK_HINT = 'Нет связи с GitHub. Если провайдер его блокирует, включите VPN или прокси и попробуйте снова.'
+
+function networkError(err: unknown): Error | null {
+  const cause = (err as { cause?: { code?: string } })?.cause
+  const text = `${cause?.code || ''} ${err instanceof Error ? err.message : String(err)}`
+  if (!/fetch failed|net::|ERR_|ECONN|ENOTFOUND|ETIMEDOUT|handshake|socket|aborted/i.test(text)) return null
+  return new Error(`${NETWORK_HINT} (${text.trim().slice(0, 120)})`)
+}
+
+async function fetchWithTimeout(url: string, init: RequestInit, ms: number): Promise<Response> {
+  try {
+    return await fetch(url, { ...init, signal: AbortSignal.timeout(ms) })
+  } catch (err) {
+    throw networkError(err) || err
+  }
+}
 
 export interface HorizonAsset {
   name: string
@@ -309,9 +325,9 @@ export class HorizonManager {
     if (!force && this.releaseCache && Date.now() - this.releaseCache.fetchedAt < RELEASE_CACHE_MS) {
       return this.releaseCache
     }
-    const res = await fetch(RELEASES_API, {
+    const res = await fetchWithTimeout(RELEASES_API, {
       headers: { 'User-Agent': 'Mine-Launcher', Accept: 'application/vnd.github+json' }
-    })
+    }, 25000)
     if (!res.ok) throw new Error(`GitHub ответил ${res.status} на запрос релизов Horizon`)
     const releases = (await res.json()) as HorizonRelease[]
     for (const release of releases) {
@@ -337,7 +353,7 @@ export class HorizonManager {
   }
 
   private async download(url: string, dest: string, label: string): Promise<string> {
-    const res = await fetch(url, { redirect: 'follow', headers: { 'User-Agent': 'Mine-Launcher' } })
+    const res = await fetchWithTimeout(url, { redirect: 'follow', headers: { 'User-Agent': 'Mine-Launcher' } }, 15 * 60 * 1000)
     if (!res.ok || !res.body) throw new Error(`Не удалось скачать ${label}: ${res.status}`)
     const total = Number(res.headers.get('content-length') || 0)
     const hash = createHash('sha256')
@@ -352,7 +368,11 @@ export class HorizonManager {
         done(null, chunk)
       }
     })
-    await pipeline(body, meter, fs.createWriteStream(dest))
+    try {
+      await pipeline(body, meter, fs.createWriteStream(dest))
+    } catch (err) {
+      throw networkError(err) || err
+    }
     this.events.progress({ stage: 'launcher', text: label, percent: 100 })
     return hash.digest('hex')
   }

@@ -214,7 +214,7 @@ export const HorizonModal: React.FC<HorizonModalProps> = ({ isOpen, onClose }) =
                 Horizon это отдельная игра, не Java-сборка. Ставится рядом с лаунчером, примерно 21 МБ.
                 Без входа в Microsoft играет оффлайн: одиночная игра и LAN.
               </p>
-              <button className="btn btn-primary" onClick={installLauncher}>Установить Horizon</button>
+              <button className="btn btn-primary" onClick={installLauncher} disabled={busy}>Установить Horizon</button>
             </div>
           )}
 
@@ -229,7 +229,7 @@ export const HorizonModal: React.FC<HorizonModalProps> = ({ isOpen, onClose }) =
                   </div>
                 </div>
                 {state.updateAvailable && (
-                  <button className="btn btn-sm" onClick={installLauncher}>Обновить</button>
+                  <button className="btn btn-sm" onClick={installLauncher} disabled={busy}>Обновить</button>
                 )}
               </div>
 
