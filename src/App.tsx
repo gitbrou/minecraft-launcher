@@ -315,8 +315,10 @@ export function App() {
         setIsHorizonOpen(true)
         setToast('Готовлю игру Horizon, это займёт пару минут')
       }
+      const activeNick = accounts.find((a) => a.isActive)?.username || ''
+      const nick = /^[A-Za-z0-9_]{3,16}$/.test(activeNick) ? activeNick : undefined
       const launch = offline
-        ? window.electronAPI.horizonPlayOffline({ fullscreen: !!settings?.fullscreen })
+        ? window.electronAPI.horizonPlayOffline({ nickname: nick, fullscreen: !!settings?.fullscreen })
         : window.electronAPI.horizonPlay()
       launch.catch((err: Error) => {
         setToast(`Horizon: ${err.message}`)

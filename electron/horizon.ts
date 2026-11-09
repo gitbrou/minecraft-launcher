@@ -671,6 +671,7 @@ export class HorizonManager {
     delete env.HORIZON_ACCOUNT_SESSIONS
 
     const args = ['--resources', this.resourcesDir(tag)]
+    if (options.nickname) args.push('--name', options.nickname)
     if (options.fullscreen && this.supportsFullscreen(tag)) args.push('--fullscreen')
     this.trackGame(spawn(this.clientExe(tag), args, {
       cwd: home,

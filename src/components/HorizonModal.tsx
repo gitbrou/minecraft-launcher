@@ -74,6 +74,14 @@ export const HorizonModal: React.FC<HorizonModalProps> = ({ isOpen, onClose }) =
       .catch((err) => setNote(cleanError(err, 'Не удалось прочитать состояние Horizon')))
       .finally(() => { if (!cancelled) setLoading(false) })
 
+    // Ник из активного оффлайн-аккаунта лаунчера — чтобы в игре был он,
+    // а не сгенерированный Player12345.
+    window.electronAPI.getAccounts().then((list) => {
+      if (cancelled) return
+      const nick = list.find((a) => a.isActive)?.username || ''
+      if (/^[A-Za-z0-9_]{3,16}$/.test(nick)) setOffline((prev) => prev || nick)
+    }).catch(() => {})
+
     const offState = window.electronAPI.onHorizonState((next) => setState(next))
     const offProgress = window.electronAPI.onHorizonProgress((next) => setProgress(next))
     const offLog = window.electronAPI.onHorizonLog((line) => {
