@@ -9,6 +9,7 @@ import { SettingsModal } from './components/SettingsModal'
 import { ModDownloaderModal } from './components/ModDownloaderModal'
 import { HorizonModal } from './components/HorizonModal'
 import { installUpdate, isAndroid } from './platform/androidBridge'
+import { pickEngine } from './utils/engine'
 
 export function App() {
   const [accounts, setAccounts] = useState<Account[]>([])
@@ -289,19 +290,17 @@ export function App() {
   const engine = isAndroid() ? 'java' : (settings?.engine || 'horizon')
   const horizonReady = !!horizonState?.installed
 
-  // Движок из настроек главный: Horizon всегда запускает свою 26.3,
-  // Java — выбранную сборку. Кнопка «Играть» внизу работает по этому правилу.
-  const activeEngine: 'horizon' | 'java' = engine
+  // Сборка 26.3 на ванилле может идти через Horizon. Всё остальное — через Java,
+  // даже если в настройках выбран Horizon: выбранную сборку не подменяем.
+  const activeEngine: 'horizon' | 'java' = pickEngine(engine, selectedInstance)
 
   // Launch — принимает необязательную сборку (quick-play с карточки)
   const handleLaunch = (instance?: Instance) => {
     if (!window.electronAPI) return
 
     const target = instance || selectedInstance
-    const fitsHorizon = !target || (target.version === '26.3' && target.loader === 'vanilla')
-    // Явный клик по карточке сборки уважаем: Horizon берём только если она подходит,
-    // иначе играем именно эту сборку на Java.
-    const useHorizon = engine === 'horizon' && (!instance || fitsHorizon)
+    // Horizon умеет только 26.3. Любую другую выбранную сборку запускаем на Java.
+    const useHorizon = pickEngine(engine, target) === 'horizon'
 
     if (useHorizon) {
       if (!horizonReady) {

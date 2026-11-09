@@ -61,7 +61,7 @@ export const BottomBar: React.FC<BottomBarProps> = ({
 
   const useHorizon = engine === 'horizon'
   const isActiveForSelected = !useHorizon && isActiveProgress(launchProgress) && launchProgress!.instanceId === selectedInstance?.id
-  const isRunning = useHorizon ? horizonPlaying : launchProgress?.stage === 'running' && launchProgress.instanceId === selectedInstance?.id
+  const isRunning = horizonPlaying || (launchProgress?.stage === 'running' && launchProgress.instanceId === selectedInstance?.id)
 
   // Почему кнопка недоступна — показываем пользователю текст, а не просто серую кнопку
   let disabledReason: string | null = null
@@ -100,16 +100,7 @@ export const BottomBar: React.FC<BottomBarProps> = ({
       <div className="bottom-bar">
         <div className="bottom-bar-inner">
           <div className="launch-instance-selector" ref={menuRef}>
-            {useHorizon ? (
-              <div className="launch-target launch-target-static">
-                <span className="launch-target-main">
-                  <span className="launch-target-name">Horizon</span>
-                  <span className="launch-target-sub">Клиент на Rust · 26.3</span>
-                </span>
-              </div>
-            ) : (
-              <>
-                <button
+            <button
               className="launch-target"
               onClick={() => setDropdownOpen(!dropdownOpen)}
               aria-haspopup="listbox"
@@ -141,8 +132,6 @@ export const BottomBar: React.FC<BottomBarProps> = ({
                   </div>
                 ))}
               </div>
-            )}
-              </>
             )}
           </div>
 
